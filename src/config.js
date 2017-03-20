@@ -4,7 +4,8 @@
  */
 import nconf from 'nconf';
 
-export default nconf.overrides({})
+module.exports = nconf
+                .overrides({})
                 .argv()
                 .env({ separator: '__' })
                 .file('config.json')
