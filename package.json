@@ -6,11 +6,13 @@
   "scripts": {
     "prepublish": "npm run babel",
     "build": "npm run babel",
-    "babel": "rm -rf ./dist",
-    "dev": "rm -rf ./dist",
-    "cli": "babel-node ./src/cli.js",
-    "run": "babel-node ./src/index.js",
+    "babel": "rm -rf ./dist babel --out-dir dist --copy-files",
+    "dev": "rm -rf ./dist && babel --source-maps -w src --out-dir dist --copy-files",
+    "cli": "babel-node ./dist/cli.js",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "datcat": "./bin/index.js"
   },
   "author": "",
   "private": true,
