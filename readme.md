@@ -26,14 +26,3 @@ and then look inside src/cli.js for some other commands you can run, such as:
 ```
 npm run cli --checkout --author="Ackbar Abbas" --title="Hong Kong Culture and the Politics of Disappearance (58)"
 ```
-
-## Dev
-
-To access Vue devtools in Electron you must install them in chrome first.
-
-## Todo:
-
-1. Setup webpack build for different environments
-  - enable hotloading and source mapping
-2. Basic tests using mocha/chai
-  - mostly for catalogue functions
