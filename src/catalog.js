@@ -1,8 +1,10 @@
 import path from 'path';
+import fs from 'fs';
 import Promise from 'bluebird';
 import db from 'knex';
 import parser from 'another-name-parser';
 import chalk from 'chalk';
+import config from './config';
 
 import DatWrapper, { listDatContents, importFiles } from './dat';
 import { opf2js } from './opf';
@@ -260,8 +262,17 @@ export class Catalog {
 
 }
 
-export function createCatalog(dataDir) {
-  const catalog = new Catalog(dataDir);
+export function createCatalog(dataDir = false) {
+  // Directory to store all the data in
+  let dataDirFinal = path.join(process.cwd(), config.get('dataDir'));
+  dataDirFinal = dataDir || dataDirFinal;
+
+  // Create data directory if it doesn't exist yet
+  if (!fs.existsSync(dataDirFinal)) {
+    fs.mkdirSync(dataDirFinal);
+  }
+
+  const catalog = new Catalog(dataDirFinal);
   return catalog.initDatabase().then(() => catalog);
 }
 

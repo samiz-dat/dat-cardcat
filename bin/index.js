@@ -1,4 +1,9 @@
 #!/usr/bin/env node
 
-console.log('This is where you can put all the cli actions');
-console.log('perhaps we should use commander');
+const cmd = require('commander');
+
+cmd
+  .version('0.0.1')
+  .command('run', 'run the card catalogue', { isDefault: true })
+  .command('import-cat [key] [name]', 'import cardcat with "key" giving it a readable "name"')
+  .parse(process.argv);
