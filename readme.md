@@ -1,6 +1,6 @@
-# Dat Library
+# Dat Card Catalogue
 
-The beginings of a distributed library.
+An aggregated card catalogue for many Calibre libraries (or any collections with a directory structure that is __Creator/Creation/Files.ext__).
 
 ## Setup
 
@@ -9,12 +9,10 @@ The beginings of a distributed library.
 npm install
 
 # run in development
-# this will watch dat-cardcat for any changes and instantly recompile 
+# this will watch dat-cardcat for any changes and instantly recompile
 # the library so that cli and other projects immediately receive updated code.
 npm run dev
 
-# build for production
-npm run build
 ```
 
 While not published on NPM yet you can integrate this into other projects or make it available on the command line via npm link.
@@ -36,10 +34,8 @@ npm link dat-cardcat
 
 For testing, the first time you run, you should do:
 ```bash
-npm run cli --dat=96171cc0845174e7e3c73592479cd9ca8d4caf1d039e6f38a0c06f48dff88bd1 --name="South Asian Scholarship"
-```
-
-and then look inside src/cli.js for some other commands you can run, such as:
-```bash
-npm run cli --checkout --author="Ackbar Abbas" --title="Hong Kong Culture and the Politics of Disappearance (58)"
+# Import an already existing card catalogue
+datcat import-cat 96171cc0845174e7e3c73592479cd9ca8d4caf1d039e6f38a0c06f48dff88bd1 "South Asian Scholarship"
+# Check something out from it
+datcat checkout "Ackbar Abbas" "Hong Kong Culture and the Politics of Disappearance (58)"
 ```
