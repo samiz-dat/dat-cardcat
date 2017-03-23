@@ -214,9 +214,14 @@ export class Catalog {
   }
 
   // Gets a count of authors in the catalog
-  getAuthors() {
-    return this.db.select('author').from('texts')
-      .countDistinct('title as count')
+  getAuthors(startingWith = false) {
+    const exp = this.db.select('author').from('texts')
+      .countDistinct('title as count');
+    if (startingWith) {
+      const s = `${startingWith}%`;
+      exp.where('author_sort', 'like', s);
+    }
+    return exp
       .groupBy('author')
       .orderBy('author_sort');
   }
