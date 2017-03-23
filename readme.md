@@ -38,4 +38,16 @@ For testing, the first time you run, you should do:
 datcat import-cat 96171cc0845174e7e3c73592479cd9ca8d4caf1d039e6f38a0c06f48dff88bd1 "South Asian Scholarship"
 # Check something out from it
 datcat checkout "Ackbar Abbas" "Hong Kong Culture and the Politics of Disappearance (58)"
+# Import a local directory to create a new cardcat
+datcat create-cat "/Path/To/Some/Calibre Library" "My Library"
+# query
+datcat query "hong kong"
+# List all authors
+datcat author list
+# List all authors and show title count
+datcat author -c list
+# List all authors beginning with a
+datcat author list a
+# Get titles for an author
+datcat author titles "Ackbar Abbas"
 ```
