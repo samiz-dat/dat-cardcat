@@ -5,7 +5,6 @@ import Promise from 'bluebird';
 import chalk from 'chalk';
 import pda from 'pauls-dat-api';
 
-
 // Lists the contents of a dat
 export function listDatContents(dat) {
   const archive = dat.archive;

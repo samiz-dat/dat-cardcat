@@ -256,6 +256,7 @@ export class Catalog {
   }
 
   getDats = () => this.db('dats').select();
+  getDat = key => this.db('dats').select().where('dat', key);
 
   // Returns opf metadata object for an item, optionally preferring a specific library.
   getOpf(author, title, dat = false) {
