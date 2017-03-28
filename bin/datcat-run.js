@@ -39,13 +39,43 @@ const textChoices = [
   },
 ];
 
-function textChoiceTask() {
-  return inquirer.prompt(textChoices).then((answers) => {
-    const args = answers.choice.split('\t');
-    return cardcat.getDatsWithTitle(args[0], args[1])
-      .then(rows => cardcat.checkout(args[0], args[1], rows.shift().dat));
-  });
-}
+const authorTaskChoices = [
+  {
+    type: 'list',
+    name: 'choice',
+    message: 'Select one:',
+    choices: [
+      'List titles',
+      'Checkout everything',
+    ],
+  },
+];
+
+const importQuestions = [
+  {
+    type: 'input',
+    name: 'key',
+    message: 'Enter cardcat key:',
+  },
+  {
+    type: 'input',
+    name: 'name',
+    message: 'Give a short, human-readable name:',
+  },
+];
+
+const createQuestions = [
+  {
+    type: 'input',
+    name: 'dir',
+    message: 'Enter directory to create a cardcat for:',
+  },
+  {
+    type: 'input',
+    name: 'name',
+    message: 'Give a short, human-readable name:',
+  },
+];
 
 const searchQuestions = [
   {
@@ -55,20 +85,95 @@ const searchQuestions = [
   },
 ];
 
+function textChoiceTask(choices) {
+  textChoices[0].choices = choices;
+  return inquirer.prompt(textChoices).then((answers) => {
+    const args = answers.choice.split('\t');
+    return cardcat.checkout(args[0], args[1]);
+  });
+}
+
+function importTask() {
+  return inquirer.prompt(importQuestions).then(answers =>
+    cardcat.importDat({
+      key: answers.key,
+      name: answers.name,
+      sparse: true })
+  );
+}
+
+function createTask() {
+  return inquirer.prompt(createQuestions)
+    .then(answers => cardcat.importDir(answers.dir, answers.name))
+    .catch(e => console.log(e));
+}
+
 function searchTask() {
   return inquirer.prompt(searchQuestions).then((answers) => {
     textChoices[0].choices = [];
     return cardcat.search(answers.query)
-    .then((rows) => {
-      const choices = [];
-      for (const doc of rows) {
-        choices.push(`${doc.author}\t${doc.title}`);
+      .then((rows) => {
+        const choices = [];
+        for (const doc of rows) {
+          choices.push(`${doc.author}\t${doc.title}`);
+        }
+        return textChoiceTask(choices);
+      });
+  });
+}
+
+function authorTasks(author) {
+  // Lists all the titles for an author
+  function titlesForAuthor(a) {
+    return cardcat.getTitlesForAuthor(a)
+      .then((titles) => {
+        const choices = [];
+        for (const doc of titles) {
+          choices.push(`${a}\t${doc.title}`);
+        }
+        return textChoiceTask(choices);
+      });
+  }
+  // Handle choice
+  return inquirer.prompt(authorTaskChoices)
+  .then((answers) => {
+    switch (answers.choice) {
+      case 'List titles': {
+        return titlesForAuthor(author);
       }
-      return choices;
-    })
-    .then((choices) => {
-      textChoices[0].choices = choices;
-      return textChoiceTask();
+      case 'Checkout everything': {
+        console.log(`Checking out everything for ${author}`);
+        return cardcat.checkout(author);
+      }
+      default: {
+        return titlesForAuthor(author);
+      }
+    }
+  });
+}
+
+function browseAuthorsTask(authors) {
+  textChoices[0].choices = [];
+  for (const doc of authors) {
+    textChoices[0].choices.push(`${doc.author}\t${doc.count} items`);
+  }
+  return inquirer.prompt(textChoices).then((answers) => {
+    const args = answers.choice.split('\t');
+    return authorTasks(args[0]);
+  });
+}
+
+function browseTask() {
+  textChoices[0].choices = [];
+  return cardcat.getAuthorLetters().then((rows) => {
+    const choices = [];
+    for (const doc of rows) {
+      choices.push(doc.letter);
+    }
+    textChoices[0].choices = choices;
+    return inquirer.prompt(textChoices).then((answers) => {
+      return cardcat.getAuthors(answers.choice)
+        .then(authors => browseAuthorsTask(authors));
     });
   });
 }
@@ -88,8 +193,17 @@ function getTask() {
   inquirer.prompt(taskQuestions)
   .then((answers) => {
     switch (answers.task) {
+      case 'Use a key to import an existing cardcat': {
+        return importTask();
+      }
+      case 'Create a new cardcat from a directory': {
+        return createTask();
+      }
       case 'Search for something': {
         return searchTask();
+      }
+      case 'Browse by author name': {
+        return browseTask();
       }
       default: {
         console.log(`${answers.task} aren't handled yet`);

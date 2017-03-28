@@ -198,8 +198,19 @@ export class Catalog {
   }
 
   // Checks out an item by author and title and dat
-  // @todo: make this work... not actually downloading yet
-  checkout(author, title, datKey) {
+  checkout(author, title = false) {
+    if (title) {
+      return this.getDatsWithTitle(author, title)
+        .then(rows => this.download(author, title, rows.shift().dat));
+    }
+    // When there is no title specified, get every title
+    return this.getTitlesForAuthor(author)
+      .map(row => row)
+      .each(row => this.download(author, row.title, row.dat));
+  }
+
+  // Checks out an item by author and title and dat
+  download(author, title, datKey) {
     console.log(`checking out ${author}/${title} from ${datKey}`);
     return this.dats[datKey].downloadContent(path.join(author, title));
   }
@@ -224,6 +235,15 @@ export class Catalog {
     return exp
       .groupBy('author')
       .orderBy('author_sort');
+  }
+
+  // Gets a list of letters of authors, for generating a directory
+  getAuthorLetters() {
+    return this.db.column(this.db.raw('lower(substr(author_sort,1,1)) as letter'))
+      .select()
+      .from('texts')
+      .distinct('letter')
+      .orderBy('letter');
   }
 
   getTitlesForAuthor(author) {
