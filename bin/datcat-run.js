@@ -58,7 +58,7 @@ const searchQuestions = [
 function searchTask() {
   return inquirer.prompt(searchQuestions).then((answers) => {
     textChoices[0].choices = [];
-    cardcat.search(answers.query)
+    return cardcat.search(answers.query)
     .then((rows) => {
       const choices = [];
       for (const doc of rows) {
