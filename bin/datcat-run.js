@@ -23,6 +23,7 @@ const taskQuestions = [
     choices: [
       'Use a key to import an existing cardcat',
       'Create a new cardcat from a directory',
+      'List cardcats',
       new inquirer.Separator(),
       'Search for something',
       'Browse by author name',
@@ -106,6 +107,19 @@ function createTask() {
   return inquirer.prompt(createQuestions)
     .then(answers => cardcat.importDir(answers.dir, answers.name))
     .catch(e => console.log(e));
+}
+
+function cardcatsTask() {
+  textChoices[0].choices = [];
+  return cardcat.getDats()
+    .then((dats) => {
+      for (const doc of dats) {
+        textChoices[0].choices.push(`${doc.dat}\t${doc.name} (${doc.dir})`);
+      }
+      return inquirer.prompt(textChoices).then((answers) => {
+        console.log(answers.choice);
+      });
+    });
 }
 
 function searchTask() {
@@ -198,6 +212,9 @@ function getTask() {
       }
       case 'Create a new cardcat from a directory': {
         return createTask();
+      }
+      case 'List cardcats': {
+        return cardcatsTask();
       }
       case 'Search for something': {
         return searchTask();
