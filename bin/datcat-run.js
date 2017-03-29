@@ -21,9 +21,9 @@ const taskQuestions = [
     name: 'task',
     message: 'What do you want to do?',
     choices: [
+      'List cardcats',
       'Use a key to import an existing cardcat',
       'Create a new cardcat from a directory',
-      'List cardcats',
       new inquirer.Separator(),
       'Search for something',
       'Browse by author name',
@@ -37,6 +37,18 @@ const textChoices = [
     name: 'choice',
     message: 'Select one:',
     choices: [],
+  },
+];
+
+const cardcatTaskChoices = [
+  {
+    type: 'list',
+    name: 'choice',
+    message: 'Select one:',
+    choices: [
+      'Get info',
+      'Checkout everything',
+    ],
   },
 ];
 
@@ -62,6 +74,12 @@ const importQuestions = [
     type: 'input',
     name: 'name',
     message: 'Give a short, human-readable name:',
+  },
+  {
+    type: 'confirm',
+    name: 'everything',
+    message: 'Checkout everything? (just hit enter for NO, which will import the cardcat only)',
+    default: false,
   },
 ];
 
@@ -90,7 +108,7 @@ function textChoiceTask(choices) {
   textChoices[0].choices = choices;
   return inquirer.prompt(textChoices).then((answers) => {
     const args = answers.choice.split('\t');
-    return cardcat.checkout(args[0], args[1]);
+    return cardcat.checkout({ author: args[0], title: args[1] });
   });
 }
 
@@ -99,7 +117,7 @@ function importTask() {
     cardcat.importDat({
       key: answers.key,
       name: answers.name,
-      sparse: true })
+      sparse: !answers.everything })
   );
 }
 
@@ -109,6 +127,27 @@ function createTask() {
     .catch(e => console.log(e));
 }
 
+function cardcatTasks(key) {
+  // Handle choice
+  return inquirer.prompt(cardcatTaskChoices)
+  .then((answers) => {
+    switch (answers.choice) {
+      case 'Get info': {
+        console.log(`Share this key to share it's catalogue: ${key}`);
+        break;
+      }
+      case 'Checkout everything': {
+        return cardcat.checkout({ dat: key });
+      }
+      default: {
+        console.log(`Share this key to share it's catalogue: ${key}`);
+        break;
+      }
+    }
+    return Promise.resolve(false);
+  });
+}
+
 function cardcatsTask() {
   textChoices[0].choices = [];
   return cardcat.getDats()
@@ -116,9 +155,7 @@ function cardcatsTask() {
       for (const doc of dats) {
         textChoices[0].choices.push(`${doc.dat}\t${doc.name} (${doc.dir})`);
       }
-      return inquirer.prompt(textChoices).then((answers) => {
-        console.log(answers.choice);
-      });
+      return inquirer.prompt(textChoices).then(answers => cardcatTasks(answers.choice.split('\t')[0]));
     });
 }
 
@@ -157,7 +194,7 @@ function authorTasks(author) {
       }
       case 'Checkout everything': {
         console.log(`Checking out everything for ${author}`);
-        return cardcat.checkout(author);
+        return cardcat.checkout({ author });
       }
       default: {
         return titlesForAuthor(author);

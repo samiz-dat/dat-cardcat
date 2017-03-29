@@ -85,7 +85,7 @@ export default class DatWrapper {
   }
 
   // Download a file or directory
-  async downloadContent(fn) {
+  async downloadContent(fn = '') {
     console.log(`Downloading: /${fn}`);
     await pda.download(this.dat.archive, fn);
   }

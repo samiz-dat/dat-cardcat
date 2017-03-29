@@ -197,22 +197,32 @@ export class Catalog {
     return this.db.select('dir').from('dats').where('dat', datKey).first();
   }
 
-  // Checks out an item by author and title and dat
-  checkout(author, title = false) {
-    if (title) {
-      return this.getDatsWithTitle(author, title)
-        .then(rows => this.download(author, title, rows.shift().dat));
+  // Public call for syncing files within a dat
+  // opts can include {dat:, author: , title:, file: }
+  checkout(opts) {
+    if (opts.dat) {
+      return this.download(opts.dat, opts);
     }
-    // When there is no title specified, get every title
-    return this.getTitlesForAuthor(author)
+    // With no dat provided, we must query for it
+    return this.getDatsWith(opts)
       .map(row => row)
-      .each(row => this.download(author, row.title, row.dat));
+      .each(row => this.download(row.dat, opts));
   }
 
-  // Checks out an item by author and title and dat
-  download(author, title, datKey) {
-    console.log(`checking out ${author}/${title} from ${datKey}`);
-    return this.dats[datKey].downloadContent(path.join(author, title));
+  download(dat, opts) {
+    if (opts.author && opts.title && opts.file) {
+      console.log(`checking out ${opts.author}/${opts.title}/${opts.file} from ${dat}`);
+      return this.dats[dat].downloadContent(path.join(opts.author, opts.title, opts.file));
+    } else if (opts.author && opts.title) {
+      console.log(`checking out ${opts.author}/${opts.title} from ${dat}`);
+      return this.dats[dat].downloadContent(path.join(opts.author, opts.title));
+    } else if (opts.author) {
+      console.log(`checking out ${opts.author} from ${dat}`);
+      return this.dats[dat].downloadContent(path.join(opts.author));
+    }
+    // If no opts are provided, but a dat is then download the whole dat
+    console.log(`checking out everything from ${opts.dat}`);
+    return this.dats[dat].downloadContent();
   }
 
   // Gets a count of authors in the catalog
@@ -253,11 +263,30 @@ export class Catalog {
       .orderBy('title');
   }
 
-  getDatsWithTitle(author, title) {
+  getDatsWithAuthor(author) {
+    return this.db('texts')
+      .distinct('dat')
+      .where('author', author);
+  }
+
+  getDatsWithFile(author, title, file) {
     return this.db('texts')
       .distinct('dat')
       .where('author', author)
-      .where('title', title);
+      .where('title', title)
+      .where('file', file);
+  }
+
+  getDatsWith(opts) {
+    if (opts.author && opts.title && opts.file) {
+      return this.getDatsWithFile(opts.author, opts.title, opts.file);
+    } else if (opts.author && opts.title) {
+      return this.getDatsWithTitle(opts.author, opts.title);
+    } else if (opts.author) {
+      return this.getDatsWithAuthor(opts.author);
+    } else {
+      return [];
+    }
   }
 
   // Optionally only include files from a particular dat.
