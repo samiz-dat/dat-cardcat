@@ -2,6 +2,5 @@ _data/
 _data_1/
 node_modules/
 test-dir/
-dist/
 *.log
 catalog.db
