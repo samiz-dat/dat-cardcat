@@ -106,4 +106,5 @@ class DatWrapper {
     }).then(() => this);} // Just creates a dat object
   create() {const createDatAsync = _bluebird2.default.promisify(_datNode2.default);return createDatAsync(this.directory, this.opts);}importFiles() {const dat = this.dat;if (this.dat.owner) {const importer = dat.importFiles(this.directory, () => console.log(`Finished importing files in ${this.directory}`));importer.on('error', err => console.log(err));}return _bluebird2.default.resolve(false);} // Lists the contents of a dat
   listContents() {const archive = this.dat.archive;const archiveList = _bluebird2.default.promisify(archive.list, { context: archive });return archiveList();} // Download a file or directory
-  downloadContent(fn) {var _this = this;return _asyncToGenerator(function* () {console.log(`Downloading: /${fn}`);yield _paulsDatApi2.default.download(_this.dat.archive, fn);})();}}exports.default = DatWrapper;
+  downloadContent(fn = '') {var _this = this;return _asyncToGenerator(function* () {console.log(`Downloading: /${fn}`);yield _paulsDatApi2.default.download(_this.dat.archive, fn);})();}}exports.default = DatWrapper;
+//# sourceMappingURL=dat.js.map
