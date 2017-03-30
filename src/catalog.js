@@ -269,6 +269,13 @@ export class Catalog {
       .where('author', author);
   }
 
+  getDatsWithTitle(author, title) {
+    return this.db('texts')
+      .distinct('dat')
+      .where('author', author)
+      .where('title', title);
+  }
+
   getDatsWithFile(author, title, file) {
     return this.db('texts')
       .distinct('dat')
