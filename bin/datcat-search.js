@@ -18,4 +18,8 @@ catalog.createCatalog()
     for (const doc of rows) {
       console.log(`${doc.author}, "${doc.title}", "${doc.file}"`);
     }
+  })
+  .catch((e) => {
+    console.log('There was an error:');
+    console.error(e);
   });

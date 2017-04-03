@@ -106,19 +106,20 @@ const searchQuestions = [
 
 function textChoiceTask(choices) {
   textChoices[0].choices = choices;
-  return inquirer.prompt(textChoices).then((answers) => {
-    const args = answers.choice.split('\t');
-    return cardcat.checkout({ author: args[0], title: args[1] });
-  });
+  return inquirer.prompt(textChoices)
+    .then((answers) => {
+      const args = answers.choice.split('\t');
+      return cardcat.checkout({ author: args[0], title: args[1] });
+    });
 }
 
 function importTask() {
-  return inquirer.prompt(importQuestions).then(answers =>
-    cardcat.importDat({
+  return inquirer.prompt(importQuestions)
+    .then(answers => cardcat.importDat({
       key: answers.key,
       name: answers.name,
-      sparse: !answers.everything })
-  );
+      sparse: !answers.everything,
+    }));
 }
 
 function createTask() {
@@ -155,35 +156,27 @@ function cardcatsTask() {
       for (const doc of dats) {
         textChoices[0].choices.push(`${doc.dat}\t${doc.name} (${doc.dir})`);
       }
-      return inquirer.prompt(textChoices).then(answers => cardcatTasks(answers.choice.split('\t')[0]));
+      return inquirer.prompt(textChoices)
+        .then(answers => cardcatTasks(answers.choice.split('\t')[0]));
     });
 }
 
 function searchTask() {
-  return inquirer.prompt(searchQuestions).then((answers) => {
-    textChoices[0].choices = [];
-    return cardcat.search(answers.query)
-      .then((rows) => {
-        const choices = [];
-        for (const doc of rows) {
-          choices.push(`${doc.author}\t${doc.title}`);
-        }
-        return textChoiceTask(choices);
-      });
-  });
+  return inquirer.prompt(searchQuestions)
+    .then((answers) => {
+      textChoices[0].choices = [];
+      return cardcat.search(answers.query)
+        .then(rows => rows.map(doc => `${doc.author}\t${doc.title}`))
+        .then(textChoiceTask);
+    });
 }
 
 function authorTasks(author) {
   // Lists all the titles for an author
   function titlesForAuthor(a) {
     return cardcat.getTitlesForAuthor(a)
-      .then((titles) => {
-        const choices = [];
-        for (const doc of titles) {
-          choices.push(`${a}\t${doc.title}`);
-        }
-        return textChoiceTask(choices);
-      });
+      .then(titles => titles.map(doc => `${a}\t${doc.title}`))
+      .then(textChoiceTask);
   }
   // Handle choice
   return inquirer.prompt(authorTaskChoices)
@@ -204,10 +197,7 @@ function authorTasks(author) {
 }
 
 function browseAuthorsTask(authors) {
-  textChoices[0].choices = [];
-  for (const doc of authors) {
-    textChoices[0].choices.push(`${doc.author}\t${doc.count} items`);
-  }
+  textChoices[0].choices = authors.map(doc => `${doc.author}\t${doc.count} items`);
   return inquirer.prompt(textChoices).then((answers) => {
     const args = answers.choice.split('\t');
     return authorTasks(args[0]);
@@ -216,28 +206,25 @@ function browseAuthorsTask(authors) {
 
 function browseTask() {
   textChoices[0].choices = [];
-  return cardcat.getAuthorLetters().then((rows) => {
-    const choices = [];
-    for (const doc of rows) {
-      choices.push(doc.letter);
-    }
-    textChoices[0].choices = choices;
-    return inquirer.prompt(textChoices).then((answers) => {
-      return cardcat.getAuthors(answers.choice)
-        .then(authors => browseAuthorsTask(authors));
+  return cardcat.getAuthorLetters()
+    .then((rows) => {
+      textChoices[0].choices = rows.map(doc => doc.letter);
+      return inquirer.prompt(textChoices)
+        .then(answers => cardcat.getAuthors(answers.choice))
+        .then(browseAuthorsTask);
     });
-  });
 }
 
 function askToAskAgain() {
-  inquirer.prompt(askAgainQuestions).then(function(answers) {
-    // Handle looping
-    if (answers.askAgain) {
-      getTask();
-    } else {
-      console.log('Goodbye!');
-    }
-  });
+  inquirer.prompt(askAgainQuestions)
+    .then((answers) => {
+      // Handle looping
+      if (answers.askAgain) {
+        getTask(); // eslint-disable-line
+      } else {
+        console.log('Goodbye!');
+      }
+    });
 }
 
 function getTask() {
