@@ -291,9 +291,13 @@ export class Catalog {
       return this.getDatsWithTitle(opts.author, opts.title);
     } else if (opts.author) {
       return this.getDatsWithAuthor(opts.author);
-    } else {
-      return [];
     }
+    return [];
+  }
+
+  getFilesFromDat(dat) {
+    return this.db('texts')
+      .where('dat', dat).orderBy('dat', 'file');
   }
 
   // Optionally only include files from a particular dat.
