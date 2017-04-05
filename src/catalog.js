@@ -44,6 +44,7 @@ export class Catalog {
       table.string('author_sort');
       table.string('title');
       table.string('file');
+      table.boolean('downloaded');
     })
     .createTableIfNotExists('more_authors', (table) => {
       table.string('title_hash');
@@ -176,7 +177,9 @@ export class Catalog {
       arr.shift();
     }
     if (arr.length > 2) {
-      console.log(chalk.bold('adding:'), entry.name);
+      const downloaded = this.pathIsDownloaded(dat, entry.name);
+      const downloadedStr = (downloaded) ? '[*]' : '[ ]';
+      console.log(chalk.bold('adding:'), downloadedStr, entry.name);
       const name = parser(arr[0]);
       return this.db.insert({
         dat: dat.key,
@@ -186,6 +189,7 @@ export class Catalog {
         author_sort: `${name.last}, ${name.first}`,
         title: arr[1],
         file: arr[2],
+        downloaded,
       }).into('texts');
     }
     return Promise.resolve(false);
@@ -201,12 +205,22 @@ export class Catalog {
   // opts can include {dat:, author: , title:, file: }
   checkout(opts) {
     if (opts.dat) {
-      return this.download(opts.dat, opts);
+      return this.download(opts.dat, opts)
+        .then(() => this.scanForDownloads(opts, opts.dat));
     }
     // With no dat provided, we must query for it
     return this.getDatsWith(opts)
       .map(row => row)
-      .each(row => this.download(row.dat, opts));
+      .each(row => this.download(row.dat, opts))
+      .then(() => this.scanForDownloads(opts)); // @todo: somehow get the dat param in here
+  }
+
+  // Checks whether a group of catalogue items have been downloaded
+  // and if so, then updates the downloaded column in the texts table
+  scanForDownloads(opts, dat = false) {
+    return this.getItemsWith(opts, dat)
+      .then(rows => rows.filter(doc => this.itemIsDownloaded(doc)))
+      .each(row => this.setDownloaded(row.dat, row.author, row.title, row.file));
   }
 
   download(dat, opts) {
@@ -223,6 +237,30 @@ export class Catalog {
     // If no opts are provided, but a dat is then download the whole dat
     console.log(`checking out everything from ${opts.dat}`);
     return this.dats[dat].downloadContent();
+  }
+
+  // Synchronous
+  pathIsDownloaded(dat, filePath) {
+    return fs.existsSync(path.join(dat.directory, filePath));
+  }
+
+  // Given a row from the texts table, check if it has been downloaded
+  itemIsDownloaded(dbRow) {
+    return this.pathIsDownloaded(
+      this.dats[dbRow.dat],
+      path.join(dbRow.author, dbRow.title, dbRow.file));
+  }
+
+  // Sets download status of a row
+  setDownloaded(dat, author, title, file, downloaded = true) {
+    return this.db('texts')
+      .where('dat', dat)
+      .where('author', author)
+      .where('title', title)
+      .where('file', file)
+      .update({
+        downloaded,
+      });
   }
 
   // Gets a count of authors in the catalog
@@ -263,36 +301,36 @@ export class Catalog {
       .orderBy('title');
   }
 
-  getDatsWithAuthor(author) {
-    return this.db('texts')
-      .distinct('dat')
-      .where('author', author);
+  // Gets dats containing items described in opts (author/title/file)
+  // Optionally provide one or more dats to look within.
+  getDatsWith(opts, dat = false) {
+    return this.getItemsWith(opts, dat, 'dat');
   }
 
-  getDatsWithTitle(author, title) {
-    return this.db('texts')
-      .distinct('dat')
-      .where('author', author)
-      .where('title', title);
-  }
-
-  getDatsWithFile(author, title, file) {
-    return this.db('texts')
-      .distinct('dat')
-      .where('author', author)
-      .where('title', title)
-      .where('file', file);
-  }
-
-  getDatsWith(opts) {
-    if (opts.author && opts.title && opts.file) {
-      return this.getDatsWithFile(opts.author, opts.title, opts.file);
-    } else if (opts.author && opts.title) {
-      return this.getDatsWithTitle(opts.author, opts.title);
-    } else if (opts.author) {
-      return this.getDatsWithAuthor(opts.author);
+  // Gets entire entries for catalog items matching author/title/file.
+  // Can specify a dat or a list of dats to get within.
+  getItemsWith(opts, dat = false, distinct = false) {
+    const exp = this.db('texts');
+    if (distinct) {
+      exp.distinct(distinct);
     }
-    return [];
+    if (dat) {
+      if (typeof dat === 'string') {
+        exp.where('dat', dat);
+      } else {
+        exp.havingIn('dat', dat);
+      }
+    }
+    if (opts.author) {
+      exp.where('author', opts.author);
+    }
+    if (opts.title) {
+      exp.where('title', opts.title);
+    }
+    if (opts.file) {
+      exp.where('file', opts.file);
+    }
+    return exp.orderBy('dat', 'author', 'title');
   }
 
   getFilesFromDat(dat) {
