@@ -364,16 +364,9 @@
 
 
 
-
-
-
-
-
-
-
 createCatalog = createCatalog;var _path = require('path');var _path2 = _interopRequireDefault(_path);var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);var _knex = require('knex');var _knex2 = _interopRequireDefault(_knex);var _anotherNameParser = require('another-name-parser');var _anotherNameParser2 = _interopRequireDefault(_anotherNameParser);var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);var _config = require('./config');var _config2 = _interopRequireDefault(_config);var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);var _opf = require('./opf');var _filesystem = require('./utils/filesystem');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };} // @todo: this.db.close(); should be called on shutdown
 // Class definition
-class Catalog {constructor(baseDir) {this.getDats = () => this.db('dats').select();this.getDat = key => this.db('dats').select().where('dat', key);this.baseDir = baseDir;this.dats = [];this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename: _path2.default.format({ dir: this.baseDir, base: 'catalog.db' }) }, useNullAsDefault: true });this.isReady = false;}initDatabase() {// we should probably setup a simple migration script
+class Catalog {constructor(baseDir) {this.pathIsDownloaded = (dat, filePath) => _fs2.default.existsSync(_path2.default.join(dat.directory, filePath));this.getDats = () => this.db('dats').select();this.getDat = key => this.db('dats').select().where('dat', key);this.baseDir = baseDir;this.dats = [];this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename: _path2.default.format({ dir: this.baseDir, base: 'catalog.db' }) }, useNullAsDefault: true });this.isReady = false;}initDatabase() {// we should probably setup a simple migration script
     // but for now lets just drop tables before remaking tables.
     const tablesDropped = this.db.schema.dropTableIfExists('dats').dropTableIfExists('texts').dropTableIfExists('more_authors');return tablesDropped.createTableIfNotExists('dats', table => {table.string('dat');table.string('name');table.string('dir'); // table.unique('dat');
     }).createTableIfNotExists('texts', table => {table.string('dat');table.string('title_hash');table.string('file_hash');table.string('author');table.string('author_sort');table.string('title');table.string('file');table.boolean('downloaded');}).createTableIfNotExists('more_authors', table => {table.string('title_hash');table.string('author'); // table.unique('title_hash');
@@ -403,7 +396,7 @@ class Catalog {constructor(baseDir) {this.getDats = () => this.db('dats').select
   // and if so, then updates the downloaded column in the texts table
   scanForDownloads(opts, dat = false) {return this.getItemsWith(opts, dat).then(rows => rows.filter(doc => this.itemIsDownloaded(doc))).each(row => this.setDownloaded(row.dat, row.author, row.title, row.file));}download(dat, opts) {if (opts.author && opts.title && opts.file) {console.log(`checking out ${opts.author}/${opts.title}/${opts.file} from ${dat}`);return this.dats[dat].downloadContent(_path2.default.join(opts.author, opts.title, opts.file));} else if (opts.author && opts.title) {console.log(`checking out ${opts.author}/${opts.title} from ${dat}`);return this.dats[dat].downloadContent(_path2.default.join(opts.author, opts.title));} else if (opts.author) {console.log(`checking out ${opts.author} from ${dat}`);return this.dats[dat].downloadContent(_path2.default.join(opts.author));} // If no opts are provided, but a dat is then download the whole dat
     console.log(`checking out everything from ${opts.dat}`);return this.dats[dat].downloadContent();} // Synchronous
-  pathIsDownloaded(dat, filePath) {return _fs2.default.existsSync(_path2.default.join(dat.directory, filePath));} // Given a row from the texts table, check if it has been downloaded
+  // Given a row from the texts table, check if it has been downloaded
   itemIsDownloaded(dbRow) {return this.pathIsDownloaded(this.dats[dbRow.dat], _path2.default.join(dbRow.author, dbRow.title, dbRow.file));} // Sets download status of a row
   setDownloaded(dat, author, title, file, downloaded = true) {return this.db('texts').where('dat', dat).where('author', author).where('title', title).where('file', file).update({ downloaded });} // Gets a count of authors in the catalog
   search(query) {const s = `%${query}%`;return this.db('texts').where('title', 'like', s).orWhere('author', 'like', s).orderBy('author_sort', 'title_sort');} // Gets a count of authors in the catalog
@@ -412,7 +405,7 @@ class Catalog {constructor(baseDir) {this.getDats = () => this.db('dats').select
   // Optionally provide one or more dats to look within.
   getDatsWith(opts, dat = false) {return this.getItemsWith(opts, dat, 'dat');} // Gets entire entries for catalog items matching author/title/file.
   // Can specify a dat or a list of dats to get within.
-  getItemsWith(opts, dat = false, distinct = false) {const exp = this.db('texts');if (distinct) {exp.distinct(distinct);}if (dat) {if (typeof dat === 'string') {exp.where('dat', dat);} else {exp.havingIn('dat', dat);}}if (opts.author) {exp.where('author', opts.author);}if (opts.title) {exp.where('title', opts.title);}if (opts.file) {exp.where('file', opts.file);}return exp.orderBy('dat', 'author', 'title');}getFilesFromDat(dat) {return this.db('texts').where('dat', dat).orderBy('dat', 'file');} // Optionally only include files from a particular dat.
+  getItemsWith(opts, dat = false, distinct = false) {const exp = this.db('texts');if (distinct) {exp.distinct(distinct);}if (dat) {if (typeof dat === 'string') {exp.where('dat', dat);} else {exp.havingIn('dat', dat);}}if (opts.author) {exp.where('author', opts.author);}if (opts.title) {exp.where('title', opts.title);}if (opts.file) {exp.where('file', opts.file);}return exp.orderBy('dat', 'author', 'title');} // Optionally only include files from a particular dat.
   // Optionally specify a filename to find.
   getFiles(author, title, dat = false, file = false) {const exp = this.db('texts').where('author', author).where('title', title);if (dat) {exp.where('dat', dat);}if (file) {exp.where('file', file);}return exp.orderBy('dat', 'file');} // Returns opf metadata object for an item, optionally preferring a specific library.
   getOpf(author, title, dat = false) {const mfn = 'metadata.opf'; // metadata file name

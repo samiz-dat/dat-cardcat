@@ -245,9 +245,7 @@ export class Catalog {
   }
 
   // Synchronous
-  pathIsDownloaded(dat, filePath) {
-    return fs.existsSync(path.join(dat.directory, filePath));
-  }
+  pathIsDownloaded = (dat, filePath) => fs.existsSync(path.join(dat.directory, filePath));
 
   // Given a row from the texts table, check if it has been downloaded
   itemIsDownloaded(dbRow) {
@@ -336,11 +334,6 @@ export class Catalog {
       exp.where('file', opts.file);
     }
     return exp.orderBy('dat', 'author', 'title');
-  }
-
-  getFilesFromDat(dat) {
-    return this.db('texts')
-      .where('dat', dat).orderBy('dat', 'file');
   }
 
   // Optionally only include files from a particular dat.
