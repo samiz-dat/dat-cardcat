@@ -366,9 +366,16 @@
 
 
 
+
+
+
+
+
 createCatalog = createCatalog;var _path = require('path');var _path2 = _interopRequireDefault(_path);var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);var _knex = require('knex');var _knex2 = _interopRequireDefault(_knex);var _anotherNameParser = require('another-name-parser');var _anotherNameParser2 = _interopRequireDefault(_anotherNameParser);var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);var _config = require('./config');var _config2 = _interopRequireDefault(_config);var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);var _opf = require('./opf');var _filesystem = require('./utils/filesystem');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };} // @todo: this.db.close(); should be called on shutdown
 // Class definition
-class Catalog {constructor(baseDir) {this.getDats = () => this.db('dats').select();this.getDat = key => this.db('dats').select().where('dat', key);this.baseDir = baseDir;this.dats = [];this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename: _path2.default.format({ dir: this.baseDir, base: 'catalog.db' }) }, useNullAsDefault: true });this.isReady = false;}initDatabase() {return this.db.schema.createTableIfNotExists('dats', table => {table.string('dat');table.string('name');table.string('dir'); // table.unique('dat');
+class Catalog {constructor(baseDir) {this.getDats = () => this.db('dats').select();this.getDat = key => this.db('dats').select().where('dat', key);this.baseDir = baseDir;this.dats = [];this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename: _path2.default.format({ dir: this.baseDir, base: 'catalog.db' }) }, useNullAsDefault: true });this.isReady = false;}initDatabase() {// we should probably setup a simple migration script
+    // but for now lets just drop tables before remaking tables.
+    const tablesDropped = this.db.schema.dropTableIfExists('dats').dropTableIfExists('texts').dropTableIfExists('more_authors');return tablesDropped.createTableIfNotExists('dats', table => {table.string('dat');table.string('name');table.string('dir'); // table.unique('dat');
     }).createTableIfNotExists('texts', table => {table.string('dat');table.string('title_hash');table.string('file_hash');table.string('author');table.string('author_sort');table.string('title');table.string('file');table.boolean('downloaded');}).createTableIfNotExists('more_authors', table => {table.string('title_hash');table.string('author'); // table.unique('title_hash');
     }).then(() => {this.isReady = true;}).catch(e => console.error(e));} // Every imported and added dat gets added to the `dats` table of the database. If
   // the directories are deleted then these db entries are useless and should be removed.
@@ -393,7 +400,7 @@ class Catalog {constructor(baseDir) {this.getDats = () => this.db('dats').select
   checkout(opts) {if (opts.dat) {return this.download(opts.dat, opts).then(() => this.scanForDownloads(opts, opts.dat));} // With no dat provided, we must query for it
     return this.getDatsWith(opts).map(row => row).each(row => this.download(row.dat, opts)).then(() => this.scanForDownloads(opts)); // @todo: somehow get the dat param in here
   } // Checks whether a group of catalogue items have been downloaded
-  // and if so, then updates the entries in the texts table
+  // and if so, then updates the downloaded column in the texts table
   scanForDownloads(opts, dat = false) {return this.getItemsWith(opts, dat).then(rows => rows.filter(doc => this.itemIsDownloaded(doc))).each(row => this.setDownloaded(row.dat, row.author, row.title, row.file));}download(dat, opts) {if (opts.author && opts.title && opts.file) {console.log(`checking out ${opts.author}/${opts.title}/${opts.file} from ${dat}`);return this.dats[dat].downloadContent(_path2.default.join(opts.author, opts.title, opts.file));} else if (opts.author && opts.title) {console.log(`checking out ${opts.author}/${opts.title} from ${dat}`);return this.dats[dat].downloadContent(_path2.default.join(opts.author, opts.title));} else if (opts.author) {console.log(`checking out ${opts.author} from ${dat}`);return this.dats[dat].downloadContent(_path2.default.join(opts.author));} // If no opts are provided, but a dat is then download the whole dat
     console.log(`checking out everything from ${opts.dat}`);return this.dats[dat].downloadContent();} // Synchronous
   pathIsDownloaded(dat, filePath) {return _fs2.default.existsSync(_path2.default.join(dat.directory, filePath));} // Given a row from the texts table, check if it has been downloaded

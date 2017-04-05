@@ -30,7 +30,12 @@ export class Catalog {
   }
 
   initDatabase() {
-    return this.db.schema.createTableIfNotExists('dats', (table) => {
+    // we should probably setup a simple migration script
+    // but for now lets just drop tables before remaking tables.
+    const tablesDropped = this.db.schema.dropTableIfExists('dats')
+      .dropTableIfExists('texts')
+      .dropTableIfExists('more_authors');
+    return tablesDropped.createTableIfNotExists('dats', (table) => {
       table.string('dat');
       table.string('name');
       table.string('dir');
