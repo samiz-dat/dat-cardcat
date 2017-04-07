@@ -375,7 +375,7 @@ class Catalog {constructor(baseDir) {this.pathIsDownloaded = (dat, filePath) => 
   // This will simply confirm that every dat directory in the db still exists.
   cleanupDatsRegistry() {console.log('Cleaning up the dats registry');return this.getDats().map(dat => dat).filter(dat => (0, _filesystem.notADir)(dat.dir)).each(dat => {console.log(`Removing: ${_chalk2.default.bold(dat.dir)} (directory does not exist)`);return this.removeDatFromDb(dat.dat).then(() => this.clearDatEntries(dat.dat));}).then(() => this);} // Look inside the base directory for any directories that seem to be dats
   discoverDats() {return (0, _filesystem.getDirectories)(this.baseDir).map(name => {console.log(`Attempting to load dir: ${_chalk2.default.bold(name)} as a dat`);const opts = { name, createIfMissing: false, sparse: true };return this.importDat(opts);}).then(() => this.cleanupDatsRegistry()).then(() => this.importDatsFromDB()).then(() => this);} // Imports dats listed in the dats table of the database
-  importDatsFromDB() {this.getDats().map(dat => dat).filter(dat => (0, _filesystem.notADir)(dat.dir)) // directory exists
+  importDatsFromDB() {return this.getDats().map(dat => dat).filter(dat => (0, _filesystem.notADir)(dat.dir)) // directory exists
     .filter(dat => !dat.dir.startsWith(this.baseDir)) // not in data directory
     .filter(dat => !(dat.key in this.dats.keys())) // not in registry
     .each(dat => this.importDir(dat.dir, dat.name)).then(() => console.log('Imported dats from DB'));} // Imports a directory on the local filesystem as a dat.

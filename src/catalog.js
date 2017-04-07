@@ -95,7 +95,7 @@ export class Catalog {
 
   // Imports dats listed in the dats table of the database
   importDatsFromDB() {
-    this.getDats()
+    return this.getDats()
       .map(dat => dat)
       .filter(dat => notADir(dat.dir)) // directory exists
       .filter(dat => !dat.dir.startsWith(this.baseDir)) // not in data directory
