@@ -12,16 +12,9 @@ export function listDatContents(dat) {
   return archiveList();
 }
 
-export function listDatContents2(dat) {
-  return pda.listFiles(dat.archive, '/');
-}
-
-export function importFiles(dw) {
-  if (dw.dat.owner) {
-    return dw.importFiles();
-  }
-  return Promise.resolve(true);
-}
+// export function listDatContents2(dat) {
+//   return pda.listFiles(dat.archive, '/');
+// }
 
 /**
  * Adds Library-ish functions to a Dat. Expects the Dat's directory structure to
@@ -69,12 +62,18 @@ export default class DatWrapper {
   }
 
   importFiles() {
-    const dat = this.dat;
-    if (this.dat.owner) {
-      const importer = dat.importFiles(this.directory, () => console.log(`Finished importing files in ${this.directory}`));
-      importer.on('error', err => console.log(err));
-    }
-    return Promise.resolve(false);
+    return new Promise((resolve, reject) => {
+      const dat = this.dat;
+      if (this.dat.owner) {
+        const importer = dat.importFiles(this.directory, () => {
+          console.log(`Finished importing files in ${this.directory}`);
+          resolve(true);
+        });
+        importer.on('error', reject);
+      } else {
+        resolve(false);
+      }
+    });
   }
 
   // Lists the contents of a dat

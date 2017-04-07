@@ -6,7 +6,7 @@ import parser from 'another-name-parser';
 import chalk from 'chalk';
 import config from './config';
 
-import DatWrapper, { listDatContents, importFiles } from './dat';
+import DatWrapper, { listDatContents } from './dat'; //this function can be made a method of dat class too.
 import { opf2js } from './opf';
 import { getDirectories, notADir } from './utils/filesystem';
 // @todo: this.db.close(); should be called on shutdown
@@ -142,8 +142,8 @@ export class Catalog {
     const newDat = new DatWrapper(opts, this);
     return newDat.run()
       .then(() => this.registerDat(newDat))
-      .then(() => importFiles(newDat))
-      .then(() => listDatContents(newDat.dat))
+      .then(() => newDat.importFiles())
+      .then(() => listDatContents(newDat.dat)) // this function can be made a method of dat class too.
       .each(entry => this.importDatEntry(newDat, entry))
       .catch((err) => {
         console.log(`* Something went wrong when importing ${opts.directory}`);
