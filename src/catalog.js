@@ -267,12 +267,19 @@ export class Catalog {
   }
 
   // Gets a count of authors in the catalog
-  search(query) {
+  search(query, dat) {
     const s = `%${query}%`;
-    return this.db('texts')
+    const exp = this.db('texts')
       .where('title', 'like', s)
-      .orWhere('author', 'like', s)
-      .orderBy('author_sort', 'title_sort');
+      .orWhere('author', 'like', s);
+    if (dat) {
+      if (typeof dat === 'string') {
+        exp.where('dat', dat);
+      } else if (Array.isArray(dat)) {
+        exp.whereIn('dat', dat);
+      }
+    }
+    return exp.orderBy('author_sort', 'title_sort');
   }
 
   // Gets a count of authors in the catalog

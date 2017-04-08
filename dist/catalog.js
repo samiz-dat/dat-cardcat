@@ -364,6 +364,13 @@
 
 
 
+
+
+
+
+
+
+
 createCatalog = createCatalog;var _path = require('path');var _path2 = _interopRequireDefault(_path);var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);var _knex = require('knex');var _knex2 = _interopRequireDefault(_knex);var _anotherNameParser = require('another-name-parser');var _anotherNameParser2 = _interopRequireDefault(_anotherNameParser);var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);var _config = require('./config');var _config2 = _interopRequireDefault(_config);var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);var _opf = require('./opf');var _filesystem = require('./utils/filesystem');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };} // @todo: this.db.close(); should be called on shutdown
 // Class definition
 //this function can be made a method of dat class too.
@@ -401,13 +408,13 @@ class Catalog {constructor(baseDir) {this.pathIsDownloaded = (dat, filePath) => 
   // Given a row from the texts table, check if it has been downloaded
   itemIsDownloaded(dbRow) {return this.pathIsDownloaded(this.dats[dbRow.dat], _path2.default.join(dbRow.author, dbRow.title, dbRow.file));} // Sets download status of a row
   setDownloaded(dat, author, title, file, downloaded = true) {return this.db('texts').where('dat', dat).where('author', author).where('title', title).where('file', file).update({ downloaded });} // Gets a count of authors in the catalog
-  search(query) {const s = `%${query}%`;return this.db('texts').where('title', 'like', s).orWhere('author', 'like', s).orderBy('author_sort', 'title_sort');} // Gets a count of authors in the catalog
-  getAuthors(startingWith = false) {const exp = this.db.select('author').from('texts').countDistinct('title as count');if (startingWith) {const s = `${startingWith}%`;exp.where('author_sort', 'like', s);}return exp.groupBy('author').orderBy('author_sort');} // Gets a list of letters of authors, for generating a directory
+  search(query, dat) {const s = `%${query}%`;const exp = this.db('texts').where('title', 'like', s).orWhere('author', 'like', s);if (dat) {if (typeof dat === 'string') {exp.where('dat', dat);} else if (Array.isArray(dat)) {exp.whereIn('dat', dat);}}return exp.orderBy('author_sort', 'title_sort');} // Gets a count of authors in the catalog
+  getAuthors(startingWith) {const exp = this.db.select('author').from('texts').countDistinct('title as count');if (startingWith) {const s = `${startingWith}%`;exp.where('author_sort', 'like', s);}return exp.groupBy('author').orderBy('author_sort');} // Gets a list of letters of authors, for generating a directory
   getAuthorLetters() {return this.db.column(this.db.raw('lower(substr(author_sort,1,1)) as letter')).select().from('texts').distinct('letter').orderBy('letter');}getTitlesForAuthor(author) {return this.db('texts').distinct('dat', 'title').where('author', author).orderBy('title');} // Gets dats containing items described in opts (author/title/file)
   // Optionally provide one or more dats to look within.
   getDatsWith(opts, dat = false) {return this.getItemsWith(opts, dat, 'dat');} // Gets entire entries for catalog items matching author/title/file.
   // Can specify a dat or a list of dats to get within.
-  getItemsWith(opts, dat = false, distinct = false) {const exp = this.db('texts');if (distinct) {exp.distinct(distinct);}if (dat) {if (typeof dat === 'string') {exp.where('dat', dat);} else {exp.havingIn('dat', dat);}}if (opts.author) {exp.where('author', opts.author);}if (opts.title) {exp.where('title', opts.title);}if (opts.file) {exp.where('file', opts.file);}return exp.orderBy('dat', 'author', 'title');} // Optionally only include files from a particular dat.
+  getItemsWith(opts, dat = false, distinct = false) {const exp = this.db('texts');if (distinct) {exp.distinct(distinct);}if (dat) {if (typeof dat === 'string') {exp.where('dat', dat);} else {exp.whereIn('dat', dat);}}if (opts.author) {exp.where('author', opts.author);}if (opts.title) {exp.where('title', opts.title);}if (opts.file) {exp.where('file', opts.file);}return exp.orderBy('dat', 'author', 'title');} // Optionally only include files from a particular dat.
   // Optionally specify a filename to find.
   getFiles(author, title, dat = false, file = false) {const exp = this.db('texts').where('author', author).where('title', title);if (dat) {exp.where('dat', dat);}if (file) {exp.where('file', file);}return exp.orderBy('dat', 'file');} // Returns opf metadata object for an item, optionally preferring a specific library.
   getOpf(author, title, dat = false) {const mfn = 'metadata.opf'; // metadata file name
