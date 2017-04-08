@@ -283,7 +283,7 @@ export class Catalog {
   }
 
   // Gets a count of authors in the catalog
-  getAuthors(startingWith = false) {
+  getAuthors(startingWith) {
     const exp = this.db.select('author').from('texts')
       .countDistinct('title as count');
     if (startingWith) {
