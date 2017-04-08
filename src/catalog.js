@@ -6,7 +6,7 @@ import parser from 'another-name-parser';
 import chalk from 'chalk';
 import config from './config';
 
-import DatWrapper, { listDatContents } from './dat'; //this function can be made a method of dat class too.
+import DatWrapper, { listDatContents } from './dat'; // this function can be made a method of dat class too.
 import { opf2js } from './opf';
 import { getDirectories, notADir } from './utils/filesystem';
 // @todo: this.db.close(); should be called on shutdown
