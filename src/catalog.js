@@ -328,7 +328,7 @@ export class Catalog {
       if (typeof dat === 'string') {
         exp.where('dat', dat);
       } else {
-        exp.havingIn('dat', dat);
+        exp.whereIn('dat', dat);
       }
     }
     if (opts.author) {
