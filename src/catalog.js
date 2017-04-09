@@ -239,7 +239,7 @@ export class Catalog {
     return this.getDatsWith(opts)
       .map(row => row.dat)
       .each(dat => this.download(dat, opts)) // .each() passes through the original array
-      .then(dats => this.scanForDownloads(opts, _.unique(dats)));
+      .then(dats => this.scanForDownloads(opts, _.uniq(dats)));
   }
 
   // Checks whether a group of catalogue items have been downloaded
