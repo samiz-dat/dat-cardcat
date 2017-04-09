@@ -382,6 +382,8 @@ exports.
 
 
 
+
+
 createCatalog = createCatalog;var _path = require('path');var _path2 = _interopRequireDefault(_path);var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);var _knex = require('knex');var _knex2 = _interopRequireDefault(_knex);var _anotherNameParser = require('another-name-parser');var _anotherNameParser2 = _interopRequireDefault(_anotherNameParser);var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);var _lodash = require('lodash');var _lodash2 = _interopRequireDefault(_lodash);var _config = require('./config');var _config2 = _interopRequireDefault(_config);var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);var _opf = require('./opf');var _filesystem = require('./utils/filesystem');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };} // @todo: this.db.close(); should be called on shutdown
 function withinDat(query, dat) {if (dat) {if (typeof dat === 'string') {query.where('dat', dat);} else if (Array.isArray(dat)) {query.whereIn('dat', dat);}}return query;} // Class definition
 class Catalog {constructor(baseDir) {this.pathIsDownloaded = (dat, filePath) => _fs2.default.existsSync(_path2.default.join(dat.directory, filePath));this.getDats = () => this.db('dats').select();this.getDat = key => this.db('dats').select().where('dat', key);this.baseDir = baseDir;this.dats = [];this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename: _path2.default.format({ dir: this.baseDir, base: 'catalog.db' }) }, useNullAsDefault: true });this.isReady = false;}initDatabase() {// we should probably setup a simple migration script
@@ -418,7 +420,8 @@ class Catalog {constructor(baseDir) {this.pathIsDownloaded = (dat, filePath) => 
   // Given a row from the texts table, check if it has been downloaded
   itemIsDownloaded(dbRow) {return this.pathIsDownloaded(this.dats[dbRow.dat], _path2.default.join(dbRow.author, dbRow.title, dbRow.file));} // Sets download status of a row
   setDownloaded(dat, author, title, file, downloaded = true) {return this.db('texts').where('dat', dat).where('author', author).where('title', title).where('file', file).update({ downloaded });} // Gets a count of authors in the catalog
-  search(query, dat) {const s = `%${query}%`;const exp = this.db('texts').where('title', 'like', s).orWhere('author', 'like', s);withinDat(exp, dat);return exp.orderBy('author_sort', 'title_sort');} // Gets a count of authors in the catalog
+  search(query, dat) {const s = `%${query}%`;const exp = this.db('texts').where(function () {// a bit inelegant but groups where statements
+      this.where('title', 'like', s).orWhere('author', 'like', s);});withinDat(exp, dat);return exp.orderBy('author_sort', 'title_sort');} // Gets a count of authors in the catalog
   getAuthors(startingWith, dat) {const exp = this.db.select('author').from('texts').countDistinct('title as count');withinDat(exp, dat);if (startingWith) {const s = `${startingWith}%`;exp.where('author_sort', 'like', s);}return exp.groupBy('author').orderBy('author_sort');} // Gets a list of letters of authors, for generating a directory
   getAuthorLetters(dat) {const exp = this.db.column(this.db.raw('lower(substr(author_sort,1,1)) as letter')).select();withinDat(exp, dat);return exp.from('texts').distinct('letter').orderBy('letter');}getTitlesForAuthor(author, dat) {const exp = this.db('texts').distinct('dat', 'title').where('author', author);withinDat(exp, dat);return exp.orderBy('title');} // Gets dats containing items described in opts (author/title/file)
   // Optionally provide one or more dats to look within.

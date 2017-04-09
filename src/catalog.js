@@ -292,8 +292,10 @@ export class Catalog {
   search(query, dat) {
     const s = `%${query}%`;
     const exp = this.db('texts')
-      .where('title', 'like', s)
-      .orWhere('author', 'like', s);
+      .where(function () { // a bit inelegant but groups where statements
+        this.where('title', 'like', s)
+          .orWhere('author', 'like', s);
+      });
     withinDat(exp, dat);
     return exp.orderBy('author_sort', 'title_sort');
   }
