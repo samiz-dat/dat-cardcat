@@ -4,6 +4,7 @@ import Promise from 'bluebird';
 import db from 'knex';
 import parser from 'another-name-parser';
 import chalk from 'chalk';
+import _ from 'lodash';
 import config from './config';
 
 import DatWrapper, { listDatContents } from './dat'; // this function can be made a method of dat class too.
@@ -220,20 +221,30 @@ export class Catalog {
   // Public call for syncing files within a dat
   // opts can include {dat:, author: , title:, file: }
   checkout(opts) {
+    if (!opts) {
+      console.warn('attempted to checkout without opts.');
+      return Promise.reject();
+    }
     if (opts.dat) {
-      return this.download(opts.dat, opts)
-        .then(() => this.scanForDownloads(opts, opts.dat));
+      if (typeof opts.dat === 'string') {
+        return this.download(opts.dat, opts)
+          .then(() => this.scanForDownloads(opts, opts.dat));
+      } else if (Array.isArray(opts.dat)) {
+        return Promise.map(opts.dat, dat => this.checkout({ ...opts, dat }));
+      }
+      console.warn('dat option passed to check is not an array or a string');
+      return Promise.reject();
     }
     // With no dat provided, we must query for it
     return this.getDatsWith(opts)
-      .map(row => row)
-      .each(row => this.download(row.dat, opts))
-      .then(() => this.scanForDownloads(opts)); // @todo: somehow get the dat param in here
+      .map(row => row.dat)
+      .each(dat => this.download(dat, opts)) // .each() passes through the original array
+      .then(dats => this.scanForDownloads(opts, _.unique(dats)));
   }
 
   // Checks whether a group of catalogue items have been downloaded
   // and if so, then updates the downloaded column in the texts table
-  scanForDownloads(opts, dat = false) {
+  scanForDownloads(opts, dat) {
     return this.getItemsWith(opts, dat)
       .then(rows => rows.filter(doc => this.itemIsDownloaded(doc)))
       .each(row => this.setDownloaded(row.dat, row.author, row.title, row.file));
@@ -321,7 +332,7 @@ export class Catalog {
 
   // Gets dats containing items described in opts (author/title/file)
   // Optionally provide one or more dats to look within.
-  getDatsWith(opts, dat = false) {
+  getDatsWith(opts, dat) {
     return this.getItemsWith(opts, dat, 'dat');
   }
 
