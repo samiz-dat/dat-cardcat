@@ -12,4 +12,4 @@ export default function monitor(archive) {
     console.log(data.blocks, 'total blocks');
     console.log(`Peer 1 Downloaded ${(data.peers[0].have / data.peers[0].blocks) * 100}%`);
   }, 1000);
-};
+}

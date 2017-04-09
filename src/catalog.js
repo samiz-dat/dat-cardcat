@@ -11,6 +11,17 @@ import { opf2js } from './opf';
 import { getDirectories, notADir } from './utils/filesystem';
 // @todo: this.db.close(); should be called on shutdown
 
+function withinDat(query, dat) {
+  if (dat) {
+    if (typeof dat === 'string') {
+      query.where('dat', dat);
+    } else if (Array.isArray(dat)) {
+      query.whereIn('dat', dat);
+    }
+  }
+  return query;
+}
+
 // Class definition
 export class Catalog {
   constructor(baseDir) {
@@ -272,20 +283,15 @@ export class Catalog {
     const exp = this.db('texts')
       .where('title', 'like', s)
       .orWhere('author', 'like', s);
-    if (dat) {
-      if (typeof dat === 'string') {
-        exp.where('dat', dat);
-      } else if (Array.isArray(dat)) {
-        exp.whereIn('dat', dat);
-      }
-    }
+    withinDat(exp, dat);
     return exp.orderBy('author_sort', 'title_sort');
   }
 
   // Gets a count of authors in the catalog
-  getAuthors(startingWith) {
+  getAuthors(startingWith, dat) {
     const exp = this.db.select('author').from('texts')
       .countDistinct('title as count');
+    withinDat(exp, dat);
     if (startingWith) {
       const s = `${startingWith}%`;
       exp.where('author_sort', 'like', s);
@@ -296,19 +302,21 @@ export class Catalog {
   }
 
   // Gets a list of letters of authors, for generating a directory
-  getAuthorLetters() {
-    return this.db.column(this.db.raw('lower(substr(author_sort,1,1)) as letter'))
-      .select()
-      .from('texts')
+  getAuthorLetters(dat) {
+    const exp = this.db.column(this.db.raw('lower(substr(author_sort,1,1)) as letter'))
+      .select();
+    withinDat(exp, dat);
+    return exp.from('texts')
       .distinct('letter')
       .orderBy('letter');
   }
 
-  getTitlesForAuthor(author) {
-    return this.db('texts')
+  getTitlesForAuthor(author, dat) {
+    const exp = this.db('texts')
       .distinct('dat', 'title')
-      .where('author', author)
-      .orderBy('title');
+      .where('author', author);
+    withinDat(exp, dat);
+    return exp.orderBy('title');
   }
 
   // Gets dats containing items described in opts (author/title/file)
@@ -319,17 +327,10 @@ export class Catalog {
 
   // Gets entire entries for catalog items matching author/title/file.
   // Can specify a dat or a list of dats to get within.
-  getItemsWith(opts, dat = false, distinct = false) {
+  getItemsWith(opts, dat, distinct) {
     const exp = this.db('texts');
     if (distinct) {
       exp.distinct(distinct);
-    }
-    if (dat) {
-      if (typeof dat === 'string') {
-        exp.where('dat', dat);
-      } else {
-        exp.whereIn('dat', dat);
-      }
     }
     if (opts.author) {
       exp.where('author', opts.author);
@@ -340,18 +341,17 @@ export class Catalog {
     if (opts.file) {
       exp.where('file', opts.file);
     }
+    withinDat(exp, dat);
     return exp.orderBy('dat', 'author', 'title');
   }
 
   // Optionally only include files from a particular dat.
   // Optionally specify a filename to find.
-  getFiles(author, title, dat = false, file = false) {
+  getFiles(author, title, dat, file) {
     const exp = this.db('texts')
       .where('author', author)
       .where('title', title);
-    if (dat) {
-      exp.where('dat', dat);
-    }
+    withinDat(exp, dat);
     if (file) {
       exp.where('file', file);
     }
@@ -371,7 +371,7 @@ export class Catalog {
 
 }
 
-export function createCatalog(dataDir = false) {
+export function createCatalog(dataDir) {
   // Directory to store all the data in
   let dataDirFinal = path.join(process.cwd(), config.get('dataDir'));
   dataDirFinal = dataDir || dataDirFinal;
