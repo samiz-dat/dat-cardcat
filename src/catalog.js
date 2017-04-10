@@ -2,7 +2,6 @@ import path from 'path';
 import fs from 'fs';
 import Promise from 'bluebird';
 import db from 'knex';
-import parser from 'another-name-parser';
 import chalk from 'chalk';
 import _ from 'lodash';
 import config from './config';
@@ -10,6 +9,7 @@ import config from './config';
 import DatWrapper, { listDatContents } from './dat'; // this function can be made a method of dat class too.
 import { opf2js } from './opf';
 import { getDirectories, notADir } from './utils/filesystem';
+import parseEntry from './utils/importers';
 // @todo: this.db.close(); should be called on shutdown
 
 function withinDat(query, dat) {
@@ -190,24 +190,20 @@ export class Catalog {
   }
 
   // Adds an entry from a Dat
-  importDatEntry(dat, entry) {
-    const arr = entry.name.split(path.sep);
-    if (arr[0] === '') {
-      arr.shift();
-    }
-    if (arr.length > 2) {
+  importDatEntry(dat, entry, format = 'calibre') {
+    const importedData = parseEntry(entry, format);
+    if (importedData) {
       const downloaded = this.pathIsDownloaded(dat, entry.name);
       const downloadedStr = (downloaded) ? '[*]' : '[ ]';
       console.log(chalk.bold('adding:'), downloadedStr, entry.name);
-      const name = parser(arr[0]);
       return this.db.insert({
         dat: dat.key,
         title_hash: '',
         file_hash: '',
-        author: arr[0],
-        author_sort: `${name.last}, ${name.first}`,
-        title: arr[1],
-        file: arr[2],
+        author: importedData.author,
+        author_sort: importedData.authorSort,
+        title: importedData.title,
+        file: importedData.file,
         downloaded,
       }).into('texts');
     }

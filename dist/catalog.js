@@ -6,7 +6,6 @@
 
 
 
-
 // this function can be made a method of dat class too.
 exports.
 
@@ -414,10 +413,7 @@ exports.
 
 
 
-
-
-
-createCatalog = createCatalog;var _path = require('path');var _path2 = _interopRequireDefault(_path);var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);var _knex = require('knex');var _knex2 = _interopRequireDefault(_knex);var _anotherNameParser = require('another-name-parser');var _anotherNameParser2 = _interopRequireDefault(_anotherNameParser);var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);var _lodash = require('lodash');var _lodash2 = _interopRequireDefault(_lodash);var _config = require('./config');var _config2 = _interopRequireDefault(_config);var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);var _opf = require('./opf');var _filesystem = require('./utils/filesystem');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };} // @todo: this.db.close(); should be called on shutdown
+createCatalog = createCatalog;var _path = require('path');var _path2 = _interopRequireDefault(_path);var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);var _knex = require('knex');var _knex2 = _interopRequireDefault(_knex);var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);var _lodash = require('lodash');var _lodash2 = _interopRequireDefault(_lodash);var _config = require('./config');var _config2 = _interopRequireDefault(_config);var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);var _opf = require('./opf');var _filesystem = require('./utils/filesystem');var _importers = require('./utils/importers');var _importers2 = _interopRequireDefault(_importers);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };} // @todo: this.db.close(); should be called on shutdown
 function withinDat(query, dat) {if (dat) {if (typeof dat === 'string') {query.where('dat', dat);} else if (Array.isArray(dat)) {query.whereIn('dat', dat);}}return query;} // Class definition
 class Catalog {constructor(baseDir) {this.pathIsDownloaded = (dat, filePath) => _fs2.default.existsSync(_path2.default.join(dat.directory, filePath));this.getDats = () => this.db('dats').select();this.getDat = key => this.db('dats').select().where('dat', key);this.baseDir = baseDir;this.dats = [];this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename: _path2.default.format({ dir: this.baseDir, base: 'catalog.db' }) }, useNullAsDefault: true }); // If you ever need to see what queries are being run uncomment the following.
     // this.db.on('query', queryData => console.log(queryData));
@@ -442,7 +438,7 @@ class Catalog {constructor(baseDir) {this.pathIsDownloaded = (dat, filePath) => 
     .each(entry => this.importDatEntry(newDat, entry)).catch(err => {console.log(`* Something went wrong when importing ${opts.directory}`);console.log(err);});} // Registers dat in catalog array and in database (@todo)
   registerDat(dw) {const datkey = dw.dat.key.toString('hex');console.log(`Adding dat (${datkey}) to the catalog.`);return this.removeDatFromDb(datkey).then(() => this.clearDatEntries(datkey)).then(() => this.addDatToDb(datkey, dw.name, dw.directory)).finally(() => {this.dats[datkey] = dw;}).catch(e => console.log(e));}addDatToDb(dat, name, dir) {return this.db.insert({ dat, name, dir }).into('dats');}removeDatFromDb(datKey) {return this.db('dats').where('dat', datKey).del();} // Remove all entries for a dat
   clearDatEntries(datKey) {return this.db('texts').where('dat', datKey).del();} // Adds an entry from a Dat
-  importDatEntry(dat, entry) {const arr = entry.name.split(_path2.default.sep);if (arr[0] === '') {arr.shift();}if (arr.length > 2) {const downloaded = this.pathIsDownloaded(dat, entry.name);const downloadedStr = downloaded ? '[*]' : '[ ]';console.log(_chalk2.default.bold('adding:'), downloadedStr, entry.name);const name = (0, _anotherNameParser2.default)(arr[0]);return this.db.insert({ dat: dat.key, title_hash: '', file_hash: '', author: arr[0], author_sort: `${name.last}, ${name.first}`, title: arr[1], file: arr[2], downloaded }).into('texts');}return _bluebird2.default.resolve(false);} // Returns the path to a dat
+  importDatEntry(dat, entry, format = 'calibre') {const importedData = (0, _importers2.default)(entry, format);if (importedData) {const downloaded = this.pathIsDownloaded(dat, entry.name);const downloadedStr = downloaded ? '[*]' : '[ ]';console.log(_chalk2.default.bold('adding:'), downloadedStr, entry.name);return this.db.insert({ dat: dat.key, title_hash: '', file_hash: '', author: importedData.author, author_sort: importedData.authorSort, title: importedData.title, file: importedData.file, downloaded }).into('texts');}return _bluebird2.default.resolve(false);} // Returns the path to a dat
   // This is broken until i can understand making sqlite async
   pathToDat(datKey) {return this.db.select('dir').from('dats').where('dat', datKey).first();} // Public call for syncing files within a dat
   // opts can include {dat:, author: , title:, file: }
