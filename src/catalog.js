@@ -38,15 +38,17 @@ export class Catalog {
       },
       useNullAsDefault: true,
     });
+    // If you ever need to see what queries are being run uncomment the following.
+    // this.db.on('query', queryData => console.log(queryData));
     this.isReady = false;
   }
 
   initDatabase() {
     // we should probably setup a simple migration script
     // but for now lets just drop tables before remaking tables.
-    const tablesDropped = this.db.schema.dropTableIfExists('dats')
-      .dropTableIfExists('texts')
-      .dropTableIfExists('more_authors');
+    const tablesDropped = this.db.schema.dropTableIfExists('datsX')
+      .dropTableIfExists('textsX')
+      .dropTableIfExists('more_authorsX');
     return tablesDropped.createTableIfNotExists('dats', (table) => {
       table.string('dat');
       table.string('name');
@@ -288,16 +290,24 @@ export class Catalog {
       });
   }
 
-  // Gets a count of authors in the catalog
+  // Searches for titles with files bundled up in a comma separated column
   search(query, dat) {
     const s = `%${query}%`;
-    const exp = this.db('texts')
+    const exp = this.db
+      .select('dat',
+        'author',
+        'title',
+        'title_hash',
+        'author_sort',
+      this.db.raw('GROUP_CONCAT("file" || ":" || "downloaded") as "files"'))
+      .from('texts')
       .where(function () { // a bit inelegant but groups where statements
         this.where('title', 'like', s)
           .orWhere('author', 'like', s);
-      });
+      })
+      .groupBy('author', 'title');
     withinDat(exp, dat);
-    return exp.orderBy('author_sort', 'title_sort');
+    return exp.orderBy('author_sort', 'title');
   }
 
   // Gets a count of authors in the catalog
@@ -336,6 +346,29 @@ export class Catalog {
   // Optionally provide one or more dats to look within.
   getDatsWith(opts, dat) {
     return this.getItemsWith(opts, dat, 'dat');
+  }
+
+  // Like getItemsWith, except some extra work is done to return titles
+  // along with a comma-separated list of files:downloaded for each title.
+  getTitlesWith(opts, dat) {
+    const exp = this.db
+      .select('dat',
+        'author',
+        'title',
+        'title_hash',
+        'author_sort',
+      this.db.raw('GROUP_CONCAT("file" || ":" || "downloaded") as "files"'))
+      .from('texts');
+    if (opts.author) {
+      exp.where('author', opts.author);
+    }
+    if (opts.title) {
+      exp.where('title', opts.title);
+    }
+    withinDat(exp, dat);
+    return exp
+      .groupBy('author', 'title')
+      .orderBy('author_sort', 'title');
   }
 
   // Gets entire entries for catalog items matching author/title/file.

@@ -16,7 +16,7 @@ catalog.createCatalog()
   .then(c => c.search(args[0]))
   .then((rows) => {
     for (const doc of rows) {
-      console.log(`${doc.author}, "${doc.title}", "${doc.file}"`);
+      console.log(`${doc.author}, "${doc.title}", "${doc.files}"`);
     }
   })
   .catch((e) => {
