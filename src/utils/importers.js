@@ -28,16 +28,13 @@ const parsers = {
 
 // Does the given candidate pass the formatting tests? (should it be added?)
 // If so, return { author, author_sort, title, file }
-export default function (entry, format = 'calibre') {
+export default function (file, format = 'calibre') {
   // Only files (not directories) are eligible
-  if (entry.type === 'file') {
-    const arr = entry.name.split(path.sep);
-    // Sometimes there is a leading slash which messes things up
-    if (arr[0] === '') {
-      arr.shift();
-    }
-    // Call the appropriate parser for the given format
-    return parsers[format](arr);
+  const arr = file.split(path.sep);
+  // Sometimes there is a leading slash which messes things up
+  if (arr[0] === '') {
+    arr.shift();
   }
-  return false;
+  // Call the appropriate parser for the given format
+  return parsers[format](arr);
 }

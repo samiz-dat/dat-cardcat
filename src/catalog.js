@@ -154,11 +154,14 @@ export class Catalog {
       });
     }
     const newDat = new DatWrapper(opts, this);
+    // listen to events emitted from this dat wrapper
+    newDat.on('import', (...args) => this.handleDatImportEvent(...args));
+    // dw.on('download', (...args) => this.handleDatDownloadEvent(...args));
     return newDat.run()
       .then(() => this.registerDat(newDat))
       .then(() => newDat.importFiles())
-      .then(() => listDatContents(newDat.dat)) // this function can be made a method of dat class too.
-      .each(entry => this.importDatEntry(newDat, entry))
+      .then(() => newDat.listContents())
+      .each(file => this.importDatFile(newDat, file))
       .catch((err) => {
         console.log(`* Something went wrong when importing ${opts.directory}`);
         console.log(err);
@@ -190,12 +193,12 @@ export class Catalog {
   }
 
   // Adds an entry from a Dat
-  importDatEntry(dat, entry, format = 'calibre') {
-    const importedData = parseEntry(entry, format);
+  importDatFile(dat, file, format = 'calibre') {
+    const importedData = parseEntry(file, format);
     if (importedData) {
-      const downloaded = this.pathIsDownloaded(dat, entry.name);
+      const downloaded = this.pathIsDownloaded(dat, file);
       const downloadedStr = (downloaded) ? '[*]' : '[ ]';
-      console.log(chalk.bold('adding:'), downloadedStr, entry.name);
+      console.log(chalk.bold('adding:'), downloadedStr, file);
       return this.db.insert({
         dat: dat.key,
         title_hash: '',
@@ -411,6 +414,12 @@ export class Catalog {
       .then(fp => opf2js(path.join(fp.dir, author, title, mfn)));
   }
 
+  // Event listening
+  //
+  // When a dat imports a file
+  handleDatImportEvent(dw, path, stat) {
+    // console.log('Importing: ', path);
+  }
 }
 
 export function createCatalog(dataDir) {

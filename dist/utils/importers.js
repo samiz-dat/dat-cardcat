@@ -28,18 +28,15 @@
 
 
 
-function (entry, format = 'calibre') {
+function (file, format = 'calibre') {
   // Only files (not directories) are eligible
-  if (entry.type === 'file') {
-    const arr = entry.name.split(_path2.default.sep);
-    // Sometimes there is a leading slash which messes things up
-    if (arr[0] === '') {
-      arr.shift();
-    }
-    // Call the appropriate parser for the given format
-    return parsers[format](arr);
+  const arr = file.split(_path2.default.sep);
+  // Sometimes there is a leading slash which messes things up
+  if (arr[0] === '') {
+    arr.shift();
   }
-  return false;
+  // Call the appropriate parser for the given format
+  return parsers[format](arr);
 };var _path = require('path');var _path2 = _interopRequireDefault(_path);var _anotherNameParser = require('another-name-parser');var _anotherNameParser2 = _interopRequireDefault(_anotherNameParser);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };} /*
                                                                                                                                                                                                                                                                                                     When importing files from a dat, there is likely to be extra data or things
                                                                                                                                                                                                                                                                                                     that just aren't in the right format. We'll define acceptable formats here

@@ -1,15 +1,37 @@
 import fs from 'fs';
+import path from 'path';
+import EventEmitter from 'events';
 import createDat from 'dat-node';
 // import _ from 'lodash';
 import Promise from 'bluebird';
 import chalk from 'chalk';
 import pda from 'pauls-dat-api';
+import { flatten } from './utils/data';
+
+// Uses promises to recursively list a dat's contents using hyperdrive fs-ish functions
+// Note that the Promised hyperdrive functions are passed in by the caller.
+function lsDat(readdirAsync, statAsync, dir) {
+  return readdirAsync(dir).map((file) => {
+    const rFile = path.join(dir, file);
+    return statAsync(rFile).then((stat) => {
+      if (stat.isDirectory()) {
+        return lsDat(readdirAsync, statAsync, rFile);
+      }
+      return rFile;
+    });
+  });
+}
 
 // Lists the contents of a dat
 export function listDatContents(dat) {
   const archive = dat.archive;
-  const archiveList = Promise.promisify(archive.list, { context: archive });
-  return archiveList();
+  // const archiveList = Promise.promisify(archive.list, { context: archive });
+  const readdirAsync = Promise.promisify(archive.readdir, { context: archive });
+  const statAsync = Promise.promisify(archive.stat, { context: archive });
+  lsDat(readdirAsync, statAsync, '/')
+    .each(f => console.log(f));
+  return [];
+  //return archiveList();
 }
 
 // export function listDatContents2(dat) {
@@ -20,8 +42,9 @@ export function listDatContents(dat) {
  * Adds Library-ish functions to a Dat. Expects the Dat's directory structure to
  * follow Calibre's (Author Name/ Publication Title/ Files)
  */
-export default class DatWrapper {
+export default class DatWrapper extends EventEmitter {
   constructor(opts) {
+    super();
     this.directory = opts.directory;
     // create if it doesn't exist
     if (!fs.existsSync(opts.directory)) {
@@ -43,9 +66,11 @@ export default class DatWrapper {
         // const opts = {}; // various network options could go here (https://github.com/datproject/dat-node)
         const network = dat.joinNetwork();
         const stats = dat.trackStats();
+        /*
         stats.once('update', () => {
           console.log(chalk.gray(chalk.bold('stats updated')), stats.get());
         });
+        */
         network.once('connection', () => {
           console.log('connects via network');
           console.log(chalk.gray(chalk.bold('peers:')), stats.peers);
@@ -64,23 +89,28 @@ export default class DatWrapper {
   importFiles() {
     return new Promise((resolve, reject) => {
       const dat = this.dat;
-      if (this.dat.owner) {
-        const importer = dat.importFiles(this.directory, () => {
+      if (this.dat.writable) {
+        const importer = dat.importFiles({}, () => {
           console.log(`Finished importing files in ${this.directory}`);
           resolve(true);
         });
         importer.on('error', reject);
+        // Emit event that something has been imported into the dat
+        importer.on('put', src =>
+          this.emit('import', this, src.name, src.stat));
       } else {
         resolve(false);
       }
     });
   }
 
-  // Lists the contents of a dat
+  // Lists the contents of the dat
   listContents() {
     const archive = this.dat.archive;
-    const archiveList = Promise.promisify(archive.list, { context: archive });
-    return archiveList();
+    const readdirAsync = Promise.promisify(archive.readdir, { context: archive });
+    const statAsync = Promise.promisify(archive.stat, { context: archive });
+    return lsDat(readdirAsync, statAsync, '/')
+      .then(results => flatten(results));
   }
 
   // Download a file or directory

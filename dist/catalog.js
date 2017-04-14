@@ -413,6 +413,15 @@ exports.
 
 
 
+
+
+
+
+
+
+
+
+
 createCatalog = createCatalog;var _path = require('path');var _path2 = _interopRequireDefault(_path);var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);var _knex = require('knex');var _knex2 = _interopRequireDefault(_knex);var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);var _lodash = require('lodash');var _lodash2 = _interopRequireDefault(_lodash);var _config = require('./config');var _config2 = _interopRequireDefault(_config);var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);var _opf = require('./opf');var _filesystem = require('./utils/filesystem');var _importers = require('./utils/importers');var _importers2 = _interopRequireDefault(_importers);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };} // @todo: this.db.close(); should be called on shutdown
 function withinDat(query, dat) {if (dat) {if (typeof dat === 'string') {query.where('dat', dat);} else if (Array.isArray(dat)) {query.whereIn('dat', dat);}}return query;} // Class definition
 class Catalog {constructor(baseDir) {this.pathIsDownloaded = (dat, filePath) => _fs2.default.existsSync(_path2.default.join(dat.directory, filePath));this.getDats = () => this.db('dats').select();this.getDat = key => this.db('dats').select().where('dat', key);this.baseDir = baseDir;this.dats = [];this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename: _path2.default.format({ dir: this.baseDir, base: 'catalog.db' }) }, useNullAsDefault: true }); // If you ever need to see what queries are being run uncomment the following.
@@ -434,11 +443,12 @@ class Catalog {constructor(baseDir) {this.pathIsDownloaded = (dat, filePath) => 
   importDir(directory, name = false) {console.log(`Attempting to import local directory: ${directory}`);const opts = { directory, name: name || directory.split(_path2.default.sep).slice(-1)[0] };return this.importDat(opts);} // Importing a remote dat by its key
   importRemoteDat(key, name = false) {console.log(`Attempting to import remote dat: ${key}`);const opts = { key, name: name || key, sparse: true };return this.importDat(opts);} // Does the work of importing a functional dat into the catalog
   importDat(opts) {if ('key' in opts && opts.key in this.dats) {// The dat is already loaded, we shouldn't reimport it
-      console.log(`You are trying to import a dat that is already loaded: ${opts.key}`);return _bluebird2.default.resolve(false);}if (!opts.directory) {opts.directory = _path2.default.format({ dir: this.baseDir, base: opts.name ? opts.name : opts.key });}const newDat = new _dat2.default(opts, this);return newDat.run().then(() => this.registerDat(newDat)).then(() => newDat.importFiles()).then(() => (0, _dat.listDatContents)(newDat.dat)) // this function can be made a method of dat class too.
-    .each(entry => this.importDatEntry(newDat, entry)).catch(err => {console.log(`* Something went wrong when importing ${opts.directory}`);console.log(err);});} // Registers dat in catalog array and in database (@todo)
+      console.log(`You are trying to import a dat that is already loaded: ${opts.key}`);return _bluebird2.default.resolve(false);}if (!opts.directory) {opts.directory = _path2.default.format({ dir: this.baseDir, base: opts.name ? opts.name : opts.key });}const newDat = new _dat2.default(opts, this); // listen to events emitted from this dat wrapper
+    newDat.on('import', (...args) => this.handleDatImportEvent(...args)); // dw.on('download', (...args) => this.handleDatDownloadEvent(...args));
+    return newDat.run().then(() => this.registerDat(newDat)).then(() => newDat.importFiles()).then(() => newDat.listContents()).each(file => this.importDatFile(newDat, file)).catch(err => {console.log(`* Something went wrong when importing ${opts.directory}`);console.log(err);});} // Registers dat in catalog array and in database (@todo)
   registerDat(dw) {const datkey = dw.dat.key.toString('hex');console.log(`Adding dat (${datkey}) to the catalog.`);return this.removeDatFromDb(datkey).then(() => this.clearDatEntries(datkey)).then(() => this.addDatToDb(datkey, dw.name, dw.directory)).finally(() => {this.dats[datkey] = dw;}).catch(e => console.log(e));}addDatToDb(dat, name, dir) {return this.db.insert({ dat, name, dir }).into('dats');}removeDatFromDb(datKey) {return this.db('dats').where('dat', datKey).del();} // Remove all entries for a dat
   clearDatEntries(datKey) {return this.db('texts').where('dat', datKey).del();} // Adds an entry from a Dat
-  importDatEntry(dat, entry, format = 'calibre') {const importedData = (0, _importers2.default)(entry, format);if (importedData) {const downloaded = this.pathIsDownloaded(dat, entry.name);const downloadedStr = downloaded ? '[*]' : '[ ]';console.log(_chalk2.default.bold('adding:'), downloadedStr, entry.name);return this.db.insert({ dat: dat.key, title_hash: '', file_hash: '', author: importedData.author, author_sort: importedData.authorSort, title: importedData.title, file: importedData.file, downloaded }).into('texts');}return _bluebird2.default.resolve(false);} // Returns the path to a dat
+  importDatFile(dat, file, format = 'calibre') {const importedData = (0, _importers2.default)(file, format);if (importedData) {const downloaded = this.pathIsDownloaded(dat, file);const downloadedStr = downloaded ? '[*]' : '[ ]';console.log(_chalk2.default.bold('adding:'), downloadedStr, file);return this.db.insert({ dat: dat.key, title_hash: '', file_hash: '', author: importedData.author, author_sort: importedData.authorSort, title: importedData.title, file: importedData.file, downloaded }).into('texts');}return _bluebird2.default.resolve(false);} // Returns the path to a dat
   // This is broken until i can understand making sqlite async
   pathToDat(datKey) {return this.db.select('dir').from('dats').where('dat', datKey).first();} // Public call for syncing files within a dat
   // opts can include {dat:, author: , title:, file: }
@@ -464,7 +474,11 @@ class Catalog {constructor(baseDir) {this.pathIsDownloaded = (dat, filePath) => 
   // Optionally specify a filename to find.
   getFiles(author, title, dat, file) {const exp = this.db('texts').where('author', author).where('title', title);withinDat(exp, dat);if (file) {exp.where('file', file);}return exp.orderBy('dat', 'file');} // Returns opf metadata object for an item, optionally preferring a specific library.
   getOpf(author, title, dat = false) {const mfn = 'metadata.opf'; // metadata file name
-    return this.getFiles(author, title, dat, mfn).first().then(row => this.pathToDat(row.dat)).then(fp => (0, _opf.opf2js)(_path2.default.join(fp.dir, author, title, mfn)));}}exports.Catalog = Catalog;function createCatalog(dataDir) {// Directory to store all the data in
+    return this.getFiles(author, title, dat, mfn).first().then(row => this.pathToDat(row.dat)).then(fp => (0, _opf.opf2js)(_path2.default.join(fp.dir, author, title, mfn)));} // Event listening
+  //
+  // When a dat imports a file
+  handleDatImportEvent(dw, path, stat) {// console.log('Importing: ', path);
+  }}exports.Catalog = Catalog;function createCatalog(dataDir) {// Directory to store all the data in
   let dataDirFinal = _path2.default.join(process.cwd(), _config2.default.get('dataDir'));dataDirFinal = dataDir || dataDirFinal; // Create data directory if it doesn't exist yet
   if (!_fs2.default.existsSync(dataDirFinal)) {_fs2.default.mkdirSync(dataDirFinal);}const catalog = new Catalog(dataDirFinal);return catalog.initDatabase().then(() => catalog);}exports.default = Catalog;
 //# sourceMappingURL=catalog.js.map

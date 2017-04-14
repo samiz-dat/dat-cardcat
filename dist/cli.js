@@ -128,4 +128,3 @@ process.env.npm_config_title) {
 }
 
 Promise.resolve(pending).catch(console.error);
-//# sourceMappingURL=cli.js.map
