@@ -22,22 +22,6 @@ function lsDat(readdirAsync, statAsync, dir) {
   });
 }
 
-// Lists the contents of a dat
-export function listDatContents(dat) {
-  const archive = dat.archive;
-  // const archiveList = Promise.promisify(archive.list, { context: archive });
-  const readdirAsync = Promise.promisify(archive.readdir, { context: archive });
-  const statAsync = Promise.promisify(archive.stat, { context: archive });
-  lsDat(readdirAsync, statAsync, '/')
-    .each(f => console.log(f));
-  return [];
-  //return archiveList();
-}
-
-// export function listDatContents2(dat) {
-//   return pda.listFiles(dat.archive, '/');
-// }
-
 /**
  * Adds Library-ish functions to a Dat. Expects the Dat's directory structure to
  * follow Calibre's (Author Name/ Publication Title/ Files)

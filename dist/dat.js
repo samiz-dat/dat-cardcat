@@ -1,47 +1,31 @@
-'use strict';Object.defineProperty(exports, "__esModule", { value: true });exports.
+'use strict';Object.defineProperty(exports, "__esModule", { value: true });var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);
+var _path = require('path');var _path2 = _interopRequireDefault(_path);
+var _events = require('events');var _events2 = _interopRequireDefault(_events);
+var _datNode = require('dat-node');var _datNode2 = _interopRequireDefault(_datNode);
 
+var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);
+var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);
+var _paulsDatApi = require('pauls-dat-api');var _paulsDatApi2 = _interopRequireDefault(_paulsDatApi);
+var _data = require('./utils/data');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}function _asyncToGenerator(fn) {return function () {var gen = fn.apply(this, arguments);return new _bluebird2.default(function (resolve, reject) {function step(key, arg) {try {var info = gen[key](arg);var value = info.value;} catch (error) {reject(error);return;}if (info.done) {resolve(value);} else {return _bluebird2.default.resolve(value).then(function (value) {step("next", value);}, function (err) {step("throw", err);});}}return step("next");});};} // import _ from 'lodash';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-listDatContents = listDatContents;var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);var _path = require('path');var _path2 = _interopRequireDefault(_path);var _events = require('events');var _events2 = _interopRequireDefault(_events);var _datNode = require('dat-node');var _datNode2 = _interopRequireDefault(_datNode);var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);var _paulsDatApi = require('pauls-dat-api');var _paulsDatApi2 = _interopRequireDefault(_paulsDatApi);var _data = require('./utils/data');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}function _asyncToGenerator(fn) {return function () {var gen = fn.apply(this, arguments);return new _bluebird2.default(function (resolve, reject) {function step(key, arg) {try {var info = gen[key](arg);var value = info.value;} catch (error) {reject(error);return;}if (info.done) {resolve(value);} else {return _bluebird2.default.resolve(value).then(function (value) {step("next", value);}, function (err) {step("throw", err);});}}return step("next");});};} // import _ from 'lodash';
 // Uses promises to recursively list a dat's contents using hyperdrive fs-ish functions
 // Note that the Promised hyperdrive functions are passed in by the caller.
-function lsDat(readdirAsync, statAsync, dir) {return readdirAsync(dir).map(file => {const rFile = _path2.default.join(dir, file);return statAsync(rFile).then(stat => {if (stat.isDirectory()) {return lsDat(readdirAsync, statAsync, rFile);}return rFile;});});} // Lists the contents of a dat
-function listDatContents(dat) {const archive = dat.archive; // const archiveList = Promise.promisify(archive.list, { context: archive });
-  const readdirAsync = _bluebird2.default.promisify(archive.readdir, { context: archive });const statAsync = _bluebird2.default.promisify(archive.stat, { context: archive });lsDat(readdirAsync, statAsync, '/').
-  each(f => console.log(f));
-  return [];
-  //return archiveList();
+function lsDat(readdirAsync, statAsync, dir) {
+  return readdirAsync(dir).map(file => {
+    const rFile = _path2.default.join(dir, file);
+    return statAsync(rFile).then(stat => {
+      if (stat.isDirectory()) {
+        return lsDat(readdirAsync, statAsync, rFile);
+      }
+      return rFile;
+    });
+  });
 }
 
-// export function listDatContents2(dat) {
-//   return pda.listFiles(dat.archive, '/');
-// }
-
 /**
- * Adds Library-ish functions to a Dat. Expects the Dat's directory structure to
- * follow Calibre's (Author Name/ Publication Title/ Files)
- */
+   * Adds Library-ish functions to a Dat. Expects the Dat's directory structure to
+   * follow Calibre's (Author Name/ Publication Title/ Files)
+   */
 class DatWrapper extends _events2.default {
   constructor(opts) {
     super();this.

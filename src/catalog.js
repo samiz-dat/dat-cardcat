@@ -1,77 +1,33 @@
 import path from 'path';
 import fs from 'fs';
 import Promise from 'bluebird';
-import db from 'knex';
 import chalk from 'chalk';
 import _ from 'lodash';
 import config from './config';
 
-import DatWrapper, { listDatContents } from './dat'; // this function can be made a method of dat class too.
-import { opf2js } from './opf';
+import DatWrapper from './dat'; // this function can be made a method of dat class too.
+import Database from './db';
+// import { opf2js } from './opf';
 import { getDirectories, notADir } from './utils/filesystem';
 import parseEntry from './utils/importers';
 // @todo: this.db.close(); should be called on shutdown
-
-function withinDat(query, dat) {
-  if (dat) {
-    if (typeof dat === 'string') {
-      query.where('dat', dat);
-    } else if (Array.isArray(dat)) {
-      query.whereIn('dat', dat);
-    }
-  }
-  return query;
-}
 
 // Class definition
 export class Catalog {
   constructor(baseDir) {
     this.baseDir = baseDir;
     this.dats = [];
-    this.db = db({
-      client: 'sqlite3',
-      connection: {
-        filename: path.format({
-          dir: this.baseDir,
-          base: 'catalog.db',
-        }),
-      },
-      useNullAsDefault: true,
-    });
+    this.db = new Database(path.format({
+      dir: this.baseDir,
+      base: 'catalog.db',
+    }));
     // If you ever need to see what queries are being run uncomment the following.
     // this.db.on('query', queryData => console.log(queryData));
     this.isReady = false;
   }
 
   initDatabase() {
-    // we should probably setup a simple migration script
-    // but for now lets just drop tables before remaking tables.
-    const tablesDropped = this.db.schema.dropTableIfExists('datsX')
-      .dropTableIfExists('textsX')
-      .dropTableIfExists('more_authorsX');
-    return tablesDropped.createTableIfNotExists('dats', (table) => {
-      table.string('dat');
-      table.string('name');
-      table.string('dir');
-      // table.unique('dat');
-    })
-    .createTableIfNotExists('texts', (table) => {
-      table.string('dat');
-      table.string('title_hash');
-      table.string('file_hash');
-      table.string('author');
-      table.string('author_sort');
-      table.string('title');
-      table.string('file');
-      table.boolean('downloaded');
-    })
-    .createTableIfNotExists('more_authors', (table) => {
-      table.string('title_hash');
-      table.string('author');
-      // table.unique('title_hash');
-    })
-    .then(() => { this.isReady = true; })
-    .catch(e => console.error(e));
+    return this.db.init();
   }
 
   // Every imported and added dat gets added to the `dats` table of the database. If
@@ -84,8 +40,8 @@ export class Catalog {
       .filter(dat => notADir(dat.dir))
       .each((dat) => {
         console.log(`Removing: ${chalk.bold(dat.dir)} (directory does not exist)`);
-        return this.removeDatFromDb(dat.dat)
-          .then(() => this.clearDatEntries(dat.dat));
+        return this.db.removeDat(dat.dat)
+          .then(() => this.db.clearTexts(dat.dat));
       })
       .then(() => this);
   }
@@ -172,25 +128,20 @@ export class Catalog {
   registerDat(dw) {
     const datkey = dw.dat.key.toString('hex');
     console.log(`Adding dat (${datkey}) to the catalog.`);
-    return this.removeDatFromDb(datkey)
-      .then(() => this.clearDatEntries(datkey))
-      .then(() => this.addDatToDb(datkey, dw.name, dw.directory))
+    return this.db.removeDat(datkey)
+      .then(() => this.db.clearTexts(datkey))
+      .then(() => this.db.addDat(datkey, dw.name, dw.directory))
       .finally(() => { this.dats[datkey] = dw; })
       .catch(e => console.log(e));
   }
 
-  addDatToDb(dat, name, dir) {
-    return this.db.insert({ dat, name, dir }).into('dats');
-  }
-
-  removeDatFromDb(datKey) {
-    return this.db('dats').where('dat', datKey).del();
-  }
-
-  // Remove all entries for a dat
-  clearDatEntries(datKey) {
-    return this.db('texts').where('dat', datKey).del();
-  }
+  // Now, database functions are passed on from this.db
+  // It kind of amounts to a data API
+  getDats = () => this.db.getDats();
+  getAuthors = (...args) => this.db.getAuthors(...args);
+  getAuthorLetters = (...args) => this.db.getAuthorLetters(...args);
+  getTitlesWith = (...args) => this.db.getTitlesWith(...args);
+  search = (...args) => this.db.search(...args);
 
   // Adds an entry from a Dat
   importDatFile(dat, file, format = 'calibre') {
@@ -199,24 +150,16 @@ export class Catalog {
       const downloaded = this.pathIsDownloaded(dat, file);
       const downloadedStr = (downloaded) ? '[*]' : '[ ]';
       console.log(chalk.bold('adding:'), downloadedStr, file);
-      return this.db.insert({
+      return this.db.addText({
         dat: dat.key,
-        title_hash: '',
-        file_hash: '',
         author: importedData.author,
         author_sort: importedData.authorSort,
         title: importedData.title,
         file: importedData.file,
         downloaded,
-      }).into('texts');
+      });
     }
     return Promise.resolve(false);
-  }
-
-  // Returns the path to a dat
-  // This is broken until i can understand making sqlite async
-  pathToDat(datKey) {
-    return this.db.select('dir').from('dats').where('dat', datKey).first();
   }
 
   // Public call for syncing files within a dat
@@ -237,7 +180,7 @@ export class Catalog {
       return Promise.reject();
     }
     // With no dat provided, we must query for it
-    return this.getDatsWith(opts)
+    return this.db.getDatsWith(opts)
       .map(row => row.dat)
       .each(dat => this.download(dat, opts)) // .each() passes through the original array
       .then(dats => this.scanForDownloads(opts, _.uniq(dats)));
@@ -246,7 +189,7 @@ export class Catalog {
   // Checks whether a group of catalogue items have been downloaded
   // and if so, then updates the downloaded column in the texts table
   scanForDownloads(opts, dat) {
-    return this.getItemsWith(opts, dat)
+    return this.db.getItemsWith(opts, dat)
       .then(rows => rows.filter(doc => this.itemIsDownloaded(doc)))
       .each(row => this.setDownloaded(row.dat, row.author, row.title, row.file));
   }
@@ -275,143 +218,6 @@ export class Catalog {
     return this.pathIsDownloaded(
       this.dats[dbRow.dat],
       path.join(dbRow.author, dbRow.title, dbRow.file));
-  }
-
-  // Sets download status of a row
-  setDownloaded(dat, author, title, file, downloaded = true) {
-    return this.db('texts')
-      .where('dat', dat)
-      .where('author', author)
-      .where('title', title)
-      .where('file', file)
-      .update({
-        downloaded,
-      });
-  }
-
-  // Searches for titles with files bundled up in a comma separated column
-  search(query, dat) {
-    const s = `%${query}%`;
-    const exp = this.db
-      .select('dat',
-        'author',
-        'title',
-        'title_hash',
-        'author_sort',
-      this.db.raw('GROUP_CONCAT("file" || ":" || "downloaded") as "files"'))
-      .from('texts')
-      .where(function () { // a bit inelegant but groups where statements
-        this.where('title', 'like', s)
-          .orWhere('author', 'like', s);
-      })
-      .groupBy('author', 'title');
-    withinDat(exp, dat);
-    return exp.orderBy('author_sort', 'title');
-  }
-
-  // Gets a count of authors in the catalog
-  getAuthors(startingWith, dat) {
-    const exp = this.db.select('author').from('texts')
-      .countDistinct('title as count');
-    withinDat(exp, dat);
-    if (startingWith) {
-      const s = `${startingWith}%`;
-      exp.where('author_sort', 'like', s);
-    }
-    return exp
-      .groupBy('author')
-      .orderBy('author_sort');
-  }
-
-  // Gets a list of letters of authors, for generating a directory
-  getAuthorLetters(dat) {
-    const exp = this.db.column(this.db.raw('lower(substr(author_sort,1,1)) as letter'))
-      .select();
-    withinDat(exp, dat);
-    return exp.from('texts')
-      .distinct('letter')
-      .orderBy('letter');
-  }
-
-  getTitlesForAuthor(author, dat) {
-    const exp = this.db('texts')
-      .distinct('dat', 'title')
-      .where('author', author);
-    withinDat(exp, dat);
-    return exp.orderBy('title');
-  }
-
-  // Gets dats containing items described in opts (author/title/file)
-  // Optionally provide one or more dats to look within.
-  getDatsWith(opts, dat) {
-    return this.getItemsWith(opts, dat, 'dat');
-  }
-
-  // Like getItemsWith, except some extra work is done to return titles
-  // along with a comma-separated list of files:downloaded for each title.
-  getTitlesWith(opts, dat) {
-    const exp = this.db
-      .select('dat',
-        'author',
-        'title',
-        'title_hash',
-        'author_sort',
-      this.db.raw('GROUP_CONCAT("file" || ":" || "downloaded") as "files"'))
-      .from('texts');
-    if (opts.author) {
-      exp.where('author', opts.author);
-    }
-    if (opts.title) {
-      exp.where('title', opts.title);
-    }
-    withinDat(exp, dat);
-    return exp
-      .groupBy('author', 'title')
-      .orderBy('author_sort', 'title');
-  }
-
-  // Gets entire entries for catalog items matching author/title/file.
-  // Can specify a dat or a list of dats to get within.
-  getItemsWith(opts, dat, distinct) {
-    const exp = this.db('texts');
-    if (distinct) {
-      exp.distinct(distinct);
-    }
-    if (opts.author) {
-      exp.where('author', opts.author);
-    }
-    if (opts.title) {
-      exp.where('title', opts.title);
-    }
-    if (opts.file) {
-      exp.where('file', opts.file);
-    }
-    withinDat(exp, dat);
-    return exp.orderBy('dat', 'author', 'title');
-  }
-
-  // Optionally only include files from a particular dat.
-  // Optionally specify a filename to find.
-  getFiles(author, title, dat, file) {
-    const exp = this.db('texts')
-      .where('author', author)
-      .where('title', title);
-    withinDat(exp, dat);
-    if (file) {
-      exp.where('file', file);
-    }
-    return exp.orderBy('dat', 'file');
-  }
-
-  getDats = () => this.db('dats').select();
-  getDat = key => this.db('dats').select().where('dat', key);
-
-  // Returns opf metadata object for an item, optionally preferring a specific library.
-  getOpf(author, title, dat = false) {
-    const mfn = 'metadata.opf'; // metadata file name
-    return this.getFiles(author, title, dat, mfn).first()
-      .then(row => this.pathToDat(row.dat))
-      .then(fp => opf2js(path.join(fp.dir, author, title, mfn)));
   }
 
   // Event listening
