@@ -34,6 +34,16 @@ export class Database {
     return this.db('dats').where('dat', datKey).del();
   }
 
+  // Update a dat's name and directory
+  updateDat(datKey, name, dir) {
+    return this.db('dats')
+      .where('dat', datKey)
+      .update({
+        name,
+        dir,
+      });
+  }
+
   // Remove all entries/ texts for a dat
   clearTexts(datKey) {
     return this.db('texts').where('dat', datKey).del();

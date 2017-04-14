@@ -48,6 +48,8 @@ const cardcatTaskChoices = [
     choices: [
       'Get info',
       'Checkout everything',
+      'Rename',
+      'Delete',
     ],
   },
 ];
@@ -96,6 +98,14 @@ const createQuestions = [
   },
 ];
 
+const renameQuestions = [
+  {
+    type: 'input',
+    name: 'name',
+    message: 'New name:',
+  },
+];
+
 const searchQuestions = [
   {
     type: 'input',
@@ -128,6 +138,11 @@ function createTask() {
     .catch(e => console.log(e));
 }
 
+function renameTask(key) {
+  return inquirer.prompt(renameQuestions)
+    .then(answers => cardcat.renameDat(key, answers.name));
+}
+
 function cardcatTasks(key) {
   // Handle choice
   return inquirer.prompt(cardcatTaskChoices)
@@ -139,6 +154,12 @@ function cardcatTasks(key) {
       }
       case 'Checkout everything': {
         return cardcat.checkout({ dat: key });
+      }
+      case 'Rename': {
+        return renameTask(key);
+      }
+      case 'Delete': {
+        return cardcat.removeDat(key);
       }
       default: {
         console.log(`Share this key to share it's catalogue: ${key}`);

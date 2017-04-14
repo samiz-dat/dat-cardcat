@@ -3,6 +3,7 @@ import fs from 'fs';
 import Promise from 'bluebird';
 import chalk from 'chalk';
 import _ from 'lodash';
+import rimraf from 'rimraf';
 import config from './config';
 
 import DatWrapper from './dat'; // this function can be made a method of dat class too.
@@ -40,8 +41,7 @@ export class Catalog {
       .filter(dat => notADir(dat.dir))
       .each((dat) => {
         console.log(`Removing: ${chalk.bold(dat.dir)} (directory does not exist)`);
-        return this.db.removeDat(dat.dat)
-          .then(() => this.db.clearTexts(dat.dat));
+        return this.removeDat(dat.dat, false);
       })
       .then(() => this);
   }
@@ -135,13 +135,35 @@ export class Catalog {
       .catch(e => console.log(e));
   }
 
-  // Now, database functions are passed on from this.db
-  // It kind of amounts to a data API
-  getDats = () => this.db.getDats();
-  getAuthors = (...args) => this.db.getAuthors(...args);
-  getAuthorLetters = (...args) => this.db.getAuthorLetters(...args);
-  getTitlesWith = (...args) => this.db.getTitlesWith(...args);
-  search = (...args) => this.db.search(...args);
+  // Rename a dat - updates database and directory
+  renameDat(key, name) {
+    const renameAsync = Promise.promisify(fs.rename);
+    const newPath = path.format({
+      dir: this.baseDir,
+      base: name,
+    });
+    return this.db.pathToDat(key)
+      .then(p => renameAsync(p.dir, newPath))
+      .then(() => this.db.updateDat(key, name, newPath));
+  }
+
+  // Delete a dat from catalog. Only deletes directory if it's in the baseDir
+  removeDat(key, deleteDir = true) {
+    if (deleteDir) {
+      return this.db.pathToDat(key)
+        .then((p) => {
+          if (p.dir.startsWith(this.baseDir)) {
+            const rimrafAsync = Promise.promisify(rimraf);
+            return this.db.removeDat(key)
+              .then(() => this.db.clearTexts(key))
+              .then(() => rimrafAsync(p.dir));
+          }
+          return Promise.resolve(false);
+        });
+    }
+    return this.db.removeDat(key)
+      .then(() => this.db.clearTexts(key));
+  }
 
   // Adds an entry from a Dat
   importDatFile(dat, file, format = 'calibre') {
@@ -161,6 +183,14 @@ export class Catalog {
     }
     return Promise.resolve(false);
   }
+
+  // Now, database functions are passed on from this.db
+  // It kind of amounts to a data API
+  getDats = () => this.db.getDats();
+  getAuthors = (...args) => this.db.getAuthors(...args);
+  getAuthorLetters = (...args) => this.db.getAuthorLetters(...args);
+  getTitlesWith = (...args) => this.db.getTitlesWith(...args);
+  search = (...args) => this.db.search(...args);
 
   // Public call for syncing files within a dat
   // opts can include {dat:, author: , title:, file: }

@@ -5,6 +5,7 @@
 
 
 
+
 // this function can be made a method of dat class too.
 
 // import { opf2js } from './opf';
@@ -228,14 +229,43 @@ exports.
 
 
 
-createCatalog = createCatalog;var _path = require('path');var _path2 = _interopRequireDefault(_path);var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);var _lodash = require('lodash');var _lodash2 = _interopRequireDefault(_lodash);var _config = require('./config');var _config2 = _interopRequireDefault(_config);var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);var _db = require('./db');var _db2 = _interopRequireDefault(_db);var _filesystem = require('./utils/filesystem');var _importers = require('./utils/importers');var _importers2 = _interopRequireDefault(_importers);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };} // @todo: this.db.close(); should be called on shutdown
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+createCatalog = createCatalog;var _path = require('path');var _path2 = _interopRequireDefault(_path);var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);var _lodash = require('lodash');var _lodash2 = _interopRequireDefault(_lodash);var _rimraf = require('rimraf');var _rimraf2 = _interopRequireDefault(_rimraf);var _config = require('./config');var _config2 = _interopRequireDefault(_config);var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);var _db = require('./db');var _db2 = _interopRequireDefault(_db);var _filesystem = require('./utils/filesystem');var _importers = require('./utils/importers');var _importers2 = _interopRequireDefault(_importers);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };} // @todo: this.db.close(); should be called on shutdown
 // Class definition
 class Catalog {constructor(baseDir) {this.getDats = () => this.db.getDats();this.getAuthors = (...args) => this.db.getAuthors(...args);this.getAuthorLetters = (...args) => this.db.getAuthorLetters(...args);this.getTitlesWith = (...args) => this.db.getTitlesWith(...args);this.search = (...args) => this.db.search(...args);this.pathIsDownloaded = (dat, filePath) => _fs2.default.existsSync(_path2.default.join(dat.directory, filePath));this.baseDir = baseDir;this.dats = [];this.db = new _db2.default(_path2.default.format({ dir: this.baseDir, base: 'catalog.db' })); // If you ever need to see what queries are being run uncomment the following.
     // this.db.on('query', queryData => console.log(queryData));
     this.isReady = false;}initDatabase() {return this.db.init();} // Every imported and added dat gets added to the `dats` table of the database. If
   // the directories are deleted then these db entries are useless and should be removed.
   // This will simply confirm that every dat directory in the db still exists.
-  cleanupDatsRegistry() {console.log('Cleaning up the dats registry');return this.getDats().map(dat => dat).filter(dat => (0, _filesystem.notADir)(dat.dir)).each(dat => {console.log(`Removing: ${_chalk2.default.bold(dat.dir)} (directory does not exist)`);return this.db.removeDat(dat.dat).then(() => this.db.clearTexts(dat.dat));}).then(() => this);} // Look inside the base directory for any directories that seem to be dats
+  cleanupDatsRegistry() {console.log('Cleaning up the dats registry');return this.getDats().map(dat => dat).filter(dat => (0, _filesystem.notADir)(dat.dir)).each(dat => {console.log(`Removing: ${_chalk2.default.bold(dat.dir)} (directory does not exist)`);return this.removeDat(dat.dat, false);}).then(() => this);} // Look inside the base directory for any directories that seem to be dats
   discoverDats() {return (0, _filesystem.getDirectories)(this.baseDir).map(name => {console.log(`Attempting to load dir: ${_chalk2.default.bold(name)} as a dat`);const opts = { name, createIfMissing: false, sparse: true };return this.importDat(opts);}).then(() => this.cleanupDatsRegistry()).then(() => this.importDatsFromDB()).then(() => this);} // Imports dats listed in the dats table of the database
   importDatsFromDB() {return this.getDats().map(dat => dat).filter(dat => (0, _filesystem.notADir)(dat.dir)) // directory exists
     .filter(dat => !dat.dir.startsWith(this.baseDir)) // not in data directory
@@ -248,10 +278,12 @@ class Catalog {constructor(baseDir) {this.getDats = () => this.db.getDats();this
       console.log(`You are trying to import a dat that is already loaded: ${opts.key}`);return _bluebird2.default.resolve(false);}if (!opts.directory) {opts.directory = _path2.default.format({ dir: this.baseDir, base: opts.name ? opts.name : opts.key });}const newDat = new _dat2.default(opts, this); // listen to events emitted from this dat wrapper
     newDat.on('import', (...args) => this.handleDatImportEvent(...args)); // dw.on('download', (...args) => this.handleDatDownloadEvent(...args));
     return newDat.run().then(() => this.registerDat(newDat)).then(() => newDat.importFiles()).then(() => newDat.listContents()).each(file => this.importDatFile(newDat, file)).catch(err => {console.log(`* Something went wrong when importing ${opts.directory}`);console.log(err);});} // Registers dat in catalog array and in database (@todo)
-  registerDat(dw) {const datkey = dw.dat.key.toString('hex');console.log(`Adding dat (${datkey}) to the catalog.`);return this.db.removeDat(datkey).then(() => this.db.clearTexts(datkey)).then(() => this.db.addDat(datkey, dw.name, dw.directory)).finally(() => {this.dats[datkey] = dw;}).catch(e => console.log(e));} // Now, database functions are passed on from this.db
+  registerDat(dw) {const datkey = dw.dat.key.toString('hex');console.log(`Adding dat (${datkey}) to the catalog.`);return this.db.removeDat(datkey).then(() => this.db.clearTexts(datkey)).then(() => this.db.addDat(datkey, dw.name, dw.directory)).finally(() => {this.dats[datkey] = dw;}).catch(e => console.log(e));} // Rename a dat - updates database and directory
+  renameDat(key, name) {const renameAsync = _bluebird2.default.promisify(_fs2.default.rename);const newPath = _path2.default.format({ dir: this.baseDir, base: name });return this.db.pathToDat(key).then(p => renameAsync(p.dir, newPath)).then(() => this.db.updateDat(key, name, newPath));} // Delete a dat from catalog. Only deletes directory if it's in the baseDir
+  removeDat(key, deleteDir = true) {if (deleteDir) {return this.db.pathToDat(key).then(p => {if (p.dir.startsWith(this.baseDir)) {const rimrafAsync = _bluebird2.default.promisify(_rimraf2.default);return this.db.removeDat(key).then(() => this.db.clearTexts(key)).then(() => rimrafAsync(p.dir));}return _bluebird2.default.resolve(false);});}return this.db.removeDat(key).then(() => this.db.clearTexts(key));} // Adds an entry from a Dat
+  importDatFile(dat, file, format = 'calibre') {const importedData = (0, _importers2.default)(file, format);if (importedData) {const downloaded = this.pathIsDownloaded(dat, file);const downloadedStr = downloaded ? '[*]' : '[ ]';console.log(_chalk2.default.bold('adding:'), downloadedStr, file);return this.db.addText({ dat: dat.key, author: importedData.author, author_sort: importedData.authorSort, title: importedData.title, file: importedData.file, downloaded });}return _bluebird2.default.resolve(false);} // Now, database functions are passed on from this.db
   // It kind of amounts to a data API
-  // Adds an entry from a Dat
-  importDatFile(dat, file, format = 'calibre') {const importedData = (0, _importers2.default)(file, format);if (importedData) {const downloaded = this.pathIsDownloaded(dat, file);const downloadedStr = downloaded ? '[*]' : '[ ]';console.log(_chalk2.default.bold('adding:'), downloadedStr, file);return this.db.addText({ dat: dat.key, author: importedData.author, author_sort: importedData.authorSort, title: importedData.title, file: importedData.file, downloaded });}return _bluebird2.default.resolve(false);} // Public call for syncing files within a dat
+  // Public call for syncing files within a dat
   // opts can include {dat:, author: , title:, file: }
   checkout(opts) {if (!opts) {console.warn('attempted to checkout without opts.');return _bluebird2.default.reject();}if (opts.dat) {if (typeof opts.dat === 'string') {return this.download(opts.dat, opts).then(() => this.scanForDownloads(opts, opts.dat));} else if (Array.isArray(opts.dat)) {return _bluebird2.default.map(opts.dat, dat => this.checkout(_extends({}, opts, { dat })));}console.warn('dat option passed to check is not an array or a string');return _bluebird2.default.reject();} // With no dat provided, we must query for it
     return this.db.getDatsWith(opts).map(row => row.dat).each(dat => this.download(dat, opts)) // .each() passes through the original array
