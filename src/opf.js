@@ -31,6 +31,9 @@ class OPF {
   get description() {
     return this.getField('dc:description');
   }
+  get subjects() {
+    return this.getList('dc:subject');
+  }
 
   // This is just for testing
   get undefined() {
