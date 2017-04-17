@@ -7,7 +7,7 @@ import rimraf from 'rimraf';
 import config from './config';
 
 import DatWrapper from './dat'; // this function can be made a method of dat class too.
-import Database from './db';
+import Database from './db'; // eslint-disable-line
 // import { opf2js } from './opf';
 import { getDirectories, notADir } from './utils/filesystem';
 import parseEntry from './utils/importers';
@@ -25,6 +25,13 @@ export class Catalog {
     // If you ever need to see what queries are being run uncomment the following.
     // this.db.on('query', queryData => console.log(queryData));
     this.isReady = false;
+
+    // Now, database functions are passed on from this.db
+    // explicitly declare publicly accessible database functions
+    const publicDatabaseFuncs = ['getDats', 'getAuthors', 'getAuthorLetters', 'getTitlesWith', 'search', 'getTitlesForAuthor'];
+    publicDatabaseFuncs.forEach((fn) => {
+      if (typeof this.db[fn] === 'function') this[fn] = (...args) => this.db[fn](...args);
+    });
   }
 
   initDatabase() {
@@ -183,14 +190,6 @@ export class Catalog {
     }
     return Promise.resolve(false);
   }
-
-  // Now, database functions are passed on from this.db
-  // It kind of amounts to a data API
-  getDats = () => this.db.getDats();
-  getAuthors = (...args) => this.db.getAuthors(...args);
-  getAuthorLetters = (...args) => this.db.getAuthorLetters(...args);
-  getTitlesWith = (...args) => this.db.getTitlesWith(...args);
-  search = (...args) => this.db.search(...args);
 
   // Public call for syncing files within a dat
   // opts can include {dat:, author: , title:, file: }
