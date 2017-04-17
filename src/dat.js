@@ -1,26 +1,12 @@
 import fs from 'fs';
-import path from 'path';
 import EventEmitter from 'events';
 import createDat from 'dat-node';
 // import _ from 'lodash';
 import Promise from 'bluebird';
 import chalk from 'chalk';
 import pda from 'pauls-dat-api';
-import _ from 'lodash';
 
-// Uses promises to recursively list a dat's contents using hyperdrive fs-ish functions
-// Note that the Promised hyperdrive functions are passed in by the caller.
-function lsDat(readdirAsync, statAsync, dir) {
-  return readdirAsync(dir).map((file) => {
-    const rFile = path.join(dir, file);
-    return statAsync(rFile).then((stat) => {
-      if (stat.isDirectory()) {
-        return lsDat(readdirAsync, statAsync, rFile);
-      }
-      return rFile;
-    });
-  });
-}
+import { lsFilesPromised } from './utils/filesystem';
 
 /**
  * Adds Library-ish functions to a Dat. Expects the Dat's directory structure to
@@ -93,8 +79,7 @@ export default class DatWrapper extends EventEmitter {
     const archive = this.dat.archive;
     const readdirAsync = Promise.promisify(archive.readdir, { context: archive });
     const statAsync = Promise.promisify(archive.stat, { context: archive });
-    return lsDat(readdirAsync, statAsync, '/')
-      .then(results => _.flattenDeep(results));
+    return lsFilesPromised('/', readdirAsync, statAsync);
   }
 
   // Download a file or directory
