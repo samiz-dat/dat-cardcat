@@ -6,7 +6,7 @@ import createDat from 'dat-node';
 import Promise from 'bluebird';
 import chalk from 'chalk';
 import pda from 'pauls-dat-api';
-import { flatten } from './utils/data';
+import _ from 'lodash';
 
 // Uses promises to recursively list a dat's contents using hyperdrive fs-ish functions
 // Note that the Promised hyperdrive functions are passed in by the caller.
@@ -94,7 +94,7 @@ export default class DatWrapper extends EventEmitter {
     const readdirAsync = Promise.promisify(archive.readdir, { context: archive });
     const statAsync = Promise.promisify(archive.stat, { context: archive });
     return lsDat(readdirAsync, statAsync, '/')
-      .then(results => flatten(results));
+      .then(results => _.flattenDeep(results));
   }
 
   // Download a file or directory

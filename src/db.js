@@ -1,4 +1,6 @@
+import path from 'path';
 import db from 'knex';
+import { opf2js } from './opf';
 
 // Narrows query to within a dat/ list of dats
 function withinDat(query, dat) {
