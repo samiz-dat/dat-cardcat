@@ -1,6 +1,6 @@
 import path from 'path';
 import db from 'knex';
-import { opf2js } from './opf';
+import { readOPF } from 'open-packaging-format';
 
 // Narrows query to within a dat/ list of dats
 function withinDat(query, dat) {
@@ -204,7 +204,7 @@ export class Database {
     const mfn = 'metadata.opf'; // metadata file name
     return this.getFiles(author, title, dat, mfn).first()
       .then(row => this.pathToDat(row.dat))
-      .then(fp => opf2js(path.join(fp.dir, author, title, mfn)));
+      .then(fp => readOPF(path.join(fp.dir, author, title, mfn)));
   }
 
   // Initializes tables

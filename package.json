@@ -43,6 +43,7 @@
     "knex": "^0.12.7",
     "lodash": "^4.17.4",
     "nconf": "^0.8.4",
+    "open-packaging-format": "0.0.4",
     "pauls-dat-api": "pfrazee/pauls-dat-api#SLEEP",
     "rimraf": "^2.6.1",
     "sqlite3": "^3.1.8",

@@ -8,7 +8,7 @@ import config from './config';
 
 import DatWrapper from './dat'; // this function can be made a method of dat class too.
 import Database from './db'; // eslint-disable-line
-// import { opf2js } from './opf';
+
 import { getDirectories, notADir } from './utils/filesystem';
 import parseEntry from './utils/importers';
 // @todo: this.db.close(); should be called on shutdown

@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
+import { readOPF } from 'open-packaging-format';
 import { createCatalog } from './catalog';
-import { opf2js } from './opf';
 import config from './config';
 
 // Directory to store all the data in (should be a config option)
@@ -73,7 +73,7 @@ if (process.env.npm_config_discover) {
     });
 // npm run cli --opf=/dir/to/file.opf
 } else if (process.env.npm_config_opf) {
-  pending = opf2js(process.env.npm_config_opf)
+  pending = readOPF(process.env.npm_config_opf)
     .then(data =>
       console.log(data.authors),
     );
