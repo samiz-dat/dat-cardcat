@@ -1,7 +1,7 @@
 'use strict';var _path = require('path');var _path2 = _interopRequireDefault(_path);
 var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);
+var _openPackagingFormat = require('open-packaging-format');
 var _catalog = require('./catalog');
-var _opf = require('./opf');
 var _config = require('./config');var _config2 = _interopRequireDefault(_config);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}
 
 // Directory to store all the data in (should be a config option)
@@ -73,7 +73,7 @@ process.env.npm_config_title) {
   });
   // npm run cli --opf=/dir/to/file.opf
 } else if (process.env.npm_config_opf) {
-  pending = (0, _opf.opf2js)(process.env.npm_config_opf).
+  pending = (0, _openPackagingFormat.readOPF)(process.env.npm_config_opf).
   then(data =>
   console.log(data.authors));
 
@@ -128,3 +128,4 @@ process.env.npm_config_title) {
 }
 
 Promise.resolve(pending).catch(console.error);
+//# sourceMappingURL=cli.js.map

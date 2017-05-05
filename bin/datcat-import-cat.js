@@ -14,7 +14,4 @@ if (args.length !== 2) {
 
 catalog.createCatalog()
   .tap(c => c.discoverDats())
-  .then(c => c.importDat({
-    key: args[0],
-    name: args[1],
-    sparse: true }));
+  .then(c => c.importRemoteDat(args[0], args[1]));

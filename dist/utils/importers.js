@@ -45,3 +45,4 @@ function (file, format = 'calibre') {
 const ignore = ['.DS_Store', '.dat', '.git'];const parsers = { // Calibre parser is the default one
   calibre: pathArr => {if (pathArr.length === 3 && !ignore.includes(pathArr[2])) {const name = (0, _anotherNameParser2.default)(pathArr[0]);return { author: pathArr[0], authorSort: `${name.last}, ${name.first}`, title: pathArr[1], file: pathArr[2] };}return false;} }; // Does the given candidate pass the formatting tests? (should it be added?)
 // If so, return { author, author_sort, title, file }
+//# sourceMappingURL=importers.js.map

@@ -28,7 +28,7 @@ export class Catalog {
 
     // Now, database functions are passed on from this.db
     // explicitly declare publicly accessible database functions
-    const publicDatabaseFuncs = ['getDats', 'getAuthors', 'getAuthorLetters', 'getTitlesWith', 'search', 'getTitlesForAuthor'];
+    const publicDatabaseFuncs = ['getDats', 'getAuthors', 'getAuthorLetters', 'getTitlesWith', 'search', 'getTitlesForAuthor', 'setDownloaded'];
     publicDatabaseFuncs.forEach((fn) => {
       if (typeof this.db[fn] === 'function') this[fn] = (...args) => this.db[fn](...args);
     });
@@ -60,7 +60,7 @@ export class Catalog {
         console.log(`Attempting to load dir: ${chalk.bold(name)} as a dat`);
         const opts = {
           name,
-          createIfMissing: false,
+          createIfMissing: false, // @todo: this was false before, but threw error. find out why?
           sparse: true,
         };
         return this.importDat(opts);
@@ -119,6 +119,7 @@ export class Catalog {
     const newDat = new DatWrapper(opts, this);
     // listen to events emitted from this dat wrapper
     newDat.on('import', (...args) => this.handleDatImportEvent(...args));
+    newDat.on('sync metadata', (...args) => this.handleDatSyncMetadataEvent(...args));
     // dw.on('download', (...args) => this.handleDatDownloadEvent(...args));
     return newDat.run()
       .then(() => this.registerDat(newDat))
@@ -251,6 +252,12 @@ export class Catalog {
 
   // Event listening
   //
+  // When a dat's metadata is synced
+  handleDatSyncMetadataEvent(dw) {
+    console.log('metadata synced');
+    Promise.map(dw.listContents(), file => this.importDatFile(dw, file));
+  }
+
   // When a dat imports a file
   handleDatImportEvent(dw, path, stat) {
     // console.log('Importing: ', path);

@@ -1,4 +1,6 @@
-'use strict';Object.defineProperty(exports, "__esModule", { value: true });exports.Database = undefined;var _knex = require('knex');var _knex2 = _interopRequireDefault(_knex);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}
+'use strict';Object.defineProperty(exports, "__esModule", { value: true });exports.Database = undefined;var _path = require('path');var _path2 = _interopRequireDefault(_path);
+var _knex = require('knex');var _knex2 = _interopRequireDefault(_knex);
+var _openPackagingFormat = require('open-packaging-format');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}
 
 // Narrows query to within a dat/ list of dats
 function withinDat(query, dat) {
@@ -210,7 +212,7 @@ class Database {
   // Optionally provide one or more dats to look within.
   getDatsWith(opts, dat) {return this.getItemsWith(opts, dat, 'dat');} // Returns opf metadata object for an item, optionally preferring a specific library.
   getOpf(author, title, dat = false) {const mfn = 'metadata.opf'; // metadata file name
-    return this.getFiles(author, title, dat, mfn).first().then(row => this.pathToDat(row.dat)).then(fp => opf2js(path.join(fp.dir, author, title, mfn)));} // Initializes tables
+    return this.getFiles(author, title, dat, mfn).first().then(row => this.pathToDat(row.dat)).then(fp => (0, _openPackagingFormat.readOPF)(_path2.default.join(fp.dir, author, title, mfn)));} // Initializes tables
   init() {// we should probably setup a simple migration script
     // but for now lets just drop tables before remaking tables.
     const tablesDropped = this.db.schema.dropTableIfExists('datsX').dropTableIfExists('textsX').dropTableIfExists('more_authorsX');return tablesDropped.createTableIfNotExists('dats', table => {table.string('dat');

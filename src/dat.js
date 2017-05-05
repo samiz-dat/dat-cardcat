@@ -8,6 +8,12 @@ import pda from 'pauls-dat-api';
 
 import { lsFilesPromised } from './utils/filesystem';
 
+// fork() - download a dat and fork it (thru dat.json)
+// list() - lists files
+// download() - downloads some files
+// read/writeManifest()
+// health/ stats
+
 /**
  * Adds Library-ish functions to a Dat. Expects the Dat's directory structure to
  * follow Calibre's (Author Name/ Publication Title/ Files)
@@ -23,6 +29,10 @@ export default class DatWrapper extends EventEmitter {
     this.key = opts.key;
     this.name = opts.name;
     this.opts = opts;
+    // Don't need the whole history (also we do need files as files)
+    this.opts.latest = true;
+    // If we're creating/ hosting a dat, set indexing to true
+    // this.opts.indexing = !this.key;
   }
 
   // Creates a dat and grabs a key
@@ -46,6 +56,10 @@ export default class DatWrapper extends EventEmitter {
           console.log(chalk.gray(chalk.bold('peers:')), stats.peers);
         });
         // this.start(dat);
+        // Watch for metadata syncing
+        dat.archive.metadata.on('sync', () => {
+          this.emit('sync metadata', this);
+        });
       })
       .then(() => this);
   }
@@ -60,7 +74,11 @@ export default class DatWrapper extends EventEmitter {
     return new Promise((resolve, reject) => {
       const dat = this.dat;
       if (this.dat.writable) {
-        const importer = dat.importFiles({}, () => {
+        const opts = {
+          watch: true,
+          dereference: true,
+        };
+        const importer = dat.importFiles(this.directory, opts, () => {
           console.log(`Finished importing files in ${this.directory}`);
           resolve(true);
         });
@@ -74,18 +92,23 @@ export default class DatWrapper extends EventEmitter {
     });
   }
 
+  refreshMetadata() {
+    const metadata = this.dat.archive.metadata;
+    console.log('Refreshing metadata. Length:', metadata.length);
+    const updateAsync = Promise.promisify(metadata.update, { context: metadata });
+    return updateAsync();
+  }
+
   // Lists the contents of the dat
-  listContents() {
-    const archive = this.dat.archive;
-    const readdirAsync = Promise.promisify(archive.readdir, { context: archive });
-    const statAsync = Promise.promisify(archive.stat, { context: archive });
-    return lsFilesPromised('/', readdirAsync, statAsync);
+  listContents(below = '/') {
+    return pda.readdir(this.dat.archive, below, { recursive: true });
   }
 
   // Download a file or directory
   async downloadContent(fn = '') {
-    console.log(`Downloading: /${fn}`);
-    await pda.download(this.dat.archive, fn);
+    const fn2 = `/${fn}/`;
+    console.log(`Downloading: ${fn2}`);
+    return pda.download(this.dat.archive, fn2);
   }
 
   exitHandler = options => (error) => {
