@@ -4,6 +4,8 @@ An aggregated card catalogue for many Calibre libraries (or any collections with
 
 ## Setup
 
+**Note: dat-cardcat requires node 6 or greater**
+
 ```bash
 # install npm dependencies
 npm install
