@@ -280,7 +280,7 @@ function getTask() {
 catalog.createCatalog()
   .then((c) => {
     cardcat = c;
-    return c.discoverDats();
+    return c;
   })
   .then(c => c.getAuthors())
   .then((rows) => {

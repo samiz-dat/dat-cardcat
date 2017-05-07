@@ -8,10 +8,17 @@ import config from './config';
 
 import DatWrapper from './dat'; // this function can be made a method of dat class too.
 import Database from './db'; // eslint-disable-line
+import Multidat from './multidat';
 
 import { getDirectories, notADir } from './utils/filesystem';
 import parseEntry from './utils/importers';
 // @todo: this.db.close(); should be called on shutdown
+
+/**
+  There is an array of (loaded) dats
+  There is a list of dats in the database
+ */
+
 
 // Class definition
 export class Catalog {
@@ -22,6 +29,7 @@ export class Catalog {
       dir: this.baseDir,
       base: 'catalog.db',
     }));
+    this.multidat = new Multidat(baseDir);
     // If you ever need to see what queries are being run uncomment the following.
     // this.db.on('query', queryData => console.log(queryData));
     this.isReady = false;
@@ -34,163 +42,41 @@ export class Catalog {
     });
   }
 
+  init() {
+    return this.initDatabase()
+      .then(() => this.initMultidat())
+      .then(() => this);
+  }
+
   initDatabase() {
     return this.db.init();
   }
 
-  // Every imported and added dat gets added to the `dats` table of the database. If
-  // the directories are deleted then these db entries are useless and should be removed.
-  // This will simply confirm that every dat directory in the db still exists.
-  cleanupDatsRegistry() {
-    console.log('Cleaning up the dats registry');
-    return this.getDats()
-      .map(dat => dat)
-      .filter(dat => notADir(dat.dir))
-      .each((dat) => {
-        console.log(`Removing: ${chalk.bold(dat.dir)} (directory does not exist)`);
-        return this.removeDat(dat.dat, false);
-      })
-      .then(() => this);
+  initMultidat() {
+    return this.multidat.init()
+      .then(() => this.getDats())
+      .then(dats => this.multidat.initOthers(dats))
+      .then(() => this.cleanupDatRegistry())
+      .then(() => this.multidat.getDats())
+      .each(dw => this.ingestDatContents(dw));
   }
 
-  // Look inside the base directory for any directories that seem to be dats
-  discoverDats() {
-    return getDirectories(this.baseDir)
-      .map((name) => {
-        console.log(`Attempting to load dir: ${chalk.bold(name)} as a dat`);
-        const opts = {
-          name,
-          createIfMissing: false, // @todo: this was false before, but threw error. find out why?
-          sparse: true,
-        };
-        return this.importDat(opts);
-      })
-      .then(() => this.cleanupDatsRegistry())
-      .then(() => this.importDatsFromDB())
-      .then(() => this);
+  // Two functions for adding things into the catalog
+  // Imports a local directory as a dat into the catalog
+  importDir(dir, name = '') {
+    this.multidat.importDir(dir, name)
+      .then(dw => this.registerDat(dw))
+      .then(dw => this.ingestDatContents(dw));
   }
 
-  // Imports dats listed in the dats table of the database
-  importDatsFromDB() {
-    return this.getDats()
-      .map(dat => dat)
-      .filter(dat => notADir(dat.dir)) // directory exists
-      .filter(dat => !dat.dir.startsWith(this.baseDir)) // not in data directory
-      .filter(dat => !(dat.key in this.dats.keys())) // not in registry
-      .each(dat => this.importDir(dat.dir, dat.name))
-      .then(() => console.log('Imported dats from DB'));
+  // Imports a remote dat repository into the catalog
+  importDat(key, name = '') {
+    this.multidat.importRemoteDat(key, name)
+      .then(dw => this.registerDat(dw))
+      .then(dw => this.ingestDatContents(dw));
   }
 
-  // Imports a directory on the local filesystem as a dat.
-  // This should not be called on any directories inside `dataDir`, which are loaded differently
-  importDir(directory, name = false) {
-    console.log(`Attempting to import local directory: ${directory}`);
-    const opts = {
-      directory,
-      name: name || directory.split(path.sep).slice(-1)[0],
-    };
-    return this.importDat(opts);
-  }
-
-  // Importing a remote dat by its key
-  importRemoteDat(key, name = false) {
-    console.log(`Attempting to import remote dat: ${key}`);
-    const opts = {
-      key,
-      name: name || key,
-      sparse: true,
-    };
-    return this.importDat(opts);
-  }
-
-  // Does the work of importing a functional dat into the catalog
-  importDat(opts) {
-    if ('key' in opts && opts.key in this.dats) {
-      // The dat is already loaded, we shouldn't reimport it
-      console.log(`You are trying to import a dat that is already loaded: ${opts.key}`);
-      return Promise.resolve(false);
-    }
-    if (!opts.directory) {
-      opts.directory = path.format({
-        dir: this.baseDir,
-        base: (opts.name) ? opts.name : opts.key,
-      });
-    }
-    const newDat = new DatWrapper(opts, this);
-    // listen to events emitted from this dat wrapper
-    newDat.on('import', (...args) => this.handleDatImportEvent(...args));
-    newDat.on('sync metadata', (...args) => this.handleDatSyncMetadataEvent(...args));
-    // dw.on('download', (...args) => this.handleDatDownloadEvent(...args));
-    return newDat.run()
-      .then(() => this.registerDat(newDat))
-      .then(() => newDat.importFiles())
-      .then(() => newDat.listContents())
-      .each(file => this.importDatFile(newDat, file))
-      .catch((err) => {
-        console.log(`* Something went wrong when importing ${opts.directory}`);
-        console.log(err);
-      });
-  }
-
-  // Registers dat in catalog array and in database (@todo)
-  registerDat(dw) {
-    const datkey = dw.dat.key.toString('hex');
-    console.log(`Adding dat (${datkey}) to the catalog.`);
-    return this.db.removeDat(datkey)
-      .then(() => this.db.clearTexts(datkey))
-      .then(() => this.db.addDat(datkey, dw.name, dw.directory))
-      .finally(() => { this.dats[datkey] = dw; })
-      .catch(e => console.log(e));
-  }
-
-  // Rename a dat - updates database and directory
-  renameDat(key, name) {
-    const renameAsync = Promise.promisify(fs.rename);
-    const newPath = path.format({
-      dir: this.baseDir,
-      base: name,
-    });
-    return this.db.pathToDat(key)
-      .then(p => renameAsync(p.dir, newPath))
-      .then(() => this.db.updateDat(key, name, newPath));
-  }
-
-  // Delete a dat from catalog. Only deletes directory if it's in the baseDir
-  removeDat(key, deleteDir = true) {
-    if (deleteDir) {
-      return this.db.pathToDat(key)
-        .then((p) => {
-          if (p.dir.startsWith(this.baseDir)) {
-            const rimrafAsync = Promise.promisify(rimraf);
-            return this.db.removeDat(key)
-              .then(() => this.db.clearTexts(key))
-              .then(() => rimrafAsync(p.dir));
-          }
-          return Promise.resolve(false);
-        });
-    }
-    return this.db.removeDat(key)
-      .then(() => this.db.clearTexts(key));
-  }
-
-  // Adds an entry from a Dat
-  importDatFile(dat, file, format = 'calibre') {
-    const importedData = parseEntry(file, format);
-    if (importedData) {
-      const downloaded = this.pathIsDownloaded(dat, file);
-      const downloadedStr = (downloaded) ? '[*]' : '[ ]';
-      console.log(chalk.bold('adding:'), downloadedStr, file);
-      return this.db.addText({
-        dat: dat.key,
-        author: importedData.author,
-        author_sort: importedData.authorSort,
-        title: importedData.title,
-        file: importedData.file,
-        downloaded,
-      });
-    }
-    return Promise.resolve(false);
-  }
+  // See db functions in constructor for browsing and searching the catalog.
 
   // Public call for syncing files within a dat
   // opts can include {dat:, author: , title:, file: }
@@ -216,6 +102,107 @@ export class Catalog {
       .then(dats => this.scanForDownloads(opts, _.uniq(dats)));
   }
 
+  // ## Dat Management, public functions
+  // Rename a dat - updates DB and dat
+  renameDat(key, name) {
+    const newPath = path.format({
+      dir: this.baseDir,
+      base: name,
+    });
+    return this.multidat.getDat(key)
+      .then(dat => dat.rename(newPath, name))
+      .then(() => this.db.updateDat(key, name, newPath));
+  }
+
+  // Delete a dat from registry.
+  // Only deletes directory if it's in the baseDir
+  removeDat(key, deleteDir = true) {
+    if (deleteDir) {
+      return this.multidat.pathToDat(key)
+        .then((p) => {
+          if (p.startsWith(this.baseDir)) {
+            const rimrafAsync = Promise.promisify(rimraf);
+            return this.multidat.removeDat(key)
+              .then(() => this.db.removeDat(key))
+              .then(() => this.db.clearTexts(key))
+              .then(() => rimrafAsync(p));
+          }
+          return this.removeDat(key, false);
+        });
+    }
+    return this.multidat.removeDat(key)
+      .then(() => this.db.removeDat(key))
+      .then(() => this.db.clearTexts(key));
+  }
+
+  // ### private functions
+  // Remove dats that are in the DB but haven't been found/ loaded by multidat
+  cleanupDatRegistry() {
+    return this.getDats()
+      .map(dats => dats)
+      .filter(dat => !(dat.dat in this.multidat.dats))
+      .each((dat) => {
+        console.log(`Removing: ${chalk.bold(dat.dir)} from catalog (directory does not exist)`);
+        return this.removeDat(dat.dat, false);
+      });
+  }
+
+  // Registers dat the DB
+  registerDat(dw) {
+    const datkey = dw.dat.key.toString('hex');
+    console.log(`Adding dat (${datkey}) to the catalog.`);
+    // listen to events emitted from this dat wrapper
+    dw.on('import', (...args) => this.handleDatImportEvent(...args));
+    dw.on('sync metadata', (...args) => this.handleDatSyncMetadataEvent(...args));
+    return this.db.removeDat(datkey)
+      .then(() => this.db.clearTexts(datkey))
+      .then(() => this.db.addDat(datkey, dw.name, dw.directory))
+      .then(() => dw)
+      .catch(e => console.log(e));
+  }
+
+  // For a Dat, ingest its contents into the catalog
+  ingestDatContents(dw) {
+    return Promise.map(dw.listContents(), file => this.ingestDatFile(dw, file));
+  }
+
+  // Adds an entry from a Dat
+  async ingestDatFile(dw, file, format = 'calibre') {
+    const importedData = parseEntry(file, format);
+    if (importedData) {
+      const downloaded = await dw.hasFile(file);
+      const downloadedStr = (downloaded) ? '[*]' : '[ ]';
+      console.log(chalk.bold('adding:'), downloadedStr, file);
+      return this.db.addText({
+        dat: dw.key,
+        author: importedData.author,
+        author_sort: importedData.authorSort,
+        title: importedData.title,
+        file: importedData.file,
+        downloaded,
+      });
+    }
+    return Promise.resolve(false);
+  }
+
+  // Downloads files within a dat
+  download(key, opts) {
+    let resource = '';
+    if (opts.author && opts.title && opts.file) {
+      console.log(`checking out ${opts.author}/${opts.title}/${opts.file} from ${key}`);
+      resource = path.join(opts.author, opts.title, opts.file);
+    } else if (opts.author && opts.title) {
+      console.log(`checking out ${opts.author}/${opts.title} from ${key}`);
+      resource = path.join(opts.author, opts.title);
+    } else if (opts.author) {
+      console.log(`checking out ${opts.author} from ${key}`);
+      resource = path.join(opts.author);
+    } else {
+      console.log(`checking out everything from ${opts.dat}`);
+    }
+    return this.multidat.downloadFromDat(key, resource);
+  }
+
   // Checks whether a group of catalogue items have been downloaded
   // and if so, then updates the downloaded column in the texts table
   scanForDownloads(opts, dat) {
@@ -224,38 +211,16 @@ export class Catalog {
       .each(row => this.setDownloaded(row.dat, row.author, row.title, row.file));
   }
 
-  download(dat, opts) {
-    if (opts.author && opts.title && opts.file) {
-      console.log(`checking out ${opts.author}/${opts.title}/${opts.file} from ${dat}`);
-      return this.dats[dat].downloadContent(path.join(opts.author, opts.title, opts.file));
-    } else if (opts.author && opts.title) {
-      console.log(`checking out ${opts.author}/${opts.title} from ${dat}`);
-      return this.dats[dat].downloadContent(path.join(opts.author, opts.title));
-    } else if (opts.author) {
-      console.log(`checking out ${opts.author} from ${dat}`);
-      return this.dats[dat].downloadContent(path.join(opts.author));
-    }
-    // If no opts are provided, but a dat is then download the whole dat
-    console.log(`checking out everything from ${opts.dat}`);
-    return this.dats[dat].downloadContent();
-  }
-
-  // Synchronous
-  pathIsDownloaded = (dat, filePath) => fs.existsSync(path.join(dat.directory, filePath));
-
   // Given a row from the texts table, check if it has been downloaded
   itemIsDownloaded(dbRow) {
-    return this.pathIsDownloaded(
-      this.dats[dbRow.dat],
-      path.join(dbRow.author, dbRow.title, dbRow.file));
+    return this.multidat.datHasFile(dbRow.dat, path.join(dbRow.author, dbRow.title, dbRow.file));
   }
 
   // Event listening
   //
   // When a dat's metadata is synced
   handleDatSyncMetadataEvent(dw) {
-    console.log('metadata synced');
-    Promise.map(dw.listContents(), file => this.importDatFile(dw, file));
+    this.ingestDatContents(dw);
   }
 
   // When a dat imports a file
@@ -275,7 +240,7 @@ export function createCatalog(dataDir) {
   }
 
   const catalog = new Catalog(dataDirFinal);
-  return catalog.initDatabase().then(() => catalog);
+  return catalog.init();
 }
 
 export default Catalog;

@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 import EventEmitter from 'events';
 import createDat from 'dat-node';
 // import _ from 'lodash';
@@ -6,7 +7,7 @@ import Promise from 'bluebird';
 import chalk from 'chalk';
 import pda from 'pauls-dat-api';
 
-import { lsFilesPromised } from './utils/filesystem';
+// import { lsFilesPromised } from './utils/filesystem';
 
 // fork() - download a dat and fork it (thru dat.json)
 // list() - lists files
@@ -28,6 +29,7 @@ export default class DatWrapper extends EventEmitter {
     }
     this.key = opts.key;
     this.name = opts.name;
+    this.stats = false;
     this.opts = opts;
     // Don't need the whole history (also we do need files as files)
     this.opts.latest = true;
@@ -45,7 +47,7 @@ export default class DatWrapper extends EventEmitter {
         this.key = dat.key.toString('hex');
         // const opts = {}; // various network options could go here (https://github.com/datproject/dat-node)
         const network = dat.joinNetwork();
-        const stats = dat.trackStats();
+        this.stats = dat.trackStats();
         /*
         stats.once('update', () => {
           console.log(chalk.gray(chalk.bold('stats updated')), stats.get());
@@ -53,11 +55,12 @@ export default class DatWrapper extends EventEmitter {
         */
         network.once('connection', () => {
           console.log('connects via network');
-          console.log(chalk.gray(chalk.bold('peers:')), stats.peers);
+          console.log(chalk.gray(chalk.bold('peers:')), this.stats.peers);
         });
         // this.start(dat);
         // Watch for metadata syncing
         dat.archive.metadata.on('sync', () => {
+          console.log('metadata synced');
           this.emit('sync metadata', this);
         });
       })
@@ -68,6 +71,11 @@ export default class DatWrapper extends EventEmitter {
   create() {
     const createDatAsync = Promise.promisify(createDat);
     return createDatAsync(this.directory, this.opts);
+  }
+
+  // How many peers for this dat
+  get peers() {
+    return this.stats.peers || 0;
   }
 
   importFiles() {
@@ -92,23 +100,33 @@ export default class DatWrapper extends EventEmitter {
     });
   }
 
-  refreshMetadata() {
-    const metadata = this.dat.archive.metadata;
-    console.log('Refreshing metadata. Length:', metadata.length);
-    const updateAsync = Promise.promisify(metadata.update, { context: metadata });
-    return updateAsync();
-  }
-
   // Lists the contents of the dat
   listContents(below = '/') {
     return pda.readdir(this.dat.archive, below, { recursive: true });
   }
 
   // Download a file or directory
-  async downloadContent(fn = '') {
+  downloadContent(fn = '') {
     const fn2 = `/${fn}/`;
     console.log(`Downloading: ${fn2}`);
+    console.log(this.stats.peers);
     return pda.download(this.dat.archive, fn2);
+  }
+
+  // Has the file been downloaded?
+  hasFile(file) {
+    return fs.statAsync(path.join(this.directory, file))
+      .catch(e => {});
+  }
+
+  // Rename
+  rename(dir, name) {
+    const renameAsync = Promise.promisify(fs.rename);
+    return renameAsync(this.directory, dir)
+      .then(() => {
+        this.directory = dir;
+        this.name = name;
+      });
   }
 
   exitHandler = options => (error) => {
