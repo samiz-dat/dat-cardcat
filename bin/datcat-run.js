@@ -125,11 +125,7 @@ function textChoiceTask(choices) {
 
 function importTask() {
   return inquirer.prompt(importQuestions)
-    .then(answers => cardcat.importDat({
-      key: answers.key,
-      name: answers.name,
-      sparse: !answers.everything,
-    }));
+    .then(answers => cardcat.importDat(answers.key, answers.name));
 }
 
 function createTask() {

@@ -2,22 +2,18 @@ import path from 'path';
 import fs from 'fs';
 import Promise from 'bluebird';
 import chalk from 'chalk';
-import _ from 'lodash';
-import rimraf from 'rimraf';
-import config from './config';
 
 import DatWrapper from './dat'; // this function can be made a method of dat class too.
 import Database from './db'; // eslint-disable-line
 
-import { getDirectories, notADir } from './utils/filesystem';
-import parseEntry from './utils/importers';
+import { getDirectories } from './utils/filesystem';
 
 /**
   The Multidat class manages the loading and handling of dats, both remote and local.
  */
 
 // Class definition
-export class Multidat {
+export default class Multidat {
   constructor(baseDir) {
     // The base directory where remote dats will be kept
     this.baseDir = baseDir;
@@ -43,7 +39,6 @@ export class Multidat {
 
   // Look inside the base directory for any directories that seem to be dats
   discoverDats() {
-    console.log(this.baseDir);
     return getDirectories(this.baseDir)
       .map((name) => {
         console.log(`Attempting to load dir: ${chalk.bold(name)} as a dat`);
@@ -105,10 +100,12 @@ export class Multidat {
       });
   }
 
+  // Get the list of dats in this multidat as a Promise
   getDats() {
     return Promise.map(Object.keys(this.dats), key => this.getDat(key));
   }
 
+  // Get a dat as a Promise
   getDat(key) {
     return new Promise((resolve, reject) => {
       if (key in this.dats) {
@@ -119,6 +116,7 @@ export class Multidat {
     });
   }
 
+  // Get a path to a dat
   pathToDat(key) {
     return new Promise((resolve, reject) => {
       if (key in this.dats) {
@@ -129,6 +127,7 @@ export class Multidat {
     });
   }
 
+  // Remove a dat from the multidat
   removeDat(key) {
     return new Promise((resolve, reject) => {
       if (key in this.dats) {
@@ -139,15 +138,24 @@ export class Multidat {
     });
   }
 
+  // Download a file or directory from a dat
   downloadFromDat(key, fileOrDir) {
     return this.getDat(key)
       .then(dw => dw.downloadContent(fileOrDir));
   }
 
+  // Does a dat have a file?
   datHasFile(key, file) {
     return this.getDat(key)
       .then(dw => dw.hasFile(file));
   }
-}
 
-export default Multidat;
+  // Copy a file or directory from one dat to another
+  copyFromDatToDat(keyFrom, keyTo, fileOrDir) {
+    return Promise.join(
+      this.getDat(keyFrom),
+      this.getDat(keyTo),
+      (dwFrom, dwTo) => dwTo.importFromDat(dwFrom, fileOrDir),
+    );
+  }
+}

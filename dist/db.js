@@ -190,12 +190,15 @@ class Database {
 
 
 
+
+
+
     getDats = () => this.db('dats').select();this.
     getDat = key => this.db('dats').select().where('dat', key);this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename }, useNullAsDefault: true });} // Add a dat to the database
   addDat(dat, name, dir) {return this.db.insert({ dat, name, dir }).into('dats');} // Remove a dat from the database
   removeDat(datKey) {return this.db('dats').where('dat', datKey).del();} // Update a dat's name and directory
   updateDat(datKey, name, dir) {return this.db('dats').where('dat', datKey).update({ name, dir });} // Remove all entries/ texts for a dat
-  clearTexts(datKey) {return this.db('texts').where('dat', datKey).del();} // Returns the path to a dat as found in db.
+  clearTexts(datKey) {if (datKey) {return this.db('texts').where('dat', datKey).del();}return this.db('texts').del();} // Returns the path to a dat as found in db.
   pathToDat(datKey) {return this.db.select('dir').from('dats').where('dat', datKey).first();} // Insert a text into the texts table
   addText(opts) {return this.db.insert({ dat: opts.dat, title_hash: opts.title_hash || '', file_hash: opts.file_hash || '', author: opts.author, author_sort: opts.author_sort, title: opts.title, file: opts.file, downloaded: opts.downloaded || 0 }).into('texts');} // Sets download status of a row
   setDownloaded(dat, author, title, file, downloaded = true) {return this.db('texts').where('dat', dat).where('author', author).where('title', title).where('file', file).update({ downloaded });} // Searches for titles with files bundled up in a comma separated column

@@ -1,23 +1,19 @@
-'use strict';Object.defineProperty(exports, "__esModule", { value: true });exports.Multidat = undefined;var _path = require('path');var _path2 = _interopRequireDefault(_path);
+'use strict';Object.defineProperty(exports, "__esModule", { value: true });var _path = require('path');var _path2 = _interopRequireDefault(_path);
 var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);
 var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);
 var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);
-var _lodash = require('lodash');var _lodash2 = _interopRequireDefault(_lodash);
-var _rimraf = require('rimraf');var _rimraf2 = _interopRequireDefault(_rimraf);
-var _config = require('./config');var _config2 = _interopRequireDefault(_config);
 
 var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);
 var _db = require('./db');var _db2 = _interopRequireDefault(_db);
 
-var _filesystem = require('./utils/filesystem');
-var _importers = require('./utils/importers');var _importers2 = _interopRequireDefault(_importers);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}
+var _filesystem = require('./utils/filesystem');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}
 
 /**
-                                                                                                                                                                                                   The Multidat class manages the loading and handling of dats, both remote and local.
-                                                                                                                                                                                                  */
+                                                                                                                                                The Multidat class manages the loading and handling of dats, both remote and local.
+                                                                                                                                               */
 
 // Class definition
-// eslint-disable-line
+// this function can be made a method of dat class too.
 class Multidat {constructor(baseDir) {
     // The base directory where remote dats will be kept
     this.baseDir = baseDir;
@@ -43,7 +39,6 @@ class Multidat {constructor(baseDir) {
 
   // Look inside the base directory for any directories that seem to be dats
   discoverDats() {
-    console.log(this.baseDir);
     return (0, _filesystem.getDirectories)(this.baseDir).
     map(name => {
       console.log(`Attempting to load dir: ${_chalk2.default.bold(name)} as a dat`);
@@ -105,10 +100,12 @@ class Multidat {constructor(baseDir) {
     });
   }
 
+  // Get the list of dats in this multidat as a Promise
   getDats() {
     return _bluebird2.default.map(Object.keys(this.dats), key => this.getDat(key));
   }
 
+  // Get a dat as a Promise
   getDat(key) {
     return new _bluebird2.default((resolve, reject) => {
       if (key in this.dats) {
@@ -119,6 +116,7 @@ class Multidat {constructor(baseDir) {
     });
   }
 
+  // Get a path to a dat
   pathToDat(key) {
     return new _bluebird2.default((resolve, reject) => {
       if (key in this.dats) {
@@ -129,6 +127,7 @@ class Multidat {constructor(baseDir) {
     });
   }
 
+  // Remove a dat from the multidat
   removeDat(key) {
     return new _bluebird2.default((resolve, reject) => {
       if (key in this.dats) {
@@ -139,16 +138,24 @@ class Multidat {constructor(baseDir) {
     });
   }
 
+  // Download a file or directory from a dat
   downloadFromDat(key, fileOrDir) {
     return this.getDat(key).
     then(dw => dw.downloadContent(fileOrDir));
   }
 
+  // Does a dat have a file?
   datHasFile(key, file) {
     return this.getDat(key).
     then(dw => dw.hasFile(file));
-  }}exports.Multidat = Multidat; // this function can be made a method of dat class too.
-exports.default =
+  }
 
-Multidat;
+  // Copy a file or directory from one dat to another
+  copyFromDatToDat(keyFrom, keyTo, fileOrDir) {
+    return _bluebird2.default.join(
+    this.getDat(keyFrom),
+    this.getDat(keyTo),
+    (dwFrom, dwTo) => dwTo.importFromDat(dwFrom, fileOrDir));
+
+  }}exports.default = Multidat; // eslint-disable-line
 //# sourceMappingURL=multidat.js.map

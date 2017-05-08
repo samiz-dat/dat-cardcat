@@ -6,11 +6,9 @@ import _ from 'lodash';
 import rimraf from 'rimraf';
 import config from './config';
 
-import DatWrapper from './dat'; // this function can be made a method of dat class too.
 import Database from './db'; // eslint-disable-line
 import Multidat from './multidat';
 
-import { getDirectories, notADir } from './utils/filesystem';
 import parseEntry from './utils/importers';
 // @todo: this.db.close(); should be called on shutdown
 
@@ -40,6 +38,10 @@ export class Catalog {
     publicDatabaseFuncs.forEach((fn) => {
       if (typeof this.db[fn] === 'function') this[fn] = (...args) => this.db[fn](...args);
     });
+    const publicMultidatFuncs = ['copyFromDatToDat'];
+    publicMultidatFuncs.forEach((fn) => {
+      if (typeof this.multidat[fn] === 'function') this[fn] = (...args) => this.multidat[fn](...args);
+    });
   }
 
   init() {
@@ -58,6 +60,7 @@ export class Catalog {
       .then(dats => this.multidat.initOthers(dats))
       .then(() => this.cleanupDatRegistry())
       .then(() => this.multidat.getDats())
+      .each(dw => this.registerDat(dw))
       .each(dw => this.ingestDatContents(dw));
   }
 
@@ -144,7 +147,8 @@ export class Catalog {
       .each((dat) => {
         console.log(`Removing: ${chalk.bold(dat.dir)} from catalog (directory does not exist)`);
         return this.removeDat(dat.dat, false);
-      });
+      })
+      .then(() => this.db.clearTexts());
   }
 
   // Registers dat the DB
@@ -220,12 +224,14 @@ export class Catalog {
   //
   // When a dat's metadata is synced
   handleDatSyncMetadataEvent(dw) {
+    console.log('Metadata sync event. Ingesting contents for:', dw.name);
     this.ingestDatContents(dw);
   }
 
   // When a dat imports a file
-  handleDatImportEvent(dw, path, stat) {
-    // console.log('Importing: ', path);
+  handleDatImportEvent(dw, filePath, stat) {
+    this.ingestDatFile(dw, filePath);
+    // console.log('Importing: ', filePath);
   }
 }
 
@@ -240,6 +246,7 @@ export function createCatalog(dataDir) {
   }
 
   const catalog = new Catalog(dataDirFinal);
+  // @todo: adjust init() to not load any dats, allowing for quick db searches
   return catalog.init();
 }
 

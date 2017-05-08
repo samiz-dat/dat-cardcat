@@ -48,7 +48,10 @@ export class Database {
 
   // Remove all entries/ texts for a dat
   clearTexts(datKey) {
-    return this.db('texts').where('dat', datKey).del();
+    if (datKey) {
+      return this.db('texts').where('dat', datKey).del();
+    }
+    return this.db('texts').del();
   }
 
   // Returns the path to a dat as found in db.
