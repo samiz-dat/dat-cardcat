@@ -2,6 +2,7 @@
 var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);
 var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);
 var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);
+var _paulsDatApi = require('pauls-dat-api');var _paulsDatApi2 = _interopRequireDefault(_paulsDatApi);
 
 var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);
 var _db = require('./db');var _db2 = _interopRequireDefault(_db);
@@ -74,6 +75,35 @@ class Multidat {constructor(baseDir) {
     return this.importDat(opts);
   }
 
+  // Create a new dat by forking an existing Dat
+  forkDat(key, name = false, dir = false) {
+    const deleteAfterFork = !(key in this.dats);
+    const forkDir = !dir ?
+    _path2.default.format({
+      dir: this.baseDir,
+      base: name || `${key} (forked)` }) :
+
+    dir;
+    console.log(`Attempting to fork dat: ${key} into ${forkDir}`);
+    if (deleteAfterFork) {
+      return this.importRemoteDat(key).
+      then(dw => _paulsDatApi2.default.exportArchiveToFilesystem({
+        srcArchive: dw.dat.archive,
+        dstPath: forkDir })).
+
+      then(() => this.importDir(forkDir, name)).
+      then(dw => dw.writeManifest(manifest));
+    }
+    return this.getDat(key).
+    then(dw => _paulsDatApi2.default.exportArchiveToFilesystem({
+      srcArchive: dw.dat.archive,
+      dstPath: forkDir })).
+
+    then(() => this.importDir(forkDir, name)).
+    then(dw => dw.writeManifest({ forkOf: key })).
+    then(dw => dw);
+  }
+
   // Does the work of importing a functional dat into the catalog
   importDat(opts) {
     if ('key' in opts && opts.key in this.dats) {
@@ -129,11 +159,11 @@ class Multidat {constructor(baseDir) {
 
   // Remove a dat from the multidat
   removeDat(key) {
-    return new _bluebird2.default((resolve, reject) => {
+    return new _bluebird2.default(resolve => {
       if (key in this.dats) {
         delete this.dats[key];
       } else {
-        reject(false);
+        resolve(false);
       }
     });
   }

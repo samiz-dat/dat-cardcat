@@ -151,6 +151,24 @@ export default class DatWrapper extends EventEmitter {
       });
   }
 
+  // Write a manifest file
+  // @todo: fix me! why do i write empty manifests?
+  async writeManifest(opts = {}) {
+    const defaultOptions = {
+      url: `dat://${this.key}`,
+      title: this.name,
+    };
+    const manifest = Object.assign(defaultOptions, opts);
+    await pda.writeManifest(this.dat.archive, manifest);
+    return this;
+  }
+
+  // Update a manifest file
+  updateManifest(manifest) {
+    return pda.updateManifest(this.dat.archive, manifest);
+  }
+
+
   exitHandler = options => (error) => {
     if (options.cleanup) {
       console.log('cleaning up!');

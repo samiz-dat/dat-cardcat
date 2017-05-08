@@ -151,6 +151,24 @@ class DatWrapper extends _events2.default {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     exitHandler = options => error => {
       if (options.cleanup) {
         console.log('cleaning up!');
@@ -184,5 +202,8 @@ class DatWrapper extends _events2.default {
   listContents(below = '/') {return _paulsDatApi2.default.readdir(this.dat.archive, below, { recursive: true });} // Download a file or directory
   downloadContent(fn = '') {const fn2 = `/${fn}/`;console.log(`Downloading: ${fn2}`);console.log(this.stats.peers);return _paulsDatApi2.default.download(this.dat.archive, fn2);} // Has the file been downloaded?
   hasFile(file) {return _fs2.default.statAsync(_path2.default.join(this.directory, file)).catch(e => {});} // Rename
-  rename(dir, name) {const renameAsync = _bluebird2.default.promisify(_fs2.default.rename);return renameAsync(this.directory, dir).then(() => {this.directory = dir;this.name = name;});}}exports.default = DatWrapper;
+  rename(dir, name) {const renameAsync = _bluebird2.default.promisify(_fs2.default.rename);return renameAsync(this.directory, dir).then(() => {this.directory = dir;this.name = name;});} // Write a manifest file
+  // @todo: fix me! why do i write empty manifests?
+  writeManifest(opts = {}) {var _this2 = this;return _asyncToGenerator(function* () {const defaultOptions = { url: `dat://${_this2.key}`, title: _this2.name };const manifest = Object.assign(defaultOptions, opts);yield _paulsDatApi2.default.writeManifest(_this2.dat.archive, manifest);return _this2;})();} // Update a manifest file
+  updateManifest(manifest) {return _paulsDatApi2.default.updateManifest(this.dat.archive, manifest);}}exports.default = DatWrapper;
 //# sourceMappingURL=dat.js.map

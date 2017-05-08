@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import Promise from 'bluebird';
 import chalk from 'chalk';
+import pda from 'pauls-dat-api';
 
 import DatWrapper from './dat'; // this function can be made a method of dat class too.
 import Database from './db'; // eslint-disable-line
@@ -74,6 +75,35 @@ export default class Multidat {
     return this.importDat(opts);
   }
 
+  // Create a new dat by forking an existing Dat
+  forkDat(key, name = false, dir = false) {
+    const deleteAfterFork = !(key in this.dats);
+    const forkDir = (!dir)
+      ? path.format({
+        dir: this.baseDir,
+        base: name || `${key} (forked)`,
+      })
+      : dir;
+    console.log(`Attempting to fork dat: ${key} into ${forkDir}`);
+    if (deleteAfterFork) {
+      return this.importRemoteDat(key)
+        .then(dw => pda.exportArchiveToFilesystem({
+          srcArchive: dw.dat.archive,
+          dstPath: forkDir,
+        }))
+        .then(() => this.importDir(forkDir, name))
+        .then(dw => dw.writeManifest(manifest));
+    }
+    return this.getDat(key)
+      .then(dw => pda.exportArchiveToFilesystem({
+        srcArchive: dw.dat.archive,
+        dstPath: forkDir,
+      }))
+      .then(() => this.importDir(forkDir, name))
+      .then(dw => dw.writeManifest({ forkOf: key }))
+      .then(dw => dw);
+  }
+
   // Does the work of importing a functional dat into the catalog
   importDat(opts) {
     if ('key' in opts && opts.key in this.dats) {
@@ -129,11 +159,11 @@ export default class Multidat {
 
   // Remove a dat from the multidat
   removeDat(key) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (key in this.dats) {
         delete this.dats[key];
       } else {
-        reject(false);
+        resolve(false);
       }
     });
   }

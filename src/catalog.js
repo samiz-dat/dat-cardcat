@@ -79,6 +79,13 @@ export class Catalog {
       .then(dw => this.ingestDatContents(dw));
   }
 
+  // Forks a dat (by its key) into a new, writable dat
+  forkDat(key, name = '') {
+    this.multidat.forkDat(key, name)
+      .then(dw => this.registerDat(dw))
+      .then(dw => this.ingestDatContents(dw));
+  }
+
   // See db functions in constructor for browsing and searching the catalog.
 
   // Public call for syncing files within a dat
@@ -125,10 +132,10 @@ export class Catalog {
         .then((p) => {
           if (p.startsWith(this.baseDir)) {
             const rimrafAsync = Promise.promisify(rimraf);
-            return this.multidat.removeDat(key)
-              .then(() => this.db.removeDat(key))
+            return this.db.removeDat(key)
               .then(() => this.db.clearTexts(key))
-              .then(() => rimrafAsync(p));
+              .then(() => rimrafAsync(p))
+              .then(() => this.multidat.removeDat(key));
           }
           return this.removeDat(key, false);
         });
