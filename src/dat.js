@@ -106,7 +106,7 @@ export default class DatWrapper extends EventEmitter {
     });
   }
 
-  // Import a file o directory from another archive
+  // Import a file or directory from another archive
   async importFromDat(srcDatWrapper, fileOrDir, overwriteExisting = true) {
     if (this.dat.writable) {
       const dstPath = path.join(this.directory, fileOrDir);
@@ -118,6 +118,7 @@ export default class DatWrapper extends EventEmitter {
       });
       // .then(() => this.importFiles());
     }
+    console.log('Warning: You tried to write to a Dat that is not yours. Nothing has been written.');
     // Fallback
     return Promise.resolve(false);
   }
@@ -129,16 +130,16 @@ export default class DatWrapper extends EventEmitter {
 
   // Download a file or directory
   downloadContent(fn = '') {
-    const fn2 = `/${fn}/`;
-    console.log(`Downloading: ${fn2}`);
+    const filename = `/${fn}/`;
+    console.log(`Downloading: ${filename}`);
     console.log(this.stats.peers);
-    return pda.download(this.dat.archive, fn2);
+    return pda.download(this.dat.archive, filename);
   }
 
   // Has the file been downloaded?
   hasFile(file) {
     return fs.statAsync(path.join(this.directory, file))
-      .catch(e => {});
+      .catch(console.log);
   }
 
   // Rename
@@ -154,11 +155,11 @@ export default class DatWrapper extends EventEmitter {
   // Write a manifest file
   // @todo: fix me! why do i write empty manifests?
   async writeManifest(opts = {}) {
-    const defaultOptions = {
+    const manifest = {
       url: `dat://${this.key}`,
       title: this.name,
+      ...opts,
     };
-    const manifest = Object.assign(defaultOptions, opts);
     await pda.writeManifest(this.dat.archive, manifest);
     return this;
   }
