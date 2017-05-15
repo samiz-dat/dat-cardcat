@@ -80,7 +80,7 @@ export default class DatWrapper extends EventEmitter {
 
   // How many peers for this dat
   get peers() {
-    return this.stats.peers || 0;
+    return this.stats.peers || { total: 0, complete: 0 };
   }
 
   importFiles(importPath = this.directory) {
