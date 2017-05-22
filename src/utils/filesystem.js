@@ -23,7 +23,7 @@ export function lsFilesPromised(dir, readdirPromised, statPromised) {
     .then(results => _.flattenDeep(results));
 }
 
-export const getDirectories = srcpath => fs.readdirAsync(srcpath) // eslint-disable-line
+export const getDirectories = srcpath => fs.readdirAsync(srcpath)
   .filter(file => fs.statSync(path.join(srcpath, file)).isDirectory());
 
 // This is unusual, but I found that I cannot simply say !dirExists if dirExists returns a Promise.
