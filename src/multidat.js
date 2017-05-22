@@ -3,7 +3,7 @@ import fs from 'fs';
 import Promise from 'bluebird';
 import chalk from 'chalk';
 import pda from 'pauls-dat-api';
-
+import _ from 'lodash';
 import DatWrapper from './dat'; // this function can be made a method of dat class too.
 import Database from './db'; // eslint-disable-line
 
@@ -94,14 +94,13 @@ export default class Multidat {
         .then(() => this.importDir(forkDir, name))
         .then(dw => dw.writeManifest(manifest));
     }
-    return this.getDat(key)
-      .then(dw => pda.exportArchiveToFilesystem({
-        srcArchive: dw.dat.archive,
-        dstPath: forkDir,
-      }))
-      .then(() => this.importDir(forkDir, name))
-      .then(dw => dw.writeManifest({ forkOf: key }))
-      .then(dw => dw);
+    const dw = this.getDat(key);
+    return pda.exportArchiveToFilesystem({
+      srcArchive: dw.dat.archive,
+      dstPath: forkDir,
+    })
+    .then(() => this.importDir(forkDir, name))
+    .then(d => d.writeManifest({ forkOf: key }));
   }
 
   // Does the work of importing a functional dat into the catalog
@@ -130,62 +129,51 @@ export default class Multidat {
       });
   }
 
-  // Get the list of dats in this multidat as a Promise
+  // return array of dats
   getDats() {
-    return Promise.map(Object.keys(this.dats), key => this.getDat(key));
+    return _.values(this.dats);
   }
 
-  // Get a dat as a Promise
   getDat(key) {
-    return new Promise((resolve, reject) => {
-      if (key in this.dats) {
-        resolve(this.dats[key]);
-      } else {
-        reject(false);
-      }
-    });
+    const dat = this.dats[key];
+    return (dat !== undefined) ? dat : null;
   }
 
   // Get a path to a dat
   pathToDat(key) {
-    return new Promise((resolve, reject) => {
-      if (key in this.dats) {
-        resolve(this.dats[key].directory);
-      } else {
-        reject(false);
-      }
-    });
+    const dat = this.getDat(key);
+    return dat ? dat.directory : null;
   }
 
   // Remove a dat from the multidat
   removeDat(key) {
-    return new Promise((resolve) => {
-      if (key in this.dats) {
+    const dat = this.dats[key];
+    if (dat !== undefined) {
+      return Promise.resolve(false);
+    }
+    return dat.close()
+      .then(() => {
         delete this.dats[key];
-      } else {
-        resolve(false);
-      }
-    });
+        return true;
+      });
   }
 
   // Download a file or directory from a dat
   downloadFromDat(key, fileOrDir) {
-    return this.getDat(key)
-      .then(dw => dw.downloadContent(fileOrDir));
+    const dat = this.getDat(key);
+    return dat.downloadContent(fileOrDir);
   }
 
   // Does a dat have a file?
   datHasFile(key, file) {
-    return this.getDat(key)
-      .then(dw => dw.hasFile(file));
+    const dat = this.getDat(key);
+    return dat.hasFile(file);
   }
 
   // Copy a file or directory from one dat to another
   copyFromDatToDat(keyFrom, keyTo, fileOrDir) {
-    return Promise.join(
-      this.getDat(keyFrom),
-      this.getDat(keyTo),
-      (dwFrom, dwTo) => dwTo.importFromDat(dwFrom, fileOrDir),
-    );
+    const from = this.getDat(keyFrom);
+    const to = this.getDat(keyTo);
+    return to.importFromDat(from, fileOrDir);
   }
 }

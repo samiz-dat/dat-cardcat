@@ -140,20 +140,18 @@ export class Catalog {
   // Delete a dat from registry.
   // Only deletes directory if it's in the baseDir
   removeDat(key, deleteDir = true) {
+    let promise = Promise.resolve();
     if (deleteDir) {
-      return this.multidat.pathToDat(key)
-        .then((p) => {
-          if (p.startsWith(this.baseDir)) {
-            const rimrafAsync = Promise.promisify(rimraf);
-            return this.db.removeDat(key)
-              .then(() => this.db.clearTexts(key))
-              .then(() => rimrafAsync(p))
-              .then(() => this.multidat.removeDat(key));
-          }
-          return this.removeDat(key, false);
-        });
+      const directory = this.multidat.pathToDat(key);
+      if (directory.startsWith(this.baseDir)) {
+        const rimrafAsync = Promise.promisify(rimraf);
+        promise = this.db.removeDat(key)
+          .then(() => this.db.clearTexts(key))
+          .then(() => rimrafAsync(directory));
+      }
     }
-    return this.multidat.removeDat(key)
+    return promise
+      .then(() => this.multidat.removeDat(key))
       .then(() => this.db.removeDat(key))
       .then(() => this.db.clearTexts(key));
   }
