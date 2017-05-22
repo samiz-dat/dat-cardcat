@@ -34,13 +34,26 @@ export class Catalog {
 
     // Now, database functions are passed on from this.db
     // explicitly declare publicly accessible database functions
-    const publicDatabaseFuncs = ['getDats', 'getAuthors', 'getAuthorLetters', 'getTitlesWith', 'search', 'getTitlesForAuthor', 'setDownloaded'];
+    const publicDatabaseFuncs = [
+      'getDats',
+      'getAuthors',
+      'getAuthorLetters',
+      'getTitlesWith',
+      'search',
+      'getTitlesForAuthor',
+      'setDownloaded',
+    ];
+
     publicDatabaseFuncs.forEach((fn) => {
       if (typeof this.db[fn] === 'function') this[fn] = (...args) => this.db[fn](...args);
+      else console.warn(`Database function "${fn}" does not exist and has not been attached to Catalog object.`);
     });
+
     const publicMultidatFuncs = ['copyFromDatToDat'];
+
     publicMultidatFuncs.forEach((fn) => {
       if (typeof this.multidat[fn] === 'function') this[fn] = (...args) => this.multidat[fn](...args);
+      else console.warn(`Multidat function "${fn}" does not exist and has not been attached to Catalog object.`);
     });
   }
 
