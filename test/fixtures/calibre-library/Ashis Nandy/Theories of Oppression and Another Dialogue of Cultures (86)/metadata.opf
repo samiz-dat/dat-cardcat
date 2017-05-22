@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uuid_id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:identifier opf:scheme="calibre" id="calibre_id">86</dc:identifier>
+        <dc:identifier opf:scheme="uuid" id="uuid_id">74a7a19f-31bf-4360-bca9-8625d4cc0d44</dc:identifier>
+        <dc:title>Theories of Oppression and Another Dialogue of Cultures</dc:title>
+        <dc:creator opf:file-as="Nandy, Ashis, , ," opf:role="aut">Ashis Nandy</dc:creator>
+        <dc:contributor opf:file-as="calibre" opf:role="bkp">calibre (2.47.0) [http://calibre-ebook.com]</dc:contributor>
+        <dc:date>2016-07-03T11:56:44+00:00</dc:date>
+        <dc:description>One of the fi rst tasks of social knowledge in India today is to return agency to the communities at the receiving end of the system. We can do so only if we take seriously the various cultural modes of self-expression of these communities. Democracy can be a slow-moving, inept, obtuse tool in the case of small communities. But it still remains a powerful enabling device for those not pushed to the margin of desperation. Instead of shedding copious tears for the poverty and the exploitation of the dalits and adivasis, the time has come to celebrate their self-affirmation and the enormous diversity of cultural, ecological, artistic, technological and intellectual riches they, as communities, have nurtured over the millennia.</dc:description>
+        <dc:identifier opf:scheme="ARG">52176449307888af0a00025b.1</dc:identifier>
+        <dc:language>en</dc:language>
+        <meta content="{&quot;Ashis Nandy&quot;: &quot;&quot;}" name="calibre:author_link_map"/>
+        <meta content="2016-07-03T11:57:12.825507+00:00" name="calibre:timestamp"/>
+        <meta content="Theories of Oppression and Another Dialogue of Cultures" name="calibre:title_sort"/>
+    </metadata>
+    <guide>
+        <reference href="cover.jpg" title="Cover" type="cover"/>
+    </guide>
+</package>

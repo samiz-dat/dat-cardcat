@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uuid_id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:identifier opf:scheme="calibre" id="calibre_id">22</dc:identifier>
+        <dc:identifier opf:scheme="uuid" id="uuid_id">754b320e-89fd-458f-baee-46f01535d3b4</dc:identifier>
+        <dc:title>Ashis Nandy Essay Collection</dc:title>
+        <dc:creator opf:file-as="Nandy, Ashis, , ," opf:role="aut">Ashis Nandy</dc:creator>
+        <dc:contributor opf:file-as="calibre" opf:role="bkp">calibre (2.47.0) [http://calibre-ebook.com]</dc:contributor>
+        <dc:date>2016-07-03T11:55:45+00:00</dc:date>
+        <dc:description>Nandy - A Post-colonial View of the East and the West  
+Nandy - A Report on the Present State of Health of the Gods and Goddesses in South Asia  
+Nandy - Between Two Gandhis - Psychopolitical Aspects of the Nuclearization of India  
+Nandy - Culture, Voice and Development - A Primer for the Unsuspecting  
+Nandy - Defiance and Conformity in Science - The Identity of Jagadis Chandra Bose  
+Nandy - Engagement and Alienation in Indian Politics  
+Nandy - From Outside the Imperium - Gandhi's Cultural Critique of the 'West'  
+Nandy - History's Forgotten Doubles  
+Nandy - Modern Science and Authoritarianism - From Objectivity to Objectification  
+Nandy - Notes Towards an Agenda for the Next Generation of Film Theorists in India  
+Nandy - Oppression and Human Liberation - Towards a Third World Utopia  
+Nandy - Revisiting the Violence of Development - An Interview with Ashis Nandy  
+Nandy - Telling the Story of Communal Conflicts in South Asia - Interim Report on a Personal Search for Defining Myths  
+Nandy - The Beautiful, Expanding Future of Poverty - Popular Economics as a Psychological Defense  
+Nandy - The Economic and Psychoeconomic Contexts of Political Commitment and Dissent  
+Nandy - The Fantastic India-Pakistan Battle  
+Nandy - The Invisible Holocaust and the Jounrey as an Exodus - The Poisoned Village and the Stranger City  
+Nandy - The Other Within - The Strange Case of Radhabinod Pal's Judgment on Culpability  
+Nandy - The Political Culture of the Indian State  
+Nandy - The Traditions of Technology  
+Nandy - The Twilight of Certitudes - Secularism, Hindu Nationalism and Other Masks of Deculturation  
+Nandy - Time Travel to a Possible Self - Searching for the Alternative Cosmopolitanism of Cochin  
+Nandy and Kothari - Revisiting the Violence of Development - An Interview with Ashis Nandy</dc:description>
+        <dc:identifier opf:scheme="ARG">51c584186c3a0ed90bdb0d00.1</dc:identifier>
+        <dc:language>en</dc:language>
+        <meta content="{&quot;Ashis Nandy&quot;: &quot;&quot;}" name="calibre:author_link_map"/>
+        <meta content="2016-07-03T11:57:10.469765+00:00" name="calibre:timestamp"/>
+        <meta content="Ashis Nandy Essay Collection" name="calibre:title_sort"/>
+    </metadata>
+    <guide>
+        <reference href="cover.jpg" title="Cover" type="cover"/>
+    </guide>
+</package>

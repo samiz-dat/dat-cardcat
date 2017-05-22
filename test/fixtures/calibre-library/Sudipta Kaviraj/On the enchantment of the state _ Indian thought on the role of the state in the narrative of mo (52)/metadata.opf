@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uuid_id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:identifier opf:scheme="calibre" id="calibre_id">52</dc:identifier>
+        <dc:identifier opf:scheme="uuid" id="uuid_id">1c6d090b-787a-4b09-8279-63448b13bbef</dc:identifier>
+        <dc:title>On the enchantment of the state : Indian thought on the role of the state in the narrative of modernity</dc:title>
+        <dc:creator opf:file-as="Kaviraj, Sudipta, , ," opf:role="aut">Sudipta Kaviraj</dc:creator>
+        <dc:contributor opf:file-as="calibre" opf:role="bkp">calibre (2.47.0) [http://calibre-ebook.com]</dc:contributor>
+        <dc:date>2016-07-03T11:55:37+00:00</dc:date>
+        <dc:description>This paper seeks to  
+present an absurdly short history of the curious adventures of this idea.  
+It also seeks to explain why, despite the global dominance of ideas of  
+liberalisation, and a reduction of the state’s interference in social and  
+economic life, this enchantment is still undiminished in India.</dc:description>
+        <dc:identifier opf:scheme="ARG">51c58bfe6c3a0eda0bd97900.1</dc:identifier>
+        <dc:language>en</dc:language>
+        <meta content="{&quot;Sudipta Kaviraj&quot;: &quot;&quot;}" name="calibre:author_link_map"/>
+        <meta content="2016-07-03T11:57:11.476531+00:00" name="calibre:timestamp"/>
+        <meta content="On the enchantment of the state : Indian thought on the role of the state in the narrative of modernity" name="calibre:title_sort"/>
+    </metadata>
+    <guide>
+        <reference href="cover.jpg" title="Cover" type="cover"/>
+    </guide>
+</package>

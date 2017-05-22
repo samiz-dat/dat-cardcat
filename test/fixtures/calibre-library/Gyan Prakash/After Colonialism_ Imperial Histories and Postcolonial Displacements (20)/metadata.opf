@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uuid_id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:identifier opf:scheme="calibre" id="calibre_id">20</dc:identifier>
+        <dc:identifier opf:scheme="uuid" id="uuid_id">fb308377-e17b-4d7b-8f77-cf0657a86c11</dc:identifier>
+        <dc:title>After Colonialism: Imperial Histories and Postcolonial Displacements</dc:title>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Gyan Prakash</dc:creator>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Edward Said</dc:creator>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Steven Feierman</dc:creator>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Joan Dayan</dc:creator>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Ruth B. Phillips</dc:creator>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Anthony Pagden</dc:creator>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Leonard Blusse</dc:creator>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Gauri Viswanathan</dc:creator>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Zachary Lockman</dc:creator>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">J. Jorge Klor de Alva</dc:creator>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Irene Silverblatt</dc:creator>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Emily Apter</dc:creator>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Homi K. Bhabha</dc:creator>
+        <dc:contributor opf:file-as="calibre" opf:role="bkp">calibre (2.47.0) [http://calibre-ebook.com]</dc:contributor>
+        <dc:date>2016-07-03T11:56:14+00:00</dc:date>
+        <dc:description>Contents:
+Introduction: After Colonialism by Gyan Prakash
+**PART ONE: COLONIALISM AND THE DISCIPLINES**
+Chapter 1. Secular Interpretation, the Geographical Element, and the Methodology of Imperialism by Edward Said
+Chapter 2. Africa in History: The End of Universal Narratives by Steven Feierman
+Chapter 3. Haiti, History, and the Gods by Joan Dayan
+Chapter 4. Why Not Tourist Art? Significant Silences in Native American Museum Representations by Ruth B. Phillips
+**PART TWO: COLONIALISM AND CULTURAL DIFFERENCE**
+Chapter 5. The Effacement of Difference: Colonialism and the Origins of Nationalism in Diderot and Herder by Anthony Pagden
+Chapter 6. Retribution and Remorse: The Interaction between the Administration and the Protestant Mission in Early Colonial Formosa by Leonard Blusse
+Chapter 7. Coping with (Civil) Death: The Christian Convert's Rights of Passage in Colonial India by Gauri Viswanathan
+Chapter 8. Exclusion and Solidarity: Labor Zionism and Arab Workers in Palestine, 1897-1929 by Zachary Lockman
+Chapter 9. The Postcolonization of the (Latin) American Experience: A Reconsideration of "Colonialism," "Postcolonialism," and "Mestizaje" by J. Jorge Klor de Alva
+**PART THREE: COLONIAL DISCOURSE AND ITS DISPLACEMENTS**
+Chapter 10. Becoming Indian in the Central Andes of Seventeenth-Century Peru by Irene Silverblatt
+Chapter 11. Ethnographic Travesties: Colonial Realism, French Feminism, and the Case of Elissa Rhai"s by Emily Apter
+Chapter 12. In a Spirit of Calm Violence by Homi K. Bhabha</dc:description>
+        <dc:identifier opf:scheme="ARG">51c584186c3a0ed90bcd0800.1</dc:identifier>
+        <dc:language>en</dc:language>
+        <meta content="{&quot;Steven Feierman&quot;: &quot;&quot;, &quot;Gauri Viswanathan&quot;: &quot;&quot;, &quot;Leonard Blusse&quot;: &quot;&quot;, &quot;Homi K. Bhabha&quot;: &quot;&quot;, &quot;Gyan Prakash&quot;: &quot;&quot;, &quot;Ruth B. Phillips&quot;: &quot;&quot;, &quot;Irene Silverblatt&quot;: &quot;&quot;, &quot;Emily Apter&quot;: &quot;&quot;, &quot;Anthony Pagden&quot;: &quot;&quot;, &quot;J. Jorge Klor de Alva&quot;: &quot;&quot;, &quot;Edward Said&quot;: &quot;&quot;, &quot;Joan Dayan&quot;: &quot;&quot;, &quot;Zachary Lockman&quot;: &quot;&quot;}" name="calibre:author_link_map"/>
+        <meta content="2016-07-03T11:57:10.326122+00:00" name="calibre:timestamp"/>
+        <meta content="After Colonialism: Imperial Histories and Postcolonial Displacements" name="calibre:title_sort"/>
+    </metadata>
+    <guide>
+        <reference href="cover.jpg" title="Cover" type="cover"/>
+    </guide>
+</package>

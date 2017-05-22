@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uuid_id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:identifier opf:scheme="calibre" id="calibre_id">19</dc:identifier>
+        <dc:identifier opf:scheme="uuid" id="uuid_id">2b8af8f3-ae83-44aa-a27e-035e9cc9a1c6</dc:identifier>
+        <dc:title>Gyan Prakash Essay Collection</dc:title>
+        <dc:creator opf:file-as="Prakash, Gyan, , ," opf:role="aut">Gyan Prakash</dc:creator>
+        <dc:contributor opf:file-as="calibre" opf:role="bkp">calibre (2.47.0) [http://calibre-ebook.com]</dc:contributor>
+        <dc:date>2016-07-03T11:55:45+00:00</dc:date>
+        <dc:description>Prakash - Can the 'Subaltern' Ride - A Reply to O'Hanlon and Washbrook  
+Prakash - Edward Said in Bombay  
+Prakash - Orientalism Now  
+Prakash - Postcolonial Criticism and Indian Historiography  
+Prakash - Reproducing Inequality - Spirit Cults and Labor Relations in Colonial Eastern India  
+Prakash - Science 'Gone Native' in Colonial India  
+Prakash - Subaltern Studies as Postcolonial Criticism  
+Prakash - The Impossibility of Subaltern History  
+Prakash - The Modern Nation's Return in the Archaic  
+Prakash - Who's Afraid of Postcoloniality  
+Prakash - Writing Post-Orientalist Histories of the Third World - Perspectives from Indian Historiography  
+Prakash (Ed.) - After Colonialism - Imperial Histories and Postcolonial Displacements</dc:description>
+        <dc:identifier opf:scheme="ARG">51c584186c3a0ed90bbe1000.1</dc:identifier>
+        <dc:language>en</dc:language>
+        <meta content="{&quot;Gyan Prakash&quot;: &quot;&quot;}" name="calibre:author_link_map"/>
+        <meta content="2016-07-03T11:57:10.297755+00:00" name="calibre:timestamp"/>
+        <meta content="Gyan Prakash Essay Collection" name="calibre:title_sort"/>
+    </metadata>
+    <guide>
+        <reference href="cover.jpg" title="Cover" type="cover"/>
+    </guide>
+</package>

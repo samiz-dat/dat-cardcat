@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uuid_id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:identifier opf:scheme="calibre" id="calibre_id">54</dc:identifier>
+        <dc:identifier opf:scheme="uuid" id="uuid_id">141952b2-be2f-4e47-9ea1-5bbe2b8c27d1</dc:identifier>
+        <dc:title>An Outline of a Revisionist Theory of Modernity</dc:title>
+        <dc:creator opf:file-as="Kaviraj, Sudipta, , ," opf:role="aut">Sudipta Kaviraj</dc:creator>
+        <dc:contributor opf:file-as="calibre" opf:role="bkp">calibre (2.47.0) [http://calibre-ebook.com]</dc:contributor>
+        <dc:date>2016-07-03T11:55:38+00:00</dc:date>
+        <dc:description>If modernity is viewed  
+as a process that expands from the west to other parts of the world, this  
+raises not merely a historical but also a theoretical question. It is cer-  
+tainly necessary to understand the history of modernity in other set-  
+tings, but also to ask what shape should the theory assume if it is to deal  
+with this expanding historical diversity.</dc:description>
+        <dc:identifier opf:scheme="ARG">51c58bfe6c3a0eda0bde7900.1</dc:identifier>
+        <dc:language>en</dc:language>
+        <meta content="{&quot;Sudipta Kaviraj&quot;: &quot;&quot;}" name="calibre:author_link_map"/>
+        <meta content="2016-07-03T11:57:11.515263+00:00" name="calibre:timestamp"/>
+        <meta content="Outline of a Revisionist Theory of Modernity, An" name="calibre:title_sort"/>
+    </metadata>
+    <guide>
+        <reference href="cover.jpg" title="Cover" type="cover"/>
+    </guide>
+</package>
