@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import EventEmitter from 'events';
 import createDat from 'dat-node';
+import Collections from 'dat-collections';
 // import _ from 'lodash';
 import Promise from 'bluebird';
 import chalk from 'chalk';
@@ -37,6 +38,8 @@ export default class DatWrapper extends EventEmitter {
     // this.opts.indexing = !this.key;
     this.opts.indexing = true;
     this.importer = false;
+    // Collections
+    this.collections = false;
   }
 
   // Creates a dat and grabs a key
@@ -60,6 +63,10 @@ export default class DatWrapper extends EventEmitter {
         network.once('connection', () => {
           console.log('connects via network');
           console.log(chalk.gray(chalk.bold('peers:')), this.stats.peers);
+        });
+        dat.archive.metadata.on('ready', () => {
+          console.log('dat archive is ready, loading collections: ', this.name);
+          this.collections = new Collections(dat.archive);
         });
         // this.start(dat);
         // Watch for metadata syncing
@@ -137,10 +144,7 @@ export default class DatWrapper extends EventEmitter {
   }
 
   // Has the file been downloaded?
-  hasFile(file) {
-    return fs.statAsync(path.join(this.directory, file))
-      .catch(console.log);
-  }
+  hasFile = file => new Promise(r => fs.access(path.join(this.directory, file), fs.F_OK, e => r(!e)))
 
   // Rename
   rename(dir, name) {
@@ -150,6 +154,11 @@ export default class DatWrapper extends EventEmitter {
         this.directory = dir;
         this.name = name;
       });
+  }
+
+  // Initialize the collections
+  listFlattenedCollections() {
+    return this.collections.flatten();
   }
 
   // Write a manifest file

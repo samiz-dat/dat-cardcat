@@ -28,6 +28,15 @@
 
 
 
+
+
+
+
+
+
+
+
+
 function (file, format = 'calibre') {
   // Only files (not directories) are eligible
   const arr = file.split(_path2.default.sep);
@@ -43,6 +52,6 @@ function (file, format = 'calibre') {
                                                                                                                                                                                                                                                                                                     (and for now that is just a Calibre library format)
                                                                                                                                                                                                                                                                                                      */ // Files to ignore, even if they are in the right place
 const ignore = ['.DS_Store', '.dat', '.git'];const parsers = { // Calibre parser is the default one
-  calibre: pathArr => {if (pathArr.length === 3 && !ignore.includes(pathArr[2])) {const name = (0, _anotherNameParser2.default)(pathArr[0]);return { author: pathArr[0], authorSort: `${name.last}, ${name.first}`, title: pathArr[1], file: pathArr[2] };}return false;} }; // Does the given candidate pass the formatting tests? (should it be added?)
+  calibre: pathArr => {if (pathArr.length === 3 && !ignore.includes(pathArr[2])) {const name = (0, _anotherNameParser2.default)(pathArr[0]);return { author: pathArr[0], authorSort: `${name.last}, ${name.first}`, title: pathArr[1], file: pathArr[2] };}return false;}, authorTitle: pathArr => {if (pathArr.length > 0) {return { author: pathArr[0], title: pathArr.length > 1 ? pathArr[1] : '' };}return false;} }; // Does the given candidate pass the formatting tests? (should it be added?)
 // If so, return { author, author_sort, title, file }
 //# sourceMappingURL=importers.js.map

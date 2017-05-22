@@ -23,8 +23,8 @@ function lsFilesPromised(dir, readdirPromised, statPromised) {const readdirAsync
   then(results => _lodash2.default.flattenDeep(results));
 }
 
-const getDirectories = exports.getDirectories = srcpath => fs.readdirAsync(srcpath) // eslint-disable-line
-.filter(file => fs.statSync(_path2.default.join(srcpath, file)).isDirectory());
+const getDirectories = exports.getDirectories = srcpath => fs.readdirAsync(srcpath).
+filter(file => fs.statSync(_path2.default.join(srcpath, file)).isDirectory());
 
 // This is unusual, but I found that I cannot simply say !dirExists if dirExists returns a Promise.
 // The promise always exists

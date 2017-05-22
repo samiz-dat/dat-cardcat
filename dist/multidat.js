@@ -2,8 +2,9 @@
 var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);
 var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);
 var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);
+var _rimraf = require('rimraf');var _rimraf2 = _interopRequireDefault(_rimraf);
 var _paulsDatApi = require('pauls-dat-api');var _paulsDatApi2 = _interopRequireDefault(_paulsDatApi);
-
+var _lodash = require('lodash');var _lodash2 = _interopRequireDefault(_lodash);
 var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);
 var _db = require('./db');var _db2 = _interopRequireDefault(_db);
 
@@ -92,16 +93,16 @@ class Multidat {constructor(baseDir) {
         dstPath: forkDir })).
 
       then(() => this.importDir(forkDir, name)).
-      then(dw => dw.writeManifest(manifest));
+      then(dw => dw.writeManifest({ forkOf: key })).
+      finally(() => this.deleteDat(key));
     }
-    return this.getDat(key).
-    then(dw => _paulsDatApi2.default.exportArchiveToFilesystem({
+    const dw = this.getDat(key);
+    return _paulsDatApi2.default.exportArchiveToFilesystem({
       srcArchive: dw.dat.archive,
-      dstPath: forkDir })).
+      dstPath: forkDir }).
 
     then(() => this.importDir(forkDir, name)).
-    then(dw => dw.writeManifest({ forkOf: key })).
-    then(dw => dw);
+    then(d => d.writeManifest({ forkOf: key }));
   }
 
   // Does the work of importing a functional dat into the catalog
@@ -130,62 +131,59 @@ class Multidat {constructor(baseDir) {
     });
   }
 
-  // Get the list of dats in this multidat as a Promise
+  // return array of dats
   getDats() {
-    return _bluebird2.default.map(Object.keys(this.dats), key => this.getDat(key));
+    return _lodash2.default.values(this.dats);
   }
 
-  // Get a dat as a Promise
   getDat(key) {
-    return new _bluebird2.default((resolve, reject) => {
-      if (key in this.dats) {
-        resolve(this.dats[key]);
-      } else {
-        reject(false);
-      }
-    });
+    const dat = this.dats[key];
+    return dat !== undefined ? dat : null;
   }
 
   // Get a path to a dat
   pathToDat(key) {
-    return new _bluebird2.default((resolve, reject) => {
-      if (key in this.dats) {
-        resolve(this.dats[key].directory);
-      } else {
-        reject(false);
-      }
-    });
+    const dat = this.getDat(key);
+    return dat ? dat.directory : null;
   }
 
   // Remove a dat from the multidat
   removeDat(key) {
-    return new _bluebird2.default(resolve => {
-      if (key in this.dats) {
-        delete this.dats[key];
-      } else {
-        resolve(false);
-      }
+    const dat = this.dats[key];
+    if (dat !== undefined) {
+      return _bluebird2.default.resolve(false);
+    }
+    return dat.close().
+    then(() => {
+      delete this.dats[key];
+      return true;
     });
+  }
+
+  // Remove a dat from the multidat and delete it from the filesystem
+  deleteDat(key) {
+    const rimrafAsync = _bluebird2.default.promisify(_rimraf2.default);
+    return this.getDat(key).
+    then(dw => rimrafAsync(dw.directory)).
+    finally(() => this.removeDat(key));
   }
 
   // Download a file or directory from a dat
   downloadFromDat(key, fileOrDir) {
-    return this.getDat(key).
-    then(dw => dw.downloadContent(fileOrDir));
+    const dat = this.getDat(key);
+    return dat.downloadContent(fileOrDir);
   }
 
   // Does a dat have a file?
   datHasFile(key, file) {
-    return this.getDat(key).
-    then(dw => dw.hasFile(file));
+    const dat = this.getDat(key);
+    return dat.hasFile(file);
   }
 
   // Copy a file or directory from one dat to another
   copyFromDatToDat(keyFrom, keyTo, fileOrDir) {
-    return _bluebird2.default.join(
-    this.getDat(keyFrom),
-    this.getDat(keyTo),
-    (dwFrom, dwTo) => dwTo.importFromDat(dwFrom, fileOrDir));
-
+    const from = this.getDat(keyFrom);
+    const to = this.getDat(keyTo);
+    return to.importFromDat(from, fileOrDir);
   }}exports.default = Multidat; // eslint-disable-line
 //# sourceMappingURL=multidat.js.map

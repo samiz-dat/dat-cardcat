@@ -193,6 +193,16 @@ class Database {
 
 
 
+
+
+
+
+
+
+
+
+
+
     getDats = () => this.db('dats').select();this.
     getDat = key => this.db('dats').select().where('dat', key);this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename }, useNullAsDefault: true });} // Add a dat to the database
   addDat(dat, name, dir) {return this.db.insert({ dat, name, dir }).into('dats');} // Remove a dat from the database
@@ -200,7 +210,8 @@ class Database {
   updateDat(datKey, name, dir) {return this.db('dats').where('dat', datKey).update({ name, dir });} // Remove all entries/ texts for a dat
   clearTexts(datKey) {if (datKey) {return this.db('texts').where('dat', datKey).del();}return this.db('texts').del();} // Returns the path to a dat as found in db.
   pathToDat(datKey) {return this.db.select('dir').from('dats').where('dat', datKey).first();} // Insert a text into the texts table
-  addText(opts) {return this.db.insert({ dat: opts.dat, title_hash: opts.title_hash || '', file_hash: opts.file_hash || '', author: opts.author, author_sort: opts.author_sort, title: opts.title, file: opts.file, downloaded: opts.downloaded || 0 }).into('texts');} // Sets download status of a row
+  addText(opts) {return this.db.insert({ dat: opts.dat, title_hash: opts.title_hash || '', file_hash: opts.file_hash || '', author: opts.author, author_sort: opts.author_sort, title: opts.title, file: opts.file, downloaded: opts.downloaded || 0 }).into('texts');} // Inserts a row for a collected text
+  addCollectedText(opts) {return this.db.insert({ dat: opts.dat, author: opts.author, title: opts.title, collection: opts.collection }).into('collections');} // Sets download status of a row
   setDownloaded(dat, author, title, file, downloaded = true) {return this.db('texts').where('dat', dat).where('author', author).where('title', title).where('file', file).update({ downloaded });} // Searches for titles with files bundled up in a comma separated column
   search(query, dat) {const s = `%${query}%`;const exp = this.db.select('dat', 'author', 'title', 'title_hash', 'author_sort', this.db.raw('GROUP_CONCAT("file" || ":" || "downloaded") as "files"')).from('texts').where(function () {// a bit inelegant but groups where statements
       this.where('title', 'like', s).orWhere('author', 'like', s);}).groupBy('author', 'title');withinDat(exp, dat);return exp.orderBy('author_sort', 'title');} // Gets a count of authors in the catalog
@@ -218,9 +229,9 @@ class Database {
     return this.getFiles(author, title, dat, mfn).first().then(row => this.pathToDat(row.dat)).then(fp => (0, _openPackagingFormat.readOPF)(_path2.default.join(fp.dir, author, title, mfn)));} // Initializes tables
   init() {// we should probably setup a simple migration script
     // but for now lets just drop tables before remaking tables.
-    const tablesDropped = this.db.schema.dropTableIfExists('datsX').dropTableIfExists('textsX').dropTableIfExists('more_authorsX');return tablesDropped.createTableIfNotExists('dats', table => {table.string('dat');
-      table.string('name');
+    const tablesDropped = this.db.schema.dropTableIfExists('datsX').dropTableIfExists('textsX').dropTableIfExists('more_authorsX');return tablesDropped.createTableIfNotExists('dats', table => {table.string('dat');table.string('name');
       table.string('dir');
+      table.integer('version');
       // table.unique('dat');
     }).
     createTableIfNotExists('texts', table => {
@@ -232,6 +243,12 @@ class Database {
       table.string('title');
       table.string('file');
       table.boolean('downloaded');
+    }).
+    createTableIfNotExists('collections', table => {
+      table.string('dat');
+      table.string('author');
+      table.string('title');
+      table.string('collection');
     }).
     createTableIfNotExists('more_authors', table => {
       table.string('title_hash');

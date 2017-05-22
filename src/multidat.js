@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import Promise from 'bluebird';
 import chalk from 'chalk';
+import rimraf from 'rimraf';
 import pda from 'pauls-dat-api';
 import _ from 'lodash';
 import DatWrapper from './dat'; // this function can be made a method of dat class too.
@@ -92,7 +93,8 @@ export default class Multidat {
           dstPath: forkDir,
         }))
         .then(() => this.importDir(forkDir, name))
-        .then(dw => dw.writeManifest(manifest));
+        .then(dw => dw.writeManifest({ forkOf: key }))
+        .finally(() => this.deleteDat(key));
     }
     const dw = this.getDat(key);
     return pda.exportArchiveToFilesystem({
@@ -156,6 +158,14 @@ export default class Multidat {
         delete this.dats[key];
         return true;
       });
+  }
+
+  // Remove a dat from the multidat and delete it from the filesystem
+  deleteDat(key) {
+    const rimrafAsync = Promise.promisify(rimraf);
+    return this.getDat(key)
+      .then(dw => rimrafAsync(dw.directory))
+      .finally(() => this.removeDat(key));
   }
 
   // Download a file or directory from a dat

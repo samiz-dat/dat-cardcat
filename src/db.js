@@ -73,6 +73,16 @@ export class Database {
     }).into('texts');
   }
 
+  // Inserts a row for a collected text
+  addCollectedText(opts) {
+    return this.db.insert({
+      dat: opts.dat,
+      author: opts.author,
+      title: opts.title,
+      collection: opts.collection,
+    }).into('collections');
+  }
+
   // Sets download status of a row
   setDownloaded(dat, author, title, file, downloaded = true) {
     return this.db('texts')
@@ -221,6 +231,7 @@ export class Database {
       table.string('dat');
       table.string('name');
       table.string('dir');
+      table.integer('version');
       // table.unique('dat');
     })
     .createTableIfNotExists('texts', (table) => {
@@ -232,6 +243,12 @@ export class Database {
       table.string('title');
       table.string('file');
       table.boolean('downloaded');
+    })
+    .createTableIfNotExists('collections', (table) => {
+      table.string('dat');
+      table.string('author');
+      table.string('title');
+      table.string('collection');
     })
     .createTableIfNotExists('more_authors', (table) => {
       table.string('title_hash');

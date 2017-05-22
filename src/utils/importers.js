@@ -24,6 +24,15 @@ const parsers = {
     }
     return false;
   },
+  authorTitle: (pathArr) => {
+    if (pathArr.length > 0) {
+      return {
+        author: pathArr[0],
+        title: (pathArr.length > 1) ? pathArr[1] : '',
+      };
+    }
+    return false;
+  },
 };
 
 // Does the given candidate pass the formatting tests? (should it be added?)

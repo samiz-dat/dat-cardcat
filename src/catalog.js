@@ -3,7 +3,7 @@ import fs from 'fs';
 import Promise from 'bluebird';
 import chalk from 'chalk';
 import _ from 'lodash';
-import rimraf from 'rimraf';
+import rimraf from 'rimraf'; // This will b removed soon
 import config from './config';
 
 import Database from './db'; // eslint-disable-line
@@ -11,12 +11,6 @@ import Multidat from './multidat';
 
 import parseEntry from './utils/importers';
 // @todo: this.db.close(); should be called on shutdown
-
-/**
-  There is an array of (loaded) dats
-  There is a list of dats in the database
- */
-
 
 // Class definition
 export class Catalog {
@@ -74,7 +68,8 @@ export class Catalog {
       .then(() => this.cleanupDatRegistry())
       .then(() => this.multidat.getDats())
       .each(dw => this.registerDat(dw))
-      .each(dw => this.ingestDatContents(dw));
+      .each(dw => this.ingestDatContents(dw))
+      .each(dw => this.ingestDatCollections(dw));
   }
 
   // Two functions for adding things into the catalog
@@ -149,6 +144,18 @@ export class Catalog {
           .then(() => this.db.clearTexts(key))
           .then(() => rimrafAsync(directory));
       }
+      /*
+      // @todo: fix this because it is better I think?
+      return this.multidat.pathToDat(key)
+        .then((p) => {
+          if (p.startsWith(this.baseDir)) {
+            return this.db.removeDat(key)
+              .then(() => this.db.clearTexts(key))
+              .then(() => this.multidat.deleteDat(key));
+          }
+          return this.removeDat(key, false);
+        });
+      */
     }
     return promise
       .then(() => this.multidat.removeDat(key))
@@ -181,6 +188,26 @@ export class Catalog {
       .then(() => this.db.addDat(datkey, dw.name, dw.directory))
       .then(() => dw)
       .catch(e => console.log(e));
+  }
+
+  // For a Dat, ingest its collections data (if there are any)
+  ingestDatCollections(dw) {
+    return Promise.map(dw.listFlattenedCollections(), item => this.ingestDatCollectedFile(dw, item[0], item[1])).catch();
+  }
+
+  ingestDatCollectedFile(dw, file, collectionArr, format = 'authorTitle') {
+    const importedData = parseEntry(file, format);
+    if (importedData) {
+      const collection = collectionArr.join(';;');
+      console.log(chalk.bold('collecting:'), file, collection);
+      return this.db.addCollectedText({
+        dat: dw.key,
+        author: importedData.author,
+        title: importedData.title,
+        collection,
+      });
+    }
+    return Promise.resolve(false);
   }
 
   // For a Dat, ingest its contents into the catalog
