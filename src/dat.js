@@ -169,6 +169,12 @@ export default class DatWrapper extends EventEmitter {
     return pda.updateManifest(this.dat.archive, manifest);
   }
 
+  close() {
+    return new Promise((resolve, reject) => this.dat.close((err) => {
+      if (err) reject(err);
+      else resolve();
+    }));
+  }
 
   exitHandler = options => (error) => {
     if (options.cleanup) {
