@@ -31,7 +31,9 @@ export class Catalog {
     const publicDatabaseFuncs = [
       'getDats',
       'getAuthors',
+      'getCollectionAuthors',
       'getAuthorLetters',
+      'getCollections',
       'getTitlesWith',
       'search',
       'getTitlesForAuthor',
@@ -51,7 +53,10 @@ export class Catalog {
     });
   }
 
-  init() {
+  init(databaseOnlyMode) {
+    if (databaseOnlyMode) {
+      return this.initDatabase().then(() => this);
+    }
     return this.initDatabase()
       .then(() => this.initMultidat())
       .then(() => this);
@@ -84,7 +89,8 @@ export class Catalog {
   importDat(key, name = '') {
     this.multidat.importRemoteDat(key, name)
       .then(dw => this.registerDat(dw))
-      .then(dw => this.ingestDatContents(dw));
+      .then(dw => this.ingestDatContents(dw))
+      .catch(Error, () => console.log(`Dat ${key} failed to import.`));
   }
 
   // Forks a dat (by its key) into a new, writable dat
@@ -183,16 +189,20 @@ export class Catalog {
     // listen to events emitted from this dat wrapper
     dw.on('import', (...args) => this.handleDatImportEvent(...args));
     dw.on('sync metadata', (...args) => this.handleDatSyncMetadataEvent(...args));
+    dw.on('sync collections', (...args) => this.handleDatSyncCollectionsEvent(...args));
     return this.db.removeDat(datkey)
-      .then(() => this.db.clearTexts(datkey))
-      .then(() => this.db.addDat(datkey, dw.name, dw.directory))
+      // .then(() => this.db.clearTexts(datkey))
+      .then(() => this.db.addDat(datkey, dw.name, dw.directory, dw.version))
       .then(() => dw)
       .catch(e => console.log(e));
   }
 
   // For a Dat, ingest its collections data (if there are any)
   ingestDatCollections(dw) {
-    return Promise.map(dw.listFlattenedCollections(), item => this.ingestDatCollectedFile(dw, item[0], item[1])).catch();
+    this.db.clearCollections(dw.key)
+      .then(() => dw.listFlattenedCollections())
+      .each(item => this.ingestDatCollectedFile(dw, item[0], item[1]))
+      .catch();
   }
 
   ingestDatCollectedFile(dw, file, collectionArr, format = 'authorTitle') {
@@ -212,7 +222,9 @@ export class Catalog {
 
   // For a Dat, ingest its contents into the catalog
   ingestDatContents(dw) {
-    return Promise.map(dw.listContents(), file => this.ingestDatFile(dw, file));
+    this.db.clearTexts(dw.key)
+      .then(() => dw.listContents())
+      .each(file => this.ingestDatFile(dw, file));
   }
 
   // Adds an entry from a Dat
@@ -278,9 +290,14 @@ export class Catalog {
     this.ingestDatFile(dw, filePath);
     // console.log('Importing: ', filePath);
   }
+
+  handleDatSyncCollectionsEvent(dw) {
+    console.log('Collections sync event. Ingesting collections for:', dw.name);
+    this.ingestDatCollections(dw);
+  }
 }
 
-export function createCatalog(dataDir) {
+export function createCatalog(dataDir, databaseOnlyMode) {
   // Directory to store all the data in
   let dataDirFinal = path.join(process.cwd(), config.get('dataDir'));
   dataDirFinal = dataDir || dataDirFinal;
@@ -292,7 +309,7 @@ export function createCatalog(dataDir) {
 
   const catalog = new Catalog(dataDirFinal);
   // @todo: adjust init() to not load any dats, allowing for quick db searches
-  return catalog.init();
+  return catalog.init(databaseOnlyMode);
 }
 
 export default Catalog;

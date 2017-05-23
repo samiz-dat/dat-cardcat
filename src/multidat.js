@@ -110,7 +110,7 @@ export default class Multidat {
     if ('key' in opts && opts.key in this.dats) {
       // The dat is already loaded, we shouldn't reimport it
       console.log(`You are trying to import a dat that is already loaded: ${opts.key}`);
-      return Promise.resolve(false);
+      return Promise.reject(new Error('duplicate'));
     }
     if (!opts.directory) {
       opts.directory = path.format({

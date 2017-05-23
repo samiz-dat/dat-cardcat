@@ -3,12 +3,12 @@ import db from 'knex';
 import { readOPF } from 'open-packaging-format';
 
 // Narrows query to within a dat/ list of dats
-function withinDat(query, dat) {
+function withinDat(query, dat, table = 'texts') {
   if (dat) {
     if (typeof dat === 'string') {
-      query.where('dat', dat);
+      query.where(`${table}.dat`, dat);
     } else if (Array.isArray(dat)) {
-      query.whereIn('dat', dat);
+      query.whereIn(`${table}.dat`, dat);
     }
   }
   return query;
@@ -27,8 +27,8 @@ export class Database {
   }
 
   // Add a dat to the database
-  addDat(dat, name, dir) {
-    return this.db.insert({ dat, name, dir }).into('dats');
+  addDat(dat, name, dir, version) {
+    return this.db.insert({ dat, name, dir, version }).into('dats');
   }
 
   // Remove a dat from the database
@@ -52,6 +52,14 @@ export class Database {
       return this.db('texts').where('dat', datKey).del();
     }
     return this.db('texts').del();
+  }
+
+  // Remove all collection entries for a dat
+  clearCollections(datKey) {
+    if (datKey) {
+      return this.db('collections').where('dat', datKey).del();
+    }
+    return this.db('collections').del();
   }
 
   // Returns the path to a dat as found in db.
@@ -117,16 +125,24 @@ export class Database {
 
   // Gets a count of authors in the catalog
   getAuthors(startingWith, dat) {
-    const exp = this.db.select('author').from('texts')
-      .countDistinct('title as count');
+    const exp = this.db.select('texts.author').from('texts')
+      .countDistinct('texts.title as count');
     withinDat(exp, dat);
     if (startingWith) {
       const s = `${startingWith}%`;
-      exp.where('author_sort', 'like', s);
+      exp.where('texts.author_sort', 'like', s);
     }
     return exp
-      .groupBy('author')
-      .orderBy('author_sort');
+      .groupBy('texts.author')
+      .orderBy('texts.author_sort');
+  }
+
+  // Gets authors within a collection
+  getCollectionAuthors(collection, startingWith, dat) {
+    const q = this.getAuthors(startingWith, dat);
+    q.countDistinct('collections.title as count'); // count inside the collection instead
+    return q.innerJoin('collections', 'texts.author', 'collections.author')
+      .where('collections.collection', collection);
   }
 
   // Gets a list of letters of authors, for generating a directory
@@ -151,23 +167,35 @@ export class Database {
   // along with a comma-separated list of files:downloaded for each title.
   getTitlesWith(opts, dat) {
     const exp = this.db
-      .select('dat',
-        'author',
-        'title',
-        'title_hash',
-        'author_sort',
-      this.db.raw('GROUP_CONCAT("file" || ":" || "downloaded") as "files"'))
+      .select('texts.dat',
+        'texts.author',
+        'texts.title',
+        'texts.title_hash',
+        'texts.author_sort',
+      this.db.raw('GROUP_CONCAT("texts.file" || ":" || "texts.downloaded") as "files"'))
       .from('texts');
     if (opts.author) {
-      exp.where('author', opts.author);
+      exp.where('texts.author', opts.author);
     }
     if (opts.title) {
-      exp.where('title', opts.title);
+      exp.where('texts.title', opts.title);
+    }
+    if (opts.collection) {
+      exp.innerJoin('collections', function() {
+        this
+          .on('texts.dat', 'collections.dat')
+          .on('texts.author', 'collections.author')
+          .on('texts.title', 'collections.title');
+      })
+        // .where('texts.author', '=', 'collections.author')
+        // .where('texts.title', '=', 'collections.title')
+        // .on('texts.dat', '=', 'collections.dat')
+        .where('collections.collection', opts.collection);
     }
     withinDat(exp, dat);
     return exp
-      .groupBy('author', 'title')
-      .orderBy('author_sort', 'title');
+      .groupBy('texts.author', 'texts.title')
+      .orderBy('texts.author_sort', 'texts.title');
   }
 
   // Gets entire entries for catalog items matching author/title/file.
@@ -188,6 +216,20 @@ export class Database {
     }
     withinDat(exp, dat);
     return exp.orderBy('dat', 'author', 'title');
+  }
+
+  // Gets a list of collections in the catalog
+  getCollections(startingWith, dat) {
+    const exp = this.db.select('collection').from('collections')
+      .count('* as count');
+    withinDat(exp, dat);
+    if (startingWith) {
+      const s = `${startingWith}%`;
+      exp.where('collection', 'like', s);
+    }
+    return exp
+      .groupBy('collection')
+      .orderBy('collection');
   }
 
   // Optionally only include files from a particular dat.

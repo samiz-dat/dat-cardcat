@@ -110,7 +110,7 @@ class Multidat {constructor(baseDir) {
     if ('key' in opts && opts.key in this.dats) {
       // The dat is already loaded, we shouldn't reimport it
       console.log(`You are trying to import a dat that is already loaded: ${opts.key}`);
-      return _bluebird2.default.resolve(false);
+      return _bluebird2.default.reject(new Error('duplicate'));
     }
     if (!opts.directory) {
       opts.directory = _path2.default.format({

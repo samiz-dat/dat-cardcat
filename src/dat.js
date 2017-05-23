@@ -64,15 +64,20 @@ export default class DatWrapper extends EventEmitter {
           console.log('connects via network');
           console.log(chalk.gray(chalk.bold('peers:')), this.stats.peers);
         });
-        dat.archive.metadata.on('ready', () => {
-          console.log('dat archive is ready, loading collections: ', this.name);
-          this.collections = new Collections(dat.archive);
+        this.collections = new Collections(dat.archive);
+        this.collections.on('loaded', () => {
+          console.log(`collections data loaded (${this.name})`);
+          // this.emit('sync collections', this);
         });
+
         // this.start(dat);
         // Watch for metadata syncing
         dat.archive.metadata.on('sync', () => {
           console.log('metadata synced');
           this.emit('sync metadata', this);
+          // @todo: remove this next hack line.
+          // But for now we need it because on first load of dat we aren't getting the "loaded" event above
+          this.emit('sync collections', this);
         });
       })
       // .then(() => this.importFiles())
@@ -88,6 +93,10 @@ export default class DatWrapper extends EventEmitter {
   // How many peers for this dat
   get peers() {
     return this.stats.peers || { total: 0, complete: 0 };
+  }
+
+  get version() {
+    return this.dat.archive.version;
   }
 
   importFiles(importPath = this.directory) {

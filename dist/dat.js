@@ -144,6 +144,15 @@ class DatWrapper extends _events2.default {
 
 
 
+
+
+
+
+
+
+
+
+
     hasFile = file => new _bluebird2.default(r => _fs2.default.access(_path2.default.join(this.directory, file), _fs2.default.F_OK, e => r(!e)));this.
 
 
@@ -206,12 +215,15 @@ class DatWrapper extends _events2.default {
                                                                                           stats.once('update', () => {
                                                                                             console.log(chalk.gray(chalk.bold('stats updated')), stats.get());
                                                                                           });
-                                                                                          */network.once('connection', () => {console.log('connects via network');console.log(_chalk2.default.gray(_chalk2.default.bold('peers:')), this.stats.peers);});dat.archive.metadata.on('ready', () => {console.log('dat archive is ready, loading collections: ', this.name);this.collections = new _datCollections2.default(dat.archive);}); // this.start(dat);
+                                                                                          */network.once('connection', () => {console.log('connects via network');console.log(_chalk2.default.gray(_chalk2.default.bold('peers:')), this.stats.peers);});this.collections = new _datCollections2.default(dat.archive);this.collections.on('loaded', () => {console.log(`collections data loaded (${this.name})`); // this.emit('sync collections', this);
+      }); // this.start(dat);
       // Watch for metadata syncing
-      dat.archive.metadata.on('sync', () => {console.log('metadata synced');this.emit('sync metadata', this);});}) // .then(() => this.importFiles())
+      dat.archive.metadata.on('sync', () => {console.log('metadata synced');this.emit('sync metadata', this); // @todo: remove this next hack line.
+        // But for now we need it because on first load of dat we aren't getting the "loaded" event above
+        this.emit('sync collections', this);});}) // .then(() => this.importFiles())
     .then(() => this);} // Just creates a dat object
   create() {const createDatAsync = _bluebird2.default.promisify(_datNode2.default);return createDatAsync(this.directory, this.opts);} // How many peers for this dat
-  get peers() {return this.stats.peers || { total: 0, complete: 0 };}importFiles(importPath = this.directory) {return new _bluebird2.default((resolve, reject) => {const dat = this.dat;if (this.dat.writable) {console.log('Importing files under:', importPath);const opts = { watch: true, dereference: true, indexing: true };this.importer = dat.importFiles(importPath, opts, () => {console.log(`Finished importing files in ${importPath}`);resolve(true);});this.importer.on('error', reject); // Emit event that something has been imported into the dat
+  get peers() {return this.stats.peers || { total: 0, complete: 0 };}get version() {return this.dat.archive.version;}importFiles(importPath = this.directory) {return new _bluebird2.default((resolve, reject) => {const dat = this.dat;if (this.dat.writable) {console.log('Importing files under:', importPath);const opts = { watch: true, dereference: true, indexing: true };this.importer = dat.importFiles(importPath, opts, () => {console.log(`Finished importing files in ${importPath}`);resolve(true);});this.importer.on('error', reject); // Emit event that something has been imported into the dat
         this.importer.on('put', src => this.emit('import', this, src.name.replace(this.directory, ''), src.stat));} else {resolve(false);}});} // Import a file or directory from another archive
   importFromDat(srcDatWrapper, fileOrDir, overwriteExisting = true) {var _this = this;return _asyncToGenerator(function* () {if (_this.dat.writable) {const dstPath = _path2.default.join(_this.directory, fileOrDir);return _paulsDatApi2.default.exportArchiveToFilesystem({ srcArchive: srcDatWrapper.dat.archive, dstPath, srcPath: fileOrDir, overwriteExisting }); // .then(() => this.importFiles());
       }console.log('Warning: You tried to write to a Dat that is not yours. Nothing has been written.'); // Fallback

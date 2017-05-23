@@ -12,7 +12,7 @@ if (args.length < 1) {
   process.exit(1);
 }
 
-catalog.createCatalog()
+catalog.createCatalog(false, true)
   .then(c => c.search(args[0]))
   .then((rows) => {
     for (const doc of rows) {

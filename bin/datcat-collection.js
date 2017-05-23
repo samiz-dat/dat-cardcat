@@ -6,10 +6,29 @@ const catalog = require('../dist/catalog');
 // List the authors, by letter, include counts
 cmd
   .option('-c, --counts', 'include counts')
-  .command('list [letter]')
+  .command('list [filter]')
   .action((filter) => {
     catalog.createCatalog(false, true)
-      .then(c => c.getAuthors(filter))
+      .then(c => c.getCollections(filter))
+      .then((rows) => {
+        for (const doc of rows) {
+          const cStr = doc.collection.replace(';;', ' -> ');
+          if (cmd.counts) {
+            console.log(`${cStr} (${doc.count})`);
+          } else {
+            console.log(`${cStr}`);
+          }
+        }
+      });
+  });
+
+// Get authors in a collection
+cmd
+  .option('-d, --dats', 'show dat keys')
+  .command('authors <name>')
+  .action((name) => {
+    catalog.createCatalog(false, true)
+      .then(c => c.getCollectionAuthors(name))
       .then((rows) => {
         for (const doc of rows) {
           if (cmd.counts) {
@@ -21,19 +40,20 @@ cmd
       });
   });
 
-// Get titles for an author
+// Get titles in a collection
 cmd
   .option('-d, --dats', 'show dat keys')
   .command('titles <name>')
   .action((name) => {
     catalog.createCatalog(false, true)
-      .then(c => c.getTitlesForAuthor(name))
+      .then(c => c.getTitlesWith({ collection: name }))
       .then((rows) => {
         for (const doc of rows) {
-          console.log(`${doc.title}\t${doc.dat}`);
+          console.log(`${doc.author}: ${doc.title})`);
         }
       });
   });
+
 
 // Finally...
 cmd.parse(process.argv);

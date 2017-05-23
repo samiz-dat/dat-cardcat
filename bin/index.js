@@ -11,6 +11,7 @@ cmd
   .command('health [key]', 'check on the health of a cardcat by "key"')
   .command('checkout [author] [title] [file]', 'checkout a text')
   .command('author [command]', 'author commands')
+  .command('collection [command]', 'collection commands')
   .command('search [query]', 'search the cardcat')
   .command('copy [keyFrom] [keyTo] [resource]', 'copy something from one dat to another')
   .parse(process.argv);
