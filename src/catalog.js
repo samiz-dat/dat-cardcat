@@ -73,8 +73,7 @@ export class Catalog {
       .then(() => this.cleanupDatRegistry())
       .then(() => this.multidat.getDats())
       .each(dw => this.registerDat(dw))
-      .each(dw => this.ingestDatContents(dw))
-      .each(dw => this.ingestDatCollections(dw));
+      .each(dw => this.ingestDatContents(dw));
   }
 
   // Two functions for adding things into the catalog
@@ -108,6 +107,14 @@ export class Catalog {
     if (!opts) {
       console.warn('attempted to checkout without opts.');
       return Promise.reject();
+    }
+    // When the collection option is provided it's handled in a special way
+    // because it is downloading across & within authors and maybe across dats
+    if (opts.collection) {
+      return this.db.getTitlesWith(opts)
+        .then(rows => rows)
+        .each(row => this.download(row.dat, row))
+        .then(() => this.scanForDownloads(opts));
     }
     if (opts.dat) {
       if (typeof opts.dat === 'string') {

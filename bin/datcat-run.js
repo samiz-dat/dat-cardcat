@@ -27,6 +27,7 @@ const taskQuestions = [
       new inquirer.Separator(),
       'Search for something',
       'Browse by author name',
+      'List collections',
     ],
   },
 ];
@@ -55,6 +56,18 @@ const cardcatTaskChoices = [
 ];
 
 const authorTaskChoices = [
+  {
+    type: 'list',
+    name: 'choice',
+    message: 'Select one:',
+    choices: [
+      'List titles',
+      'Checkout everything',
+    ],
+  },
+];
+
+const collectionTaskChoices = [
   {
     type: 'list',
     name: 'choice',
@@ -232,6 +245,42 @@ function browseTask() {
     });
 }
 
+function collectionTasks(collection) {
+  // Lists all the titles for a collection
+  function titlesForCollection(cStr) {
+    return cardcat.getTitlesWith({ collection: cStr })
+      .then(titles => titles.map(doc => `${doc.author}\t${doc.title}`))
+      .then(textChoiceTask);
+  }
+  // Handle choice
+  return inquirer.prompt(collectionTaskChoices)
+  .then((answers) => {
+    switch (answers.choice) {
+      case 'List titles': {
+        return titlesForCollection(collection);
+      }
+      case 'Checkout everything': {
+        const cStr = collection.replace(';;', ' --> ');
+        console.log(`Checking out everything in ${cStr}`);
+        return cardcat.checkout({ collection });
+      }
+      default: {
+        return titlesForCollection(collection);
+      }
+    }
+  });
+}
+
+function collectionsTask() {
+  textChoices[0].choices = [];
+  return cardcat.getCollections()
+    .then((rows) => {
+      textChoices[0].choices = rows.map(doc => doc.collection.replace(';;', ' --> '));
+      return inquirer.prompt(textChoices)
+        .then(answers => collectionTasks(answers.choice.replace(' --> ', ';;')));
+    });
+}
+
 function askToAskAgain() {
   inquirer.prompt(askAgainQuestions)
     .then((answers) => {
@@ -262,6 +311,9 @@ function getTask() {
       }
       case 'Browse by author name': {
         return browseTask();
+      }
+      case 'List collections': {
+        return collectionsTask();
       }
       default: {
         console.log(`${answers.task} aren't handled yet`);

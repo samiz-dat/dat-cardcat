@@ -141,8 +141,9 @@ export class Database {
   getCollectionAuthors(collection, startingWith, dat) {
     const q = this.getAuthors(startingWith, dat);
     q.countDistinct('collections.title as count'); // count inside the collection instead
+    const s = `${collection}%`;
     return q.innerJoin('collections', 'texts.author', 'collections.author')
-      .where('collections.collection', collection);
+      .where('collections.collection', 'like', s);
   }
 
   // Gets a list of letters of authors, for generating a directory
@@ -181,16 +182,14 @@ export class Database {
       exp.where('texts.title', opts.title);
     }
     if (opts.collection) {
+      const s = `${opts.collection}%`;
       exp.innerJoin('collections', function() {
         this
           .on('texts.dat', 'collections.dat')
           .on('texts.author', 'collections.author')
           .on('texts.title', 'collections.title');
       })
-        // .where('texts.author', '=', 'collections.author')
-        // .where('texts.title', '=', 'collections.title')
-        // .on('texts.dat', '=', 'collections.dat')
-        .where('collections.collection', opts.collection);
+      .where('collections.collection', 'like', s);
     }
     withinDat(exp, dat);
     return exp
@@ -206,16 +205,26 @@ export class Database {
       exp.distinct(distinct);
     }
     if (opts.author) {
-      exp.where('author', opts.author);
+      exp.where('texts.author', opts.author);
     }
     if (opts.title) {
-      exp.where('title', opts.title);
+      exp.where('texts.title', opts.title);
     }
     if (opts.file) {
-      exp.where('file', opts.file);
+      exp.where('texts.file', opts.file);
     }
-    withinDat(exp, dat);
-    return exp.orderBy('dat', 'author', 'title');
+    if (opts.collection) {
+      const s = `${opts.collection}%`;
+      exp.innerJoin('collections', function() {
+        this
+          .on('texts.dat', 'collections.dat')
+          .on('texts.author', 'collections.author')
+          .on('texts.title', 'collections.title');
+      })
+      .where('collections.collection', 'like', s);
+    }
+    withinDat(exp, dat || opts.dat);
+    return exp.orderBy('texts.dat', 'texts.author', 'texts.title');
   }
 
   // Gets a list of collections in the catalog

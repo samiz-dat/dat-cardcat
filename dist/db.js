@@ -245,6 +245,15 @@ class Database {
 
 
 
+
+
+
+
+
+
+
+
+
     getDats = () => this.db('dats').select();this.
     getDat = key => this.db('dats').select().where('dat', key);this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename }, useNullAsDefault: true });} // Add a dat to the database
   addDat(dat, name, dir, version) {return this.db.insert({ dat, name, dir, version }).into('dats');} // Remove a dat from the database
@@ -260,15 +269,12 @@ class Database {
       this.where('title', 'like', s).orWhere('author', 'like', s);}).groupBy('author', 'title');withinDat(exp, dat);return exp.orderBy('author_sort', 'title');} // Gets a count of authors in the catalog
   getAuthors(startingWith, dat) {const exp = this.db.select('texts.author').from('texts').countDistinct('texts.title as count');withinDat(exp, dat);if (startingWith) {const s = `${startingWith}%`;exp.where('texts.author_sort', 'like', s);}return exp.groupBy('texts.author').orderBy('texts.author_sort');} // Gets authors within a collection
   getCollectionAuthors(collection, startingWith, dat) {const q = this.getAuthors(startingWith, dat);q.countDistinct('collections.title as count'); // count inside the collection instead
-    return q.innerJoin('collections', 'texts.author', 'collections.author').where('collections.collection', collection);} // Gets a list of letters of authors, for generating a directory
+    const s = `${collection}%`;return q.innerJoin('collections', 'texts.author', 'collections.author').where('collections.collection', 'like', s);} // Gets a list of letters of authors, for generating a directory
   getAuthorLetters(dat) {const exp = this.db.column(this.db.raw('lower(substr(author_sort,1,1)) as letter')).select();withinDat(exp, dat);return exp.from('texts').distinct('letter').orderBy('letter');}getTitlesForAuthor(author, dat) {const exp = this.db('texts').distinct('dat', 'title').where('author', author);withinDat(exp, dat);return exp.orderBy('title');} // Like getItemsWith, except some extra work is done to return titles
   // along with a comma-separated list of files:downloaded for each title.
-  getTitlesWith(opts, dat) {const exp = this.db.select('texts.dat', 'texts.author', 'texts.title', 'texts.title_hash', 'texts.author_sort', this.db.raw('GROUP_CONCAT("texts.file" || ":" || "texts.downloaded") as "files"')).from('texts');if (opts.author) {exp.where('texts.author', opts.author);}if (opts.title) {exp.where('texts.title', opts.title);}if (opts.collection) {exp.innerJoin('collections', function () {this.on('texts.dat', 'collections.dat').on('texts.author', 'collections.author').on('texts.title', 'collections.title');}) // .where('texts.author', '=', 'collections.author')
-      // .where('texts.title', '=', 'collections.title')
-      // .on('texts.dat', '=', 'collections.dat')
-      .where('collections.collection', opts.collection);}withinDat(exp, dat);return exp.groupBy('texts.author', 'texts.title').orderBy('texts.author_sort', 'texts.title');} // Gets entire entries for catalog items matching author/title/file.
+  getTitlesWith(opts, dat) {const exp = this.db.select('texts.dat', 'texts.author', 'texts.title', 'texts.title_hash', 'texts.author_sort', this.db.raw('GROUP_CONCAT("texts.file" || ":" || "texts.downloaded") as "files"')).from('texts');if (opts.author) {exp.where('texts.author', opts.author);}if (opts.title) {exp.where('texts.title', opts.title);}if (opts.collection) {const s = `${opts.collection}%`;exp.innerJoin('collections', function () {this.on('texts.dat', 'collections.dat').on('texts.author', 'collections.author').on('texts.title', 'collections.title');}).where('collections.collection', 'like', s);}withinDat(exp, dat);return exp.groupBy('texts.author', 'texts.title').orderBy('texts.author_sort', 'texts.title');} // Gets entire entries for catalog items matching author/title/file.
   // Can specify a dat or a list of dats to get within.
-  getItemsWith(opts, dat, distinct) {const exp = this.db('texts');if (distinct) {exp.distinct(distinct);}if (opts.author) {exp.where('author', opts.author);}if (opts.title) {exp.where('title', opts.title);}if (opts.file) {exp.where('file', opts.file);}withinDat(exp, dat);return exp.orderBy('dat', 'author', 'title');} // Gets a list of collections in the catalog
+  getItemsWith(opts, dat, distinct) {const exp = this.db('texts');if (distinct) {exp.distinct(distinct);}if (opts.author) {exp.where('texts.author', opts.author);}if (opts.title) {exp.where('texts.title', opts.title);}if (opts.file) {exp.where('texts.file', opts.file);}if (opts.collection) {const s = `${opts.collection}%`;exp.innerJoin('collections', function () {this.on('texts.dat', 'collections.dat').on('texts.author', 'collections.author').on('texts.title', 'collections.title');}).where('collections.collection', 'like', s);}withinDat(exp, dat || opts.dat);return exp.orderBy('texts.dat', 'texts.author', 'texts.title');} // Gets a list of collections in the catalog
   getCollections(startingWith, dat) {const exp = this.db.select('collection').from('collections').count('* as count');withinDat(exp, dat);if (startingWith) {const s = `${startingWith}%`;exp.where('collection', 'like', s);}return exp.groupBy('collection').orderBy('collection');} // Optionally only include files from a particular dat.
   // Optionally specify a filename to find.
   getFiles(author, title, dat, file) {const exp = this.db('texts').where('author', author).where('title', title);withinDat(exp, dat);if (file) {exp.where('file', file);}return exp.orderBy('dat', 'file');} // Gets dats containing items described in opts (author/title/file)
@@ -279,7 +285,10 @@ class Database {
   init() {// we should probably setup a simple migration script
     // but for now lets just drop tables before remaking tables.
     const tablesDropped = this.db.schema.dropTableIfExists('datsX').dropTableIfExists('textsX').dropTableIfExists('more_authorsX');return tablesDropped.createTableIfNotExists('dats', table => {table.string('dat');table.string('name');table.string('dir');table.integer('version'); // table.unique('dat');
-    }).createTableIfNotExists('texts', table => {table.string('dat');table.string('title_hash');table.string('file_hash');
+    }).createTableIfNotExists('texts', table => {
+      table.string('dat');
+      table.string('title_hash');
+      table.string('file_hash');
       table.string('author');
       table.string('author_sort');
       table.string('title');

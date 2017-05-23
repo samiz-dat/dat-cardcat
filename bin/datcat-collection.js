@@ -54,6 +54,15 @@ cmd
       });
   });
 
+// Checkout a collection
+cmd
+  .option('-d, --dats', 'show dat keys')
+  .command('checkout <name>')
+  .action((name) => {
+    catalog.createCatalog()
+      .then(c => c.checkout({ collection: name }))
+      .finally(() => console.log('Finished downloading...'));
+  });
 
 // Finally...
 cmd.parse(process.argv);
