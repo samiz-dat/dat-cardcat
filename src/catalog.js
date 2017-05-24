@@ -230,8 +230,9 @@ export class Catalog {
   // For a Dat, ingest its contents into the catalog
   ingestDatContents(dw) {
     this.db.clearTexts(dw.key)
-      .then(() => dw.listContents())
-      .each(file => this.ingestDatFile(dw, file));
+      .then(() => dw.pumpContents(this.ingestDatFile, this));
+      // .then(() => dw.listContents())
+      // .each(file => this.ingestDatFile(dw, file));
   }
 
   // Adds an entry from a Dat

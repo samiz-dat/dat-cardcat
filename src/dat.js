@@ -7,6 +7,9 @@ import Collections from 'dat-collections';
 import Promise from 'bluebird';
 import chalk from 'chalk';
 import pda from 'pauls-dat-api';
+import walker from 'folder-walker';
+import through from 'through2';
+import pumpify from 'pumpify';
 
 // import { lsFilesPromised } from './utils/filesystem';
 
@@ -142,6 +145,19 @@ export default class DatWrapper extends EventEmitter {
   // Lists the contents of the dat
   listContents(below = '/') {
     return pda.readdir(this.dat.archive, below, { recursive: true });
+  }
+
+  // Pump the listed contents of the dat into some destination: func(datWriter, filePath)
+  pumpContents(func, context, below = '/') {
+    const handleEntry = through.ctor({ objectMode: true }, (data, enc, next) => {
+      func.call(context, this, data.filepath);
+      next();
+    });
+    pumpify.obj(
+      walker(below, { fs: this.dat.archive }),
+      handleEntry(),
+    );
+    return Promise.resolve(true);
   }
 
   // Download a file or directory

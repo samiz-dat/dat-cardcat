@@ -13,3 +13,4 @@ function monitor(archive) {const health = (0, _hyperhealth2.default)(archive);
     console.log(`Peer 1 Downloaded ${data.peers[0].have / data.peers[0].blocks * 100}%`);
   }, 1000);
 }
+//# sourceMappingURL=health.js.map

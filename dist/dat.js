@@ -6,7 +6,10 @@ var _datCollections = require('dat-collections');var _datCollections2 = _interop
 
 var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);
 var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);
-var _paulsDatApi = require('pauls-dat-api');var _paulsDatApi2 = _interopRequireDefault(_paulsDatApi);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}function _asyncToGenerator(fn) {return function () {var gen = fn.apply(this, arguments);return new _bluebird2.default(function (resolve, reject) {function step(key, arg) {try {var info = gen[key](arg);var value = info.value;} catch (error) {reject(error);return;}if (info.done) {resolve(value);} else {return _bluebird2.default.resolve(value).then(function (value) {step("next", value);}, function (err) {step("throw", err);});}}return step("next");});};} // import _ from 'lodash';
+var _paulsDatApi = require('pauls-dat-api');var _paulsDatApi2 = _interopRequireDefault(_paulsDatApi);
+var _folderWalker = require('folder-walker');var _folderWalker2 = _interopRequireDefault(_folderWalker);
+var _through = require('through2');var _through2 = _interopRequireDefault(_through);
+var _pumpify = require('pumpify');var _pumpify2 = _interopRequireDefault(_pumpify);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}function _asyncToGenerator(fn) {return function () {var gen = fn.apply(this, arguments);return new _bluebird2.default(function (resolve, reject) {function step(key, arg) {try {var info = gen[key](arg);var value = info.value;} catch (error) {reject(error);return;}if (info.done) {resolve(value);} else {return _bluebird2.default.resolve(value).then(function (value) {step("next", value);}, function (err) {step("throw", err);});}}return step("next");});};} // import _ from 'lodash';
 
 // import { lsFilesPromised } from './utils/filesystem';
 
@@ -23,6 +26,19 @@ var _paulsDatApi = require('pauls-dat-api');var _paulsDatApi2 = _interopRequireD
 class DatWrapper extends _events2.default {
   constructor(opts) {
     super();this.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -194,6 +210,9 @@ class DatWrapper extends _events2.default {
 
 
 
+
+
+
     exitHandler = options => error => {
       if (options.cleanup) {
         console.log('cleaning up!');
@@ -228,11 +247,12 @@ class DatWrapper extends _events2.default {
   importFromDat(srcDatWrapper, fileOrDir, overwriteExisting = true) {var _this = this;return _asyncToGenerator(function* () {if (_this.dat.writable) {const dstPath = _path2.default.join(_this.directory, fileOrDir);return _paulsDatApi2.default.exportArchiveToFilesystem({ srcArchive: srcDatWrapper.dat.archive, dstPath, srcPath: fileOrDir, overwriteExisting }); // .then(() => this.importFiles());
       }console.log('Warning: You tried to write to a Dat that is not yours. Nothing has been written.'); // Fallback
       return _bluebird2.default.resolve(false);})();} // Lists the contents of the dat
-  listContents(below = '/') {return _paulsDatApi2.default.readdir(this.dat.archive, below, { recursive: true });} // Download a file or directory
+  listContents(below = '/') {return _paulsDatApi2.default.readdir(this.dat.archive, below, { recursive: true });} // Pump the listed contents of the dat into some destination: func(datWriter, filePath)
+  pumpContents(func, context, below = '/') {const handleEntry = _through2.default.ctor({ objectMode: true }, (data, enc, next) => {func.call(context, this, data.filepath);next();});_pumpify2.default.obj((0, _folderWalker2.default)(below, { fs: this.dat.archive }), handleEntry());return _bluebird2.default.resolve(true);} // Download a file or directory
   downloadContent(fn = '') {const filename = `/${fn}/`;console.log(`Downloading: ${filename}`);console.log(this.stats.peers);return _paulsDatApi2.default.download(this.dat.archive, filename);} // Has the file been downloaded?
   // Rename
   rename(dir, name) {const renameAsync = _bluebird2.default.promisify(_fs2.default.rename);return renameAsync(this.directory, dir).then(() => {this.directory = dir;this.name = name;});} // Initialize the collections
   listFlattenedCollections() {return this.collections.flatten();} // Write a manifest file
   // @todo: fix me! why do i write empty manifests?
-  writeManifest(opts = {}) {var _this2 = this;return _asyncToGenerator(function* () {const manifest = _extends({ url: `dat://${_this2.key}`, title: _this2.name }, opts);yield _paulsDatApi2.default.writeManifest(_this2.dat.archive, manifest);return _this2;})();} // Update a manifest file
-  updateManifest(manifest) {return _paulsDatApi2.default.updateManifest(this.dat.archive, manifest);}close() {return new _bluebird2.default((resolve, reject) => this.dat.close(err => {if (err) reject(err);else resolve();}));}}exports.default = DatWrapper;
+  writeManifest(opts = {}) {var _this2 = this;return _asyncToGenerator(function* () {const manifest = _extends({ url: `dat://${_this2.key}`, title: _this2.name }, opts);yield _paulsDatApi2.default.writeManifest(_this2.dat.archive, manifest);return _this2;})();}readManifest() {return _paulsDatApi2.default.readManifest(this.dat.archive);}updateManifest(manifest) {return _paulsDatApi2.default.updateManifest(this.dat.archive, manifest);}close() {return new _bluebird2.default((resolve, reject) => this.dat.close(err => {if (err) reject(err);else resolve();}));}}exports.default = DatWrapper;
+//# sourceMappingURL=dat.js.map

@@ -42,11 +42,12 @@
     "bluebird": "^3.4.7",
     "chalk": "^1.1.3",
     "commander": "^2.9.0",
+    "dat-collections": ">=0.0.3",
     "dat-node": "^3.3.0",
     "dat-secret-storage": "^2.0.0",
     "dat-storage": "^1.0.2",
-    "dat-collections": ">=0.0.3",
     "events": "^1.1.1",
+    "folder-walker": "^3.1.0",
     "hyperhealth": "^1.3.0",
     "inquirer": "^3.0.6",
     "jsuri": "^1.3.1",
@@ -55,8 +56,10 @@
     "nconf": "^0.8.4",
     "open-packaging-format": "0.0.4",
     "pauls-dat-api": "^4.1.1",
+    "pumpify": "^1.3.5",
     "rimraf": "^2.6.1",
     "sqlite3": "^3.1.8",
+    "through2": "^2.0.3",
     "xml2js": "^0.4.17"
   }
 }
