@@ -182,7 +182,10 @@ export default class DatWrapper extends EventEmitter {
     return this;
   }
 
-  // Update a manifest file
+  readManifest() {
+    return pda.readManifest(this.dat.archive);
+  }
+
   updateManifest(manifest) {
     return pda.updateManifest(this.dat.archive, manifest);
   }

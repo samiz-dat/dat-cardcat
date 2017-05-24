@@ -8,7 +8,7 @@ const expect = chai.expect;
 
 const temporaryDir = './temp';
 
-describe('DatWrapper class', () => {
+describe.only('DatWrapper class', () => {
   context('creating and working with a new dat', () => {
     let dat;
 
@@ -26,13 +26,29 @@ describe('DatWrapper class', () => {
       dat.close()
         .catch(console.error)
         .finally(() => {
-          const stats = temp.cleanupSync();
-          console.log('cleanup: ', stats);
+          temp.cleanupSync();
+          console.log('cleaned up');
         })
     ));
 
     it('new dat has version = 0', () => {
       expect(dat.version).to.eql(0);
     });
+
+    it('has a simple manifest', () => {
+      return dat.writeManifest()
+        .then(() => {
+          console.log('ok');
+          return dat.readManifest();
+        })
+        .then((manifest) => {
+          console.log('main', manifest);
+          // expect(manifest).to.be.a(Object);
+        });
+    });
+  });
+
+  context('importing a dat that you do not own', () => {
+    // TODO: test functionality based on permission.
   });
 });
