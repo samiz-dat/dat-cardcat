@@ -357,4 +357,3 @@ class Catalog {constructor(baseDir) {this.baseDir = baseDir;this.dats = [];this.
   let dataDirFinal = _path2.default.join(process.cwd(), _config2.default.get('dataDir'));dataDirFinal = dataDir || dataDirFinal; // Create data directory if it doesn't exist yet
   if (!_fs2.default.existsSync(dataDirFinal)) {_fs2.default.mkdirSync(dataDirFinal);}const catalog = new Catalog(dataDirFinal); // @todo: adjust init() to not load any dats, allowing for quick db searches
   return catalog.init(databaseOnlyMode);}exports.default = Catalog;
-//# sourceMappingURL=catalog.js.map
