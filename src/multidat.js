@@ -3,7 +3,7 @@ import fs from 'fs';
 import Promise from 'bluebird';
 import chalk from 'chalk';
 import rimraf from 'rimraf';
-import pda from 'pauls-dat-api';
+import pda from 'pauls-dat-api/es5';
 import _ from 'lodash';
 import DatWrapper from './dat'; // this function can be made a method of dat class too.
 import Database from './db'; // eslint-disable-line

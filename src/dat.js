@@ -6,7 +6,7 @@ import Collections from 'dat-collections';
 // import _ from 'lodash';
 import Promise from 'bluebird';
 import chalk from 'chalk';
-import pda from 'pauls-dat-api';
+import pda from 'pauls-dat-api/es5';
 import walker from 'folder-walker';
 import through from 'through2';
 import pumpify from 'pumpify';

@@ -255,4 +255,3 @@ class DatWrapper extends _events2.default {
   listFlattenedCollections() {return this.collections.flatten();} // Write a manifest file
   // @todo: fix me! why do i write empty manifests?
   writeManifest(opts = {}) {var _this2 = this;return _asyncToGenerator(function* () {const manifest = _extends({ url: `dat://${_this2.key}`, title: _this2.name }, opts);yield _paulsDatApi2.default.writeManifest(_this2.dat.archive, manifest);return _this2;})();}readManifest() {return _paulsDatApi2.default.readManifest(this.dat.archive);}updateManifest(manifest) {return _paulsDatApi2.default.updateManifest(this.dat.archive, manifest);}close() {return new _bluebird2.default((resolve, reject) => this.dat.close(err => {if (err) reject(err);else resolve();}));}}exports.default = DatWrapper;
-//# sourceMappingURL=dat.js.map

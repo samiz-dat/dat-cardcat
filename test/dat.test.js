@@ -17,7 +17,7 @@ describe.only('DatWrapper class', () => {
       temp.track();
       const tmpPath = temp.mkdirSync(temporaryDir);
 
-      dat = new DatWrapper({ directory: `${tmpPath}/this` });
+      dat = new DatWrapper({ directory: `${temporaryDir}` });
       return dat.run();
     });
 

@@ -32,4 +32,3 @@ const notADir = exports.notADir = srcpath =>
 fs.statAsync(srcpath).
 then(stat => !stat.isDirectory()).
 catch(() => true);
-//# sourceMappingURL=filesystem.js.map
