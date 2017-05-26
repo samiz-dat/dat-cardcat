@@ -169,6 +169,27 @@ class DatWrapper extends _events2.default {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     hasFile = file => new _bluebird2.default(r => _fs2.default.access(_path2.default.join(this.directory, file), _fs2.default.F_OK, e => r(!e)));this.
 
 
@@ -247,8 +268,26 @@ class DatWrapper extends _events2.default {
   importFromDat(srcDatWrapper, fileOrDir, overwriteExisting = true) {var _this = this;return _asyncToGenerator(function* () {if (_this.dat.writable) {const dstPath = _path2.default.join(_this.directory, fileOrDir);return _paulsDatApi2.default.exportArchiveToFilesystem({ srcArchive: srcDatWrapper.dat.archive, dstPath, srcPath: fileOrDir, overwriteExisting }); // .then(() => this.importFiles());
       }console.log('Warning: You tried to write to a Dat that is not yours. Nothing has been written.'); // Fallback
       return _bluebird2.default.resolve(false);})();} // Lists the contents of the dat
-  listContents(below = '/') {return _paulsDatApi2.default.readdir(this.dat.archive, below, { recursive: true });} // Pump the listed contents of the dat into some destination: func(datWriter, filePath)
-  pumpContents(func, context, below = '/') {const handleEntry = _through2.default.ctor({ objectMode: true }, (data, enc, next) => {func.call(context, this, data.filepath);next();});_pumpify2.default.obj((0, _folderWalker2.default)(below, { fs: this.dat.archive }), handleEntry());return _bluebird2.default.resolve(true);} // Download a file or directory
+  listContents(below = '/') {return _paulsDatApi2.default.readdir(this.dat.archive, below, { recursive: true });} // Replays the history of this dat since a particular version.
+  replayHistory(sinceVersion = 0) {const stream = this.dat.archive.history({ start: sinceVersion });stream.on('data', data => this.emit('history data', this, data));stream.on('end', () => this.emit('history end'));return _bluebird2.default.resolve(true);} // Pump the listed contents of the dat into some destination: func(datWriter, filePath)
+  pumpContents(below = '/') {const stream = (0, _folderWalker2.default)(below, { fs: this.dat.archive });stream.on('data', data => this.emit('listing data', this, data.filepath, data)); // stream.on('data', data => func.call(context, this, data.filepath));
+    stream.on('end', () => this.emit('listing end', this)); /*
+                                                            const handleEntry = through.ctor({ objectMode: true }, (data, enc, next) => {
+                                                              func.call(context, this, data.filepath);
+                                                              next();
+                                                            });
+                                                            // walker stream has an 'end' event
+                                                            const pump = pumpify.obj(
+                                                              walker(below, { fs: this.dat.archive }),
+                                                              handleEntry(),
+                                                            );
+                                                            pump.on('end', () => {
+                                                              console.log('DONE PUMPING!');
+                                                            });
+                                                            pump.on('error', () => {
+                                                              console.log('ERROR!!!!!!');
+                                                            });
+                                                            */return _bluebird2.default.resolve(true);} // Download a file or directory
   downloadContent(fn = '') {const filename = `/${fn}/`;console.log(`Downloading: ${filename}`);console.log(this.stats.peers);return _paulsDatApi2.default.download(this.dat.archive, filename);} // Has the file been downloaded?
   // Rename
   rename(dir, name) {const renameAsync = _bluebird2.default.promisify(_fs2.default.rename);return renameAsync(this.directory, dir).then(() => {this.directory = dir;this.name = name;});} // Initialize the collections

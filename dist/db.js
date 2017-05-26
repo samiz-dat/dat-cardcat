@@ -1,6 +1,7 @@
 'use strict';Object.defineProperty(exports, "__esModule", { value: true });exports.Database = undefined;var _path = require('path');var _path2 = _interopRequireDefault(_path);
 var _knex = require('knex');var _knex2 = _interopRequireDefault(_knex);
-var _openPackagingFormat = require('open-packaging-format');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}
+var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);
+var _openPackagingFormat = require('open-packaging-format');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}function _asyncToGenerator(fn) {return function () {var gen = fn.apply(this, arguments);return new _bluebird2.default(function (resolve, reject) {function step(key, arg) {try {var info = gen[key](arg);var value = info.value;} catch (error) {reject(error);return;}if (info.done) {resolve(value);} else {return _bluebird2.default.resolve(value).then(function (value) {step("next", value);}, function (err) {step("throw", err);});}}return step("next");});};}
 
 // Narrows query to within a dat/ list of dats
 function withinDat(query, dat, table = 'texts') {
@@ -254,15 +255,86 @@ class Database {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     getDats = () => this.db('dats').select();this.
-    getDat = key => this.db('dats').select().where('dat', key);this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename }, useNullAsDefault: true });} // Add a dat to the database
+    getDat = key => this.db('dats').select().where('dat', key);this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename }, useNullAsDefault: true });}transact(queries) {console.log('transact(queries)', queries.length);if (queries.length === 0) {return _bluebird2.default.resolve(false);}return this.doTransaction(queries);}doTransaction(queries) {var _this = this;return _asyncToGenerator(function* () {if (queries.length === 0) {return _bluebird2.default.resolve(false);}const q = yield _this.db.raw('BEGIN TRANSACTION').then(function () {_bluebird2.default.each(queries, function (query) {return _this.db.raw(`${query}`);});}).then(function () {return _this.db.raw('COMMIT');}).catch(function (e) {return console.log(e);});return q;})();} // Add a dat to the database
   addDat(dat, name, dir, version) {return this.db.insert({ dat, name, dir, version }).into('dats');} // Remove a dat from the database
   removeDat(datKey) {return this.db('dats').where('dat', datKey).del();} // Update a dat's name and directory
   updateDat(datKey, name, dir) {return this.db('dats').where('dat', datKey).update({ name, dir });} // Remove all entries/ texts for a dat
   clearTexts(datKey) {if (datKey) {return this.db('texts').where('dat', datKey).del();}return this.db('texts').del();} // Remove all collection entries for a dat
   clearCollections(datKey) {if (datKey) {return this.db('collections').where('dat', datKey).del();}return this.db('collections').del();} // Returns the path to a dat as found in db.
   pathToDat(datKey) {return this.db.select('dir').from('dats').where('dat', datKey).first();} // Insert a text into the texts table
-  addText(opts) {return this.db.insert({ dat: opts.dat, title_hash: opts.title_hash || '', file_hash: opts.file_hash || '', author: opts.author, author_sort: opts.author_sort, title: opts.title, file: opts.file, downloaded: opts.downloaded || 0 }).into('texts');} // Inserts a row for a collected text
+  addText(opts) {const p = this.db.insert({ dat: opts.dat, title_hash: opts.title_hash || '', file_hash: opts.file_hash || '', author: opts.author, author_sort: opts.author_sort, title: opts.title, file: opts.file, downloaded: opts.downloaded || 0 }).into('texts');if (this.transacting) {this.transactionStatements.push(p.toString());return _bluebird2.default.resolve(true);}return p;} // Only adds the text if it's not yet in the database
+  checkAndAddText(opts) {return this.db.transaction(trx => {this.db('texts').transacting(trx).insert({ dat: opts.dat, title_hash: opts.title_hash || '', file_hash: opts.file_hash || '', author: opts.author, author_sort: opts.author_sort, title: opts.title, file: opts.file, downloaded: opts.downloaded || 0 }).whereNotExists(this.db('texts').transacting(trx).where('dat', opts.dat).where('author', opts.author).where('title', opts.title).where('file', opts.file)).then(trx.commit).catch(trx.rollback);}).then(() => {// console.log('Transaction complete.');
+    }).catch(err => {console.error(err);}); /*
+                                            return this.addText(opts)
+                                              .whereNotExists(this.db('texts')
+                                                .where('dat', opts.dat)
+                                                .where('author', opts.author)
+                                                .where('title', opts.title)
+                                                .where('file', opts.file));
+                                            */} // Inserts a row for a collected text
   addCollectedText(opts) {return this.db.insert({ dat: opts.dat, author: opts.author, title: opts.title, collection: opts.collection }).into('collections');} // Sets download status of a row
   setDownloaded(dat, author, title, file, downloaded = true) {return this.db('texts').where('dat', dat).where('author', author).where('title', title).where('file', file).update({ downloaded });} // Searches for titles with files bundled up in a comma separated column
   search(query, dat) {const s = `%${query}%`;const exp = this.db.select('dat', 'author', 'title', 'title_hash', 'author_sort', this.db.raw('GROUP_CONCAT("file" || ":" || "downloaded") as "files"')).from('texts').where(function () {// a bit inelegant but groups where statements
@@ -285,16 +357,7 @@ class Database {
   init() {// we should probably setup a simple migration script
     // but for now lets just drop tables before remaking tables.
     const tablesDropped = this.db.schema.dropTableIfExists('datsX').dropTableIfExists('textsX').dropTableIfExists('more_authorsX');return tablesDropped.createTableIfNotExists('dats', table => {table.string('dat');table.string('name');table.string('dir');table.integer('version'); // table.unique('dat');
-    }).createTableIfNotExists('texts', table => {
-      table.string('dat');
-      table.string('title_hash');
-      table.string('file_hash');
-      table.string('author');
-      table.string('author_sort');
-      table.string('title');
-      table.string('file');
-      table.boolean('downloaded');
-    }).
+    }).createTableIfNotExists('texts', table => {table.string('dat');table.string('title_hash');table.string('file_hash');table.string('author');table.string('author_sort');table.string('title');table.string('file');table.boolean('downloaded');}).
     createTableIfNotExists('collections', table => {
       table.string('dat');
       table.string('author');

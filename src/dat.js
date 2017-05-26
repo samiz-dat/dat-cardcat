@@ -147,16 +147,37 @@ export default class DatWrapper extends EventEmitter {
     return pda.readdir(this.dat.archive, below, { recursive: true });
   }
 
+  // Replays the history of this dat since a particular version.
+  replayHistory(sinceVersion = 0) {
+    const stream = this.dat.archive.history({ start: sinceVersion });
+    stream.on('data', data => this.emit('history data', this, data));
+    stream.on('end', () => this.emit('history end'));
+    return Promise.resolve(true);
+  }
+
   // Pump the listed contents of the dat into some destination: func(datWriter, filePath)
-  pumpContents(func, context, below = '/') {
+  pumpContents(below = '/') {
+    const stream = walker(below, { fs: this.dat.archive });
+    stream.on('data', data => this.emit('listing data', this, data.filepath, data));
+    // stream.on('data', data => func.call(context, this, data.filepath));
+    stream.on('end', () => this.emit('listing end', this));
+    /*
     const handleEntry = through.ctor({ objectMode: true }, (data, enc, next) => {
       func.call(context, this, data.filepath);
       next();
     });
-    pumpify.obj(
+    // walker stream has an 'end' event
+    const pump = pumpify.obj(
       walker(below, { fs: this.dat.archive }),
       handleEntry(),
     );
+    pump.on('end', () => {
+      console.log('DONE PUMPING!');
+    });
+    pump.on('error', () => {
+      console.log('ERROR!!!!!!');
+    });
+    */
     return Promise.resolve(true);
   }
 
