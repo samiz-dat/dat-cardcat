@@ -11,4 +11,5 @@ module.exports = nconf
                 .file('config.json')
                 .defaults({
                   dataDir: '_data',
+                  queueBatchSize: 20,
                 });

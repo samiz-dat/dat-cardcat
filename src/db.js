@@ -1,5 +1,6 @@
 import path from 'path';
 import db from 'knex';
+import Promise from 'bluebird';
 import { readOPF } from 'open-packaging-format';
 
 // Narrows query to within a dat/ list of dats
@@ -24,6 +25,27 @@ export class Database {
       },
       useNullAsDefault: true,
     });
+  }
+
+  transact(queries) {
+    console.log('transact(queries)', queries.length);
+    if (queries.length === 0) {
+      return Promise.resolve(false);
+    }
+    return this.doTransaction(queries);
+  }
+
+  async doTransaction(queries) {
+    if (queries.length === 0) {
+      return Promise.resolve(false);
+    }
+    const q = await this.db.raw('BEGIN TRANSACTION')
+      .then(() => {
+        Promise.each(queries, query => this.db.raw(`${query}`));
+      })
+      .then(() => this.db.raw('COMMIT'))
+      .catch(e => console.log(e));
+    return q;
   }
 
   // Add a dat to the database
@@ -69,7 +91,7 @@ export class Database {
 
   // Insert a text into the texts table
   addText(opts) {
-    return this.db.insert({
+    const p = this.db.insert({
       dat: opts.dat,
       title_hash: opts.title_hash || '',
       file_hash: opts.file_hash || '',
@@ -79,6 +101,47 @@ export class Database {
       file: opts.file,
       downloaded: opts.downloaded || 0,
     }).into('texts');
+    if (this.transacting) {
+      this.transactionStatements.push(p.toString());
+      return Promise.resolve(true);
+    }
+    return p;
+  }
+
+  // Only adds the text if it's not yet in the database
+  checkAndAddText(opts) {
+    return this.db.transaction((trx) => {
+      this.db('texts').transacting(trx).insert({
+        dat: opts.dat,
+        title_hash: opts.title_hash || '',
+        file_hash: opts.file_hash || '',
+        author: opts.author,
+        author_sort: opts.author_sort,
+        title: opts.title,
+        file: opts.file,
+        downloaded: opts.downloaded || 0,
+      }).whereNotExists(this.db('texts').transacting(trx)
+        .where('dat', opts.dat)
+        .where('author', opts.author)
+        .where('title', opts.title)
+        .where('file', opts.file))
+      .then(trx.commit)
+      .catch(trx.rollback);
+    })
+    .then(() => {
+      // console.log('Transaction complete.');
+    })
+    .catch((err) => {
+      console.error(err);
+    });
+    /*
+    return this.addText(opts)
+      .whereNotExists(this.db('texts')
+        .where('dat', opts.dat)
+        .where('author', opts.author)
+        .where('title', opts.title)
+        .where('file', opts.file));
+    */
   }
 
   // Inserts a row for a collected text

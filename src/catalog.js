@@ -26,6 +26,11 @@ export class Catalog {
     // this.db.on('query', queryData => console.log(queryData));
     this.isReady = false;
 
+    // For bulk imports we'll use queue
+    this.importQueue = [];
+    this.queuing = [];
+    this.queueBatchSize = parseInt(config.get('queueBatchSize'), 10);
+
     // Now, database functions are passed on from this.db
     // explicitly declare publicly accessible database functions
     const publicDatabaseFuncs = [
@@ -197,6 +202,10 @@ export class Catalog {
     dw.on('import', (...args) => this.handleDatImportEvent(...args));
     dw.on('sync metadata', (...args) => this.handleDatSyncMetadataEvent(...args));
     dw.on('sync collections', (...args) => this.handleDatSyncCollectionsEvent(...args));
+    dw.on('listing data', (...args) => this.handleDatListingEvent(...args));
+    dw.on('listing end', (...args) => this.handleDatListingEndEvent(...args));
+    dw.on('history data', (...args) => this.handleDatHistoryDataEvent(...args));
+    dw.on('history end', (...args) => this.handleDatHistoryEndEvent(...args));
     return this.db.removeDat(datkey)
       // .then(() => this.db.clearTexts(datkey))
       .then(() => this.db.addDat(datkey, dw.name, dw.directory, dw.version))
@@ -229,10 +238,35 @@ export class Catalog {
 
   // For a Dat, ingest its contents into the catalog
   ingestDatContents(dw) {
-    this.db.clearTexts(dw.key)
-      .then(() => dw.pumpContents(this.ingestDatFile, this));
+    this.queuing.push(dw.key);
+    return this.db.clearTexts(dw.key)
+      .then(() => dw.pumpContents());
+    // return dw.pumpContents();
+    // return dw.replayHistory();
+    // this.db.clearTexts(dw.key)
+      // .then(() => dw.pumpContents(this.ingestDatFile, this));
       // .then(() => dw.listContents())
       // .each(file => this.ingestDatFile(dw, file));
+  }
+
+  moveTheQueueAlong(dw) {
+    const batch = this.importQueue.splice(0, this.queueBatchSize);
+    console.log('moving the queue along', batch.length, this.importQueue.length);
+    Promise.map(batch, item => this.ingestDatFile(item[0], item[1]))
+      .filter(item => item)
+      .then(queries => this.db.transact(queries))
+      .finally(() => {
+        if (dw) {
+          const r = this.queuing.indexOf(dw.key);
+          if (r > -1) {
+            this.queuing.splice(r, 1);
+          }
+        }
+      })
+      .catch(() => {});
+      // .then(queries => `${queries.join('; ')};`)
+      // .then(query => this.db.transact(query));
+    // this.queuing = this.queuing - 1;
   }
 
   // Adds an entry from a Dat
@@ -241,8 +275,8 @@ export class Catalog {
     if (importedData) {
       const downloaded = await dw.hasFile(file);
       const downloadedStr = (downloaded) ? '[*]' : '[ ]';
-      console.log(chalk.bold('adding:'), downloadedStr, file);
-      return this.db.addText({
+      // console.log(chalk.bold('adding:'), downloadedStr, file);
+      const query = this.db.addText({
         dat: dw.key,
         author: importedData.author,
         author_sort: importedData.authorSort,
@@ -250,6 +284,10 @@ export class Catalog {
         file: importedData.file,
         downloaded,
       });
+      if (this.queuing.length > 0) {
+        return Promise.resolve(query.toString());
+      }
+      return query;
     }
     return Promise.resolve(false);
   }
@@ -295,13 +333,52 @@ export class Catalog {
 
   // When a dat imports a file
   handleDatImportEvent(dw, filePath, stat) {
-    this.ingestDatFile(dw, filePath);
+    if (this.queuing.includes(dw.key)) {
+      this.importQueue.push([dw, filePath]);
+    } else {
+      this.ingestDatFile(dw, filePath);
+    }
     // console.log('Importing: ', filePath);
+  }
+
+  // When a dat import process is finished
+  handleDatListingEvent(dw, filePath, stat) {
+    if (this.queuing.includes(dw.key)) {
+      this.importQueue.push([dw, filePath]);
+      if (this.importQueue.length > 0 && this.importQueue.length % this.queueBatchSize === 0) {
+        this.moveTheQueueAlong();
+      }
+    } else {
+      this.ingestDatFile(dw, filePath);
+    }
+    // console.log('Importing: ', filePath);
+  }
+
+  // When a dat import process is finished
+  handleDatListingEndEvent(dw, filePath, stat) {
+    if (this.queuing.includes(dw.key)) {
+      this.moveTheQueueAlong(dw);
+    }
   }
 
   handleDatSyncCollectionsEvent(dw) {
     console.log('Collections sync event. Ingesting collections for:', dw.name);
     this.ingestDatCollections(dw);
+  }
+
+  // Reading a piece of history data
+  handleDatHistoryDataEvent(dw, data) {
+    if (this.queuing > 0) {
+      this.importQueue.push([dw, data.name]);
+      if (this.importQueue.length % 100 === 0) console.log(this.importQueue.length);
+    } else {
+      console.log('history data:', data.name);
+    }
+  }
+
+  // End event for reading of history data
+  handleDatHistoryEndEvent(dw, data) {
+    console.log('end!!!');
   }
 }
 
