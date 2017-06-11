@@ -3,6 +3,7 @@ import temp from 'temp';
 // import path from 'path';
 
 import { shareLibraryDat } from './helpers/shareDats';
+import { makeLibraryDat } from './helpers/makeDats';
 import DatWrapper from '../src/dat';
 
 const expect = chai.expect;
@@ -61,39 +62,76 @@ describe('DatWrapper class', () => {
       });
     });
 
-    it.only('is writable', (done) => {
+    after((done) => {
+      temp.cleanupSync();
+      close(done);
+    });
+
+    it('is writable', (done) => {
       temp.track();
       const tmpPath = temp.mkdirSync(temporaryDir);
       const dat = new DatWrapper({ key: externalLibraryKey, directory: `${tmpPath}` });
       dat.run().then(() => {
         expect(dat.isYours()).to.eql(false);
         return dat.close();
-      }).finally(done);
+      })
+      .finally(done);
     });
 
-    it.only('emits progress events when metadata is imported', (done) => {
+    it('emits progress events when metadata is imported', (done) => {
       temp.track();
       const tmpPath = temp.mkdirSync(temporaryDir);
       const dat = new DatWrapper({ key: externalLibraryKey, directory: `${tmpPath}` });
-      dat.run().catch(done);
+      dat.run()
+        .catch(done);
+
       dat.on('download metadata', (data) => {
         const percent = (dat.metadataDownloadCount / (dat.version + 1)) * 100;
-        // console.log('PROGRESS,', data.progress);
         expect(data.progress).to.eql(percent);
       });
+
       dat.on('sync metadata', () => {
-        // console.log(data);
         expect(dat.metadataComplete).to.eql(true);
         done();
       });
     });
-
-    after((done) => {
-      close(done);
-    });
   });
 
   context('import a dat that you own', () => {
+    let ownedDat;
+    beforeEach((done) => {
+      // create temporary directory for created dat
+      temp.track();
+      const tmpPath = temp.mkdirSync(temporaryDir);
+      console.log(tmpPath);
+      makeLibraryDat(tmpPath, (err, dat) => {
+        if (err) done(err);
+        else {
+          ownedDat = dat;
+          done();
+        }
+      });
+    });
+
+    afterEach((done) => {
+      if (ownedDat) {
+        ownedDat.close()
+        .catch(console.error)
+        .finally(() => {
+          temp.cleanupSync();
+          done();
+        });
+      } else {
+        temp.cleanupSync();
+        done();
+      }
+    });
+
+    it.only('is writeable', () => {
+      return ownedDat.run().then(() => {
+        expect(ownedDat.isYours()).to.eql(true);
+      });
+    });
     // TODO: setup tests for a dat that you own
   });
 });

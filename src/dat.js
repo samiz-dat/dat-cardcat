@@ -11,7 +11,7 @@ import walker from 'folder-walker';
 import through from 'through2';
 import pumpify from 'pumpify';
 import messages from 'dat-protocol-buffers/messages/node';
-import prettysize from 'prettysize';
+// import prettysize from 'prettysize';
 
 // declare common promisified function here
 // so they will only be created once.
@@ -268,6 +268,7 @@ export default class DatWrapper extends EventEmitter {
   }
 
   close() {
+    console.log('closing dat');
     return new Promise((resolve, reject) => this.dat.close((err) => {
       if (err) reject(err);
       else resolve();
