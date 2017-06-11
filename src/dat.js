@@ -129,6 +129,10 @@ export default class DatWrapper extends EventEmitter {
     return createDatAsync(this.directory, this.opts);
   }
 
+  isYours() {
+    return this.dat.writable;
+  }
+
   // How many peers for this dat
   get peers() {
     return this.stats.peers || { total: 0, complete: 0 };
@@ -141,7 +145,7 @@ export default class DatWrapper extends EventEmitter {
   importFiles(importPath = this.directory) {
     return new Promise((resolve, reject) => {
       const dat = this.dat;
-      if (this.dat.writable) {
+      if (this.isYours()) {
         console.log('Importing files under:', importPath);
         const opts = {
           watch: true,
@@ -163,7 +167,7 @@ export default class DatWrapper extends EventEmitter {
 
   // Import a file or directory from another archive
   async importFromDat(srcDatWrapper, fileOrDir, overwriteExisting = true) {
-    if (this.dat.writable) {
+    if (this.isYours()) {
       const dstPath = path.join(this.directory, fileOrDir);
       return pda.exportArchiveToFilesystem({
         srcArchive: srcDatWrapper.dat.archive,

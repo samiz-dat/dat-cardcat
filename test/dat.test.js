@@ -49,10 +49,6 @@ describe('DatWrapper class', () => {
   });
 
   context('importing a dat that you do not own', () => {
-    // TODO: test functionality based on permission.
-  });
-
-  context('import a dat that you own', () => {
     let close;
     let externalLibraryKey;
 
@@ -63,6 +59,16 @@ describe('DatWrapper class', () => {
         externalLibraryKey = shareKey;
         done(err);
       });
+    });
+
+    it.only('is writable', (done) => {
+      temp.track();
+      const tmpPath = temp.mkdirSync(temporaryDir);
+      const dat = new DatWrapper({ key: externalLibraryKey, directory: `${tmpPath}` });
+      dat.run().then(() => {
+        expect(dat.isYours()).to.eql(false);
+        return dat.close();
+      }).finally(done);
     });
 
     it.only('emits progress events when metadata is imported', (done) => {
@@ -84,7 +90,10 @@ describe('DatWrapper class', () => {
 
     after((done) => {
       close(done);
-      console.log('cleaned up');
     });
+  });
+
+  context('import a dat that you own', () => {
+    // TODO: setup tests for a dat that you own
   });
 });
