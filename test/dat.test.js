@@ -133,9 +133,9 @@ describe('DatWrapper class', () => {
       });
     });
 
-    it.only('imports all files within directory, emiting events on import and end', (done) => {
+    it('imports all files within directory, emiting events on import and end', (done) => {
       ownedDat.run().then(() => {
-        console.log('VERSION', ownedDat.version);
+        let imported = 0;
         ownedDat.on('import', (dat, file, stat) => {
           expect(file).to.be.a('String');
           expect(stat).to.be.a('Object');
