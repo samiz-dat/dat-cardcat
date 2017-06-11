@@ -10,7 +10,8 @@ argv().
 env({ separator: '__' }).
 file('config.json').
 defaults({
-  dataDir: '_data' }); /* configger.js
-                        * Reads configuration using nconf.
-                        * Returns a JavaScript object representing the effective configuration.
-                        */
+  dataDir: '_data',
+  queueBatchSize: 20 }); /* configger.js
+                          * Reads configuration using nconf.
+                          * Returns a JavaScript object representing the effective configuration.
+                          */

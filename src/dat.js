@@ -10,6 +10,12 @@ import pda from 'pauls-dat-api/es5';
 import walker from 'folder-walker';
 import through from 'through2';
 import pumpify from 'pumpify';
+import messages from 'dat-protocol-buffers/messages/node';
+import prettysize from 'prettysize';
+
+// declare common promisified function here
+// so they will only be created once.
+const createDatAsync = Promise.promisify(createDat);
 
 // import { lsFilesPromised } from './utils/filesystem';
 
@@ -27,6 +33,8 @@ export default class DatWrapper extends EventEmitter {
   constructor(opts) {
     super();
     this.directory = opts.directory;
+    this.metadataDownloadCount = 0;
+    this.metadataComplete = false;
     // create if it doesn't exist
     if (!fs.existsSync(opts.directory)) {
       fs.mkdirSync(opts.directory);
@@ -54,6 +62,9 @@ export default class DatWrapper extends EventEmitter {
         this.dat = dat;
         this.key = dat.key.toString('hex');
         // const opts = {}; // various network options could go here (https://github.com/datproject/dat-node)
+        this.metadataDownloadCount = dat.archive.metadata.downloaded();
+        this.metadataComplete = this.metadataDownloadCount === (dat.archive.version + 1);
+
         const network = dat.joinNetwork();
         this.stats = dat.trackStats();
 
@@ -67,6 +78,7 @@ export default class DatWrapper extends EventEmitter {
           console.log('connects via network');
           console.log(chalk.gray(chalk.bold('peers:')), this.stats.peers);
         });
+
         this.collections = new Collections(dat.archive);
         this.collections.on('loaded', () => {
           console.log(`collections data loaded (${this.name})`);
@@ -75,8 +87,33 @@ export default class DatWrapper extends EventEmitter {
 
         // this.start(dat);
         // Watch for metadata syncing
+        dat.archive.metadata.on('download', (index, data) => {
+          this.metadataDownloadCount++;
+          if (index === 0) {
+            // should probably do some check here to make sure the data is a hyperdrive instance
+            // const header = messages.Header.decode(data);
+            // console.log(header);
+          } else {
+            const block = messages.Node.decode(data);
+            const progress = dat.archive.version > 0 ? (this.metadataDownloadCount / (dat.archive.version + 1)) * 100 : 0;
+            // if (block.children) {
+            //   console.log('has children');
+            // }
+            this.emit('download metadata', {
+              progress,
+              filename: block.path,
+              stats: block.value,
+              downloadSpeed: this.stats.network.downloadSpeed,
+              uploadSpeed: this.stats.network.uploadSpeed,
+              peers: this.stats.peers.total || 0,
+            });
+            // console.log(`downloaded ${index}/${dat.archive.version + 1}:`, block.path);
+            // console.log(`network: ${this.stats.peers.total || 0} peers (${prettysize(this.stats.network.downloadSpeed)}) ${progress.toFixed(2)}% complete`);
+          }
+        });
         dat.archive.metadata.on('sync', () => {
           console.log('metadata synced');
+          this.metadataComplete = true;
           this.emit('sync metadata', this);
           // @todo: remove this next hack line.
           // But for now we need it because on first load of dat we aren't getting the "loaded" event above
@@ -89,7 +126,6 @@ export default class DatWrapper extends EventEmitter {
 
   // Just creates a dat object
   create() {
-    const createDatAsync = Promise.promisify(createDat);
     return createDatAsync(this.directory, this.opts);
   }
 

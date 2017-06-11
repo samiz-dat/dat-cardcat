@@ -1,28 +1,7 @@
 import chai from 'chai';
-import path from 'path';
-import rimraf from 'rimraf';
-import Dat from 'dat-node';
+import { shareLibraryDat } from './helpers/shareDats';
 
 const expect = chai.expect;
-
-const libraryDat = path.join(__dirname, 'fixtures', 'calibre-library');
-
-function shareLibraryDat(opts = {}, cb) {
-  const callback = (typeof opts === 'function') ? opts : cb;
-
-  rimraf.sync(path.join(libraryDat, '.dat')); // for previous failed tests
-  Dat(libraryDat, { temp: true }, (err, dat) => {
-    if (err) {
-      callback(err);
-    } else {
-      dat.joinNetwork({ dht: false });
-      dat.importFiles((error) => {
-        if (error) callback(error);
-        else callback(null, dat.key.toString('hex'), closeCb => dat.close(closeCb));
-      });
-    }
-  });
-}
 
 describe('catalog class', () => {
   let close;
@@ -42,7 +21,7 @@ describe('catalog class', () => {
     close(done);
   });
 
-  it('connect to an import external dat libary', () => {
+  it('connects to an import external dat libary', () => {
     expect(externalLibraryKey).to.be.a('string');
   });
 });

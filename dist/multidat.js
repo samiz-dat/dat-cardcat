@@ -3,7 +3,7 @@ var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);
 var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);
 var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);
 var _rimraf = require('rimraf');var _rimraf2 = _interopRequireDefault(_rimraf);
-var _paulsDatApi = require('pauls-dat-api');var _paulsDatApi2 = _interopRequireDefault(_paulsDatApi);
+var _es = require('pauls-dat-api/es5');var _es2 = _interopRequireDefault(_es);
 var _lodash = require('lodash');var _lodash2 = _interopRequireDefault(_lodash);
 var _dat = require('./dat');var _dat2 = _interopRequireDefault(_dat);
 var _db = require('./db');var _db2 = _interopRequireDefault(_db);
@@ -32,10 +32,10 @@ class Multidat {constructor(baseDir) {
   // [{ dat: <key>, dir: <path>, name: <str>}, ]
   initOthers(lookFor = []) {
     return _bluebird2.default.map(lookFor, dat => dat).
-    filter(dat => _fs2.default.existsSync(dat.dir)) //
-    .filter(dat => !dat.dir.startsWith(this.baseDir)) // not in data directory
-    .filter(dat => !(dat.key in this.dats.keys())) // not in registry
-    .each(dat => this.importDir(dat.dir, dat.name)).
+    filter(dat => _fs2.default.existsSync(dat.dir) //
+    ).filter(dat => !dat.dir.startsWith(this.baseDir) // not in data directory
+    ).filter(dat => !(dat.key in this.dats.keys()) // not in registry
+    ).each(dat => this.importDir(dat.dir, dat.name)).
     then(() => this.dats);
   }
 
@@ -88,7 +88,7 @@ class Multidat {constructor(baseDir) {
     console.log(`Attempting to fork dat: ${key} into ${forkDir}`);
     if (deleteAfterFork) {
       return this.importRemoteDat(key).
-      then(dw => _paulsDatApi2.default.exportArchiveToFilesystem({
+      then(dw => _es2.default.exportArchiveToFilesystem({
         srcArchive: dw.dat.archive,
         dstPath: forkDir })).
 
@@ -97,7 +97,7 @@ class Multidat {constructor(baseDir) {
       finally(() => this.deleteDat(key));
     }
     const dw = this.getDat(key);
-    return _paulsDatApi2.default.exportArchiveToFilesystem({
+    return _es2.default.exportArchiveToFilesystem({
       srcArchive: dw.dat.archive,
       dstPath: forkDir }).
 
