@@ -148,12 +148,13 @@ export default class DatWrapper extends EventEmitter {
       if (this.isYours()) {
         console.log('Importing files under:', importPath);
         const opts = {
-          watch: true,
+          // watch: true,
           dereference: true,
           indexing: true,
         };
         this.importer = dat.importFiles(importPath, opts, () => {
           console.log(`Finished importing files in ${importPath}`);
+          this.emit('imported', importPath);
           resolve(true);
         });
         this.importer.on('error', reject);

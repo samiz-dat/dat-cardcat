@@ -12,8 +12,6 @@ function makeDat(name, dir, opts = {}, cb) {
   const to = path.join(dir, name);
   const callback = (typeof opts === 'function') ? opts : cb;
   const options = (typeof opts !== 'function') ? { directory: to, ...opts } : { directory: to };
-  console.log('copy from:', from, '\nto:', to);
-  // callback('arg');
   // copy fixture into temporary directory
   ncp(from, to, (err) => {
     if (err) callback(err);

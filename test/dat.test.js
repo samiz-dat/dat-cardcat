@@ -127,9 +127,26 @@ describe('DatWrapper class', () => {
       }
     });
 
-    it.only('is writeable', () => {
+    it('is writeable', () => {
       return ownedDat.run().then(() => {
         expect(ownedDat.isYours()).to.eql(true);
+      });
+    });
+
+    it.only('imports all files within directory, emiting events on import and end', (done) => {
+      ownedDat.run().then(() => {
+        console.log('VERSION', ownedDat.version);
+        ownedDat.on('import', (dat, file, stat) => {
+          expect(file).to.be.a('String');
+          expect(stat).to.be.a('Object');
+          imported += 1;
+        });
+        ownedDat.on('imported', (folder) => {
+          expect(folder).to.be.a('String');
+          expect(imported).to.eql(10);
+          expect(ownedDat.version).to.eql(imported);
+          done();
+        });
       });
     });
     // TODO: setup tests for a dat that you own
