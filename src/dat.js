@@ -158,17 +158,9 @@ export default class DatWrapper extends EventEmitter {
         // Emit event that something has been imported into the dat
         this.importer.on('put', (src) => {
           const data = {
-            key: this.key,
-            path: src.name.replace(this.directory, ''),
-            stat: src.stat,
-          };
-          this.emit('import', data);
-        });
-        this.importer.on('put', (src) => {
-          const data = {
             type: 'put',
             key: this.key,
-            path: src.name.replace(this.directory, ''),
+            file: src.name.replace(this.directory, ''),
             stat: src.stat,
           };
           this.emit('import', data);
@@ -177,7 +169,7 @@ export default class DatWrapper extends EventEmitter {
           const data = {
             type: 'del',
             key: this.key,
-            path: src.name.replace(this.directory, ''),
+            file: src.name.replace(this.directory, ''),
             stat: src.stat,
           };
           this.emit('import', data);

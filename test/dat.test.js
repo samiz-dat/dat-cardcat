@@ -145,13 +145,13 @@ describe('DatWrapper class', () => {
           let imported = 0;
           ownedDat.on('import', (data) => {
             expect(data.key).to.be.a('String');
-            expect(data.path).to.be.a('String');
+            expect(data.file).to.be.a('String');
             expect(data.stat).to.be.a('Object');
             imported += 1;
           });
           ownedDat.on('imported', (data) => {
             expect(data.key).to.be.a('String');
-            expect(data.path).to.be.a('String');
+            expect(data.file).to.be.a('String');
             expect(imported).to.eql(10);
             expect(ownedDat.version).to.eql(imported);
             done();
