@@ -19,7 +19,7 @@ describe('DatWrapper class', () => {
       temp.track();
       const tmpPath = temp.mkdirSync(temporaryDir);
       dat = new DatWrapper({ directory: `${tmpPath}` });
-      return dat.run();
+      return dat.create().then(d => d.run());
     });
 
     after(() => (
@@ -71,18 +71,21 @@ describe('DatWrapper class', () => {
       temp.track();
       const tmpPath = temp.mkdirSync(temporaryDir);
       const dat = new DatWrapper({ key: externalLibraryKey, directory: `${tmpPath}` });
-      dat.run().then(() => {
-        expect(dat.isYours()).to.eql(false);
-        return dat.close();
-      })
-      .finally(done);
+      dat.create()
+        .then(d => d.run())
+        .then(() => {
+          expect(dat.isYours()).to.eql(false);
+          return dat.close();
+        })
+        .finally(done);
     });
 
     it('emits progress events when metadata is imported', (done) => {
       temp.track();
       const tmpPath = temp.mkdirSync(temporaryDir);
       const dat = new DatWrapper({ key: externalLibraryKey, directory: `${tmpPath}` });
-      dat.run()
+      dat.create()
+        .then(d => d.run())
         .catch(done);
 
       dat.on('download metadata', (data) => {
@@ -128,26 +131,32 @@ describe('DatWrapper class', () => {
     });
 
     it('is writeable', () => {
-      return ownedDat.run().then(() => {
-        expect(ownedDat.isYours()).to.eql(true);
-      });
+      return ownedDat.create()
+        .then(d => d.run())
+        .then(() => {
+          expect(ownedDat.isYours()).to.eql(true);
+        });
     });
 
     it('imports all files within directory, emiting events on import and end', (done) => {
-      ownedDat.run().then(() => {
-        let imported = 0;
-        ownedDat.on('import', (dat, file, stat) => {
-          expect(file).to.be.a('String');
-          expect(stat).to.be.a('Object');
-          imported += 1;
+      ownedDat.create()
+        .then(d => d.run())
+        .then(() => {
+          let imported = 0;
+          ownedDat.on('import', (data) => {
+            expect(data.key).to.be.a('String');
+            expect(data.path).to.be.a('String');
+            expect(data.stat).to.be.a('Object');
+            imported += 1;
+          });
+          ownedDat.on('imported', (data) => {
+            expect(data.key).to.be.a('String');
+            expect(data.path).to.be.a('String');
+            expect(imported).to.eql(10);
+            expect(ownedDat.version).to.eql(imported);
+            done();
+          });
         });
-        ownedDat.on('imported', (folder) => {
-          expect(folder).to.be.a('String');
-          expect(imported).to.eql(10);
-          expect(ownedDat.version).to.eql(imported);
-          done();
-        });
-      });
     });
     // TODO: setup tests for a dat that you own
   });

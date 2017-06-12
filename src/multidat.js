@@ -10,6 +10,8 @@ import Database from './db'; // eslint-disable-line
 
 import { getDirectories } from './utils/filesystem';
 
+const rimrafAsync = Promise.promisify(rimraf);
+
 /**
   The Multidat class manages the loading and handling of dats, both remote and local.
  */
@@ -20,7 +22,7 @@ export default class Multidat {
     // The base directory where remote dats will be kept
     this.baseDir = baseDir;
     // the registry of loaded dats
-    this.dats = [];
+    this.dats = {};
   }
 
   // On initialization, look for already existing dats to pre-load in the baseDir
@@ -34,7 +36,7 @@ export default class Multidat {
     return Promise.map(lookFor, dat => dat)
       .filter(dat => fs.existsSync(dat.dir)) //
       .filter(dat => !dat.dir.startsWith(this.baseDir)) // not in data directory
-      .filter(dat => !(dat.key in this.dats.keys())) // not in registry
+      .filter(dat => !this.dats[dat.key]) // not in registry
       .each(dat => this.importDir(dat.dir, dat.name))
       .then(() => this.dats);
   }
@@ -78,7 +80,7 @@ export default class Multidat {
 
   // Create a new dat by forking an existing Dat
   forkDat(key, name = false, dir = false) {
-    const deleteAfterFork = !(key in this.dats);
+    const deleteAfterFork = !this.dats[key];
     const forkDir = (!dir)
       ? path.format({
         dir: this.baseDir,
@@ -107,7 +109,7 @@ export default class Multidat {
 
   // Does the work of importing a functional dat into the catalog
   importDat(opts) {
-    if ('key' in opts && opts.key in this.dats) {
+    if (opts.key && this.dats[opts.key]) {
       // The dat is already loaded, we shouldn't reimport it
       console.log(`You are trying to import a dat that is already loaded: ${opts.key}`);
       return Promise.reject(new Error('duplicate'));
@@ -120,7 +122,7 @@ export default class Multidat {
     }
     const newDat = new DatWrapper(opts, this);
     // dw.on('download', (...args) => this.handleDatDownloadEvent(...args));
-    return newDat.run()
+    return newDat.create()
       .then(() => {
         this.dats[newDat.key] = newDat;
         return newDat;
@@ -162,7 +164,6 @@ export default class Multidat {
 
   // Remove a dat from the multidat and delete it from the filesystem
   deleteDat(key) {
-    const rimrafAsync = Promise.promisify(rimraf);
     return this.getDat(key)
       .then(dw => rimrafAsync(dw.directory))
       .finally(() => this.removeDat(key));

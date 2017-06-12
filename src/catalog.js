@@ -12,6 +12,8 @@ import Multidat from './multidat';
 import parseEntry from './utils/importers';
 // @todo: this.db.close(); should be called on shutdown
 
+const rimrafAsync = Promise.promisify(rimraf);
+
 // Class definition
 export class Catalog {
   constructor(baseDir) {
@@ -78,7 +80,8 @@ export class Catalog {
       .then(() => this.cleanupDatRegistry())
       .then(() => this.multidat.getDats())
       .each(dw => this.registerDat(dw))
-      .each(dw => this.ingestDatContents(dw));
+      .each(dw => this.attachEventListenersAndJoinNetwork(dw))
+      //.each(dw => this.ingestDatContents(dw));
   }
 
   // Two functions for adding things into the catalog
@@ -86,22 +89,25 @@ export class Catalog {
   importDir(dir, name = '') {
     this.multidat.importDir(dir, name)
       .then(dw => this.registerDat(dw))
-      .then(dw => this.ingestDatContents(dw));
+      .then(dw => this.attachEventListenersAndJoinNetwork(dw));
+      //.then(dw => this.ingestDatContents(dw));
   }
 
   // Imports a remote dat repository into the catalog
   importDat(key, name = '') {
-    this.multidat.importRemoteDat(key, name)
+    return this.multidat.importRemoteDat(key, name)
       .then(dw => this.registerDat(dw))
-      .then(dw => this.ingestDatContents(dw))
-      .catch(Error, () => console.log(`Dat ${key} failed to import.`));
+      .then(dw => this.attachEventListenersAndJoinNetwork(dw));
+      // .then(dw => this.ingestDatContents(dw))
+      // .catch(Error, () => console.log(`Dat ${key} failed to import.`));
   }
 
   // Forks a dat (by its key) into a new, writable dat
   forkDat(key, name = '') {
     this.multidat.forkDat(key, name)
       .then(dw => this.registerDat(dw))
-      .then(dw => this.ingestDatContents(dw));
+      .then(dw => this.attachEventListenersAndJoinNetwork(dw));
+      // .then(dw => this.ingestDatContents(dw));
   }
 
   // See db functions in constructor for browsing and searching the catalog.
@@ -157,7 +163,6 @@ export class Catalog {
     if (deleteDir) {
       const directory = this.multidat.pathToDat(key);
       if (directory.startsWith(this.baseDir)) {
-        const rimrafAsync = Promise.promisify(rimraf);
         promise = this.db.removeDat(key)
           .then(() => this.db.clearTexts(key))
           .then(() => rimrafAsync(directory));
@@ -194,23 +199,25 @@ export class Catalog {
       .then(() => this.db.clearTexts());
   }
 
+  attachEventListenersAndJoinNetwork = (dat) => {
+    dat.on('import', this.handleDatImportEvent);
+    dat.on('download metadata', this.handleDatDownloadMetadataEvent);
+    dat.on('sync metadata', this.handleDatSyncMetadataEvent);
+    // dat.on('sync collections', this.handleDatSyncCollectionsEvent);
+    // dat.on('listing data', this.handleDatListingEvent);
+    // dat.on('listing end', this.handleDatListingEndEvent);
+    return dat.run();
+  }
+
   // Registers dat the DB
   registerDat(dw) {
-    const datkey = dw.dat.key.toString('hex');
-    console.log(`Adding dat (${datkey}) to the catalog.`);
+    console.log(`Adding dat (${dw.key}) to the catalog.`);
     // listen to events emitted from this dat wrapper
-    dw.on('import', (...args) => this.handleDatImportEvent(...args));
-    dw.on('sync metadata', (...args) => this.handleDatSyncMetadataEvent(...args));
-    dw.on('sync collections', (...args) => this.handleDatSyncCollectionsEvent(...args));
-    dw.on('listing data', (...args) => this.handleDatListingEvent(...args));
-    dw.on('listing end', (...args) => this.handleDatListingEndEvent(...args));
-    dw.on('history data', (...args) => this.handleDatHistoryDataEvent(...args));
-    dw.on('history end', (...args) => this.handleDatHistoryEndEvent(...args));
-    return this.db.removeDat(datkey)
+    return this.db.removeDat(dw.key)
       // .then(() => this.db.clearTexts(datkey))
-      .then(() => this.db.addDat(datkey, dw.name, dw.directory, dw.version))
-      .then(() => dw)
-      .catch(e => console.log(e));
+      .then(() => this.db.addDat(dw.key, dw.name, dw.directory, dw.version))
+      .catch(e => console.log(e))
+      .then(() => dw);
   }
 
   // For a Dat, ingest its collections data (if there are any)
@@ -240,7 +247,6 @@ export class Catalog {
   ingestDatContents(dw) {
     this.queuing.push(dw.key);
     return this.db.clearTexts(dw.key)
-      .then(() => dw.pumpContents());
     // return dw.pumpContents();
     // return dw.replayHistory();
     // this.db.clearTexts(dw.key)
@@ -249,33 +255,13 @@ export class Catalog {
       // .each(file => this.ingestDatFile(dw, file));
   }
 
-  moveTheQueueAlong(dw) {
-    const batch = this.importQueue.splice(0, this.queueBatchSize);
-    console.log('moving the queue along', batch.length, this.importQueue.length);
-    Promise.map(batch, item => this.ingestDatFile(item[0], item[1]))
-      .filter(item => item)
-      .then(queries => this.db.transact(queries))
-      .finally(() => {
-        if (dw) {
-          const r = this.queuing.indexOf(dw.key);
-          if (r > -1) {
-            this.queuing.splice(r, 1);
-          }
-        }
-      })
-      .catch(() => {});
-      // .then(queries => `${queries.join('; ')};`)
-      // .then(query => this.db.transact(query));
-    // this.queuing = this.queuing - 1;
-  }
-
   // Adds an entry from a Dat
   async ingestDatFile(dw, file, format = 'calibre') {
     const importedData = parseEntry(file, format);
     if (importedData) {
       const downloaded = await dw.hasFile(file);
       const downloadedStr = (downloaded) ? '[*]' : '[ ]';
-      // console.log(chalk.bold('adding:'), downloadedStr, file);
+      console.log(chalk.bold('adding:'), downloadedStr, file);
       const query = this.db.addText({
         dat: dw.key,
         author: importedData.author,
@@ -326,59 +312,50 @@ export class Catalog {
   // Event listening
   //
   // When a dat's metadata is synced
-  handleDatSyncMetadataEvent(dw) {
-    console.log('Metadata sync event. Ingesting contents for:', dw.name);
-    this.ingestDatContents(dw);
+  handleDatDownloadMetadataEvent = (data) => {
+    console.log('Metadata download event.', data.type, ':', data.file);
+    // this.ingestDatContents(dw);
+  }
+
+  handleDatSyncMetadataEvent = (dat) => {
+    console.log('Metadata sync event. Ingesting contents for:', dat);
+    // this.ingestDatContents(dw);
   }
 
   // When a dat imports a file
-  handleDatImportEvent(dw, filePath, stat) {
-    if (this.queuing.includes(dw.key)) {
-      this.importQueue.push([dw, filePath]);
-    } else {
-      this.ingestDatFile(dw, filePath);
-    }
-    // console.log('Importing: ', filePath);
+  handleDatImportEvent = (dw, filePath, stat) => {
+    // if (this.queuing.includes(dw.key)) {
+    //   this.importQueue.push([dw, filePath]);
+    // } else {
+    //   this.ingestDatFile(dw, filePath);
+    // }
+    console.log('Importing: ', filePath);
   }
 
   // When a dat import process is finished
-  handleDatListingEvent(dw, filePath, stat) {
-    if (this.queuing.includes(dw.key)) {
-      this.importQueue.push([dw, filePath]);
-      if (this.importQueue.length > 0 && this.importQueue.length % this.queueBatchSize === 0) {
-        this.moveTheQueueAlong();
-      }
-    } else {
-      this.ingestDatFile(dw, filePath);
-    }
-    // console.log('Importing: ', filePath);
+  handleDatListingEvent = (dw, filePath) => {
+    // if (this.queuing.includes(dw.key)) {
+    //   this.importQueue.push([dw, filePath]);
+    //   if (this.importQueue.length > 0 && this.importQueue.length % this.queueBatchSize === 0) {
+    //     this.moveTheQueueAlong();
+    //   }
+    // } else {
+    //   this.ingestDatFile(dw, filePath);
+    // }
+    console.log('Importing: ', filePath);
   }
 
   // When a dat import process is finished
-  handleDatListingEndEvent(dw, filePath, stat) {
-    if (this.queuing.includes(dw.key)) {
-      this.moveTheQueueAlong(dw);
-    }
+  handleDatListingEndEvent = (dw, filePath) => {
+    console.log(key)
+    // if (this.queuing.includes(dw.key)) {
+    //   this.moveTheQueueAlong(dw);
+    // }
   }
 
-  handleDatSyncCollectionsEvent(dw) {
+  handleDatSyncCollectionsEvent = (dw) => {
     console.log('Collections sync event. Ingesting collections for:', dw.name);
     this.ingestDatCollections(dw);
-  }
-
-  // Reading a piece of history data
-  handleDatHistoryDataEvent(dw, data) {
-    if (this.queuing > 0) {
-      this.importQueue.push([dw, data.name]);
-      if (this.importQueue.length % 100 === 0) console.log(this.importQueue.length);
-    } else {
-      console.log('history data:', data.name);
-    }
-  }
-
-  // End event for reading of history data
-  handleDatHistoryEndEvent(dw, data) {
-    console.log('end!!!');
   }
 }
 
