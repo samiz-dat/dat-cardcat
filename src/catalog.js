@@ -315,6 +315,23 @@ export class Catalog {
 
   // Event listening
   //
+
+  // When a dat imports a file
+  handleDatImportEvent = (data) => {
+    console.log('import download event.', data.type, ':', data.file);
+    const text = {
+      dat: data.key,
+      state: data.type === 'put',
+      ...parseEntry(data.file, 'calibre'),
+      downloaded: true, // downloaed is true as you are importing it, right?
+    };
+    // if this times out we should implement a simple promise queue,
+    // so that we just these requests to a list that gets executed when
+    // the preceeding functions .then is called.
+    this.db.addTextFromMetadata(text)
+      .catch(console.error);
+  }
+
   // When a dat's metadata is synced
   handleDatDownloadMetadataEvent = (data) => {
     console.log('Metadata download event.', data.type, ':', data.file);
@@ -334,11 +351,6 @@ export class Catalog {
   handleDatSyncMetadataEvent = (dat) => {
     console.log('Metadata sync event. Ingesting contents for:', dat);
     // this.ingestDatContents(dw);
-  }
-
-  // When a dat imports a file
-  handleDatImportEvent = (data) => {
-    console.log('Importing: ', data);
   }
 
   // When a dat import process is finished

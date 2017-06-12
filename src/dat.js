@@ -164,6 +164,24 @@ export default class DatWrapper extends EventEmitter {
           };
           this.emit('import', data);
         });
+        this.importer.on('put', (src) => {
+          const data = {
+            type: 'put',
+            key: this.key,
+            path: src.name.replace(this.directory, ''),
+            stat: src.stat,
+          };
+          this.emit('import', data);
+        });
+        this.importer.on('del', (src) => {
+          const data = {
+            type: 'del',
+            key: this.key,
+            path: src.name.replace(this.directory, ''),
+            stat: src.stat,
+          };
+          this.emit('import', data);
+        });
       } else {
         resolve(false);
       }
