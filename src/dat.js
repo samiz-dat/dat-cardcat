@@ -58,9 +58,9 @@ export default class DatWrapper extends EventEmitter {
         this.dat = dat;
         this.key = dat.key.toString('hex');
         this.metadataDownloadCount = dat.archive.metadata.downloaded();
-        this.metadataComplete = this.metadataDownloadCount === (dat.archive.version + 1);
+        this.metadataComplete = this.metadataDownloadCount === (this.version + 1);
         console.log('created dat:', this.key);
-        console.log('metadata:', this.metadataDownloadCount, this.metadataComplete);
+        console.log('metadata:', this.metadataDownloadCount, '/', this.version, this.metadataComplete);
         return this;
       });
   }

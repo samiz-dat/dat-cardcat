@@ -25,6 +25,8 @@ export class Database {
       },
       useNullAsDefault: true,
     });
+    // If you ever need to see what queries are being run uncomment the following.
+    // this.db.on('query', queryData => console.log(queryData));
   }
 
   transact(queries) {
@@ -108,40 +110,40 @@ export class Database {
     return p;
   }
 
-  // Only adds the text if it's not yet in the database
-  checkAndAddText(opts) {
-    return this.db.transaction((trx) => {
-      this.db('texts').transacting(trx).insert({
+  addTextFromMetadata(opts) {
+    return this.db('texts')
+      .where({
         dat: opts.dat,
-        title_hash: opts.title_hash || '',
-        file_hash: opts.file_hash || '',
         author: opts.author,
-        author_sort: opts.author_sort,
         title: opts.title,
         file: opts.file,
-        downloaded: opts.downloaded || 0,
-      }).whereNotExists(this.db('texts').transacting(trx)
-        .where('dat', opts.dat)
-        .where('author', opts.author)
-        .where('title', opts.title)
-        .where('file', opts.file))
-      .then(trx.commit)
-      .catch(trx.rollback);
-    })
-    .then(() => {
-      // console.log('Transaction complete.');
-    })
-    .catch((err) => {
-      console.error(err);
-    });
-    /*
-    return this.addText(opts)
-      .whereNotExists(this.db('texts')
-        .where('dat', opts.dat)
-        .where('author', opts.author)
-        .where('title', opts.title)
-        .where('file', opts.file));
-    */
+      })
+      .first()
+      .then((row) => {
+        let promise = -1;
+        if (!row) {
+          // add new text
+          promise = this.db('texts').insert({
+            dat: opts.dat,
+            version: opts.version,
+            state: opts.state,
+            title_hash: opts.title_hash || '',
+            file_hash: opts.file_hash || '',
+            author: opts.author,
+            author_sort: opts.author_sort,
+            title: opts.title,
+            file: opts.file,
+            downloaded: opts.downloaded || 0,
+          });
+        } else if (opts.version > row.version) {
+          // update state and version if this text is newer version
+          promise = this.db('texts').update({
+            version: opts.version,
+            state: opts.state, // state stored del or pul status as a bool
+          }).where('text_id', row.text_id);
+        }
+        return Promise.resolve(promise);
+      });
   }
 
   // Inserts a row for a collected text
@@ -177,7 +179,8 @@ export class Database {
         'author_sort',
       this.db.raw('GROUP_CONCAT("file" || ":" || "downloaded") as "files"'))
       .from('texts')
-      .where(function () { // a bit inelegant but groups where statements
+      .where('state', true)
+      .Andwhere(function () { // a bit inelegant but groups where statements
         this.where('title', 'like', s)
           .orWhere('author', 'like', s);
       })
@@ -196,6 +199,7 @@ export class Database {
       exp.where('texts.author_sort', 'like', s);
     }
     return exp
+      .where('texts.state', true)
       .groupBy('texts.author')
       .orderBy('texts.author_sort');
   }
@@ -206,7 +210,8 @@ export class Database {
     q.countDistinct('collections.title as count'); // count inside the collection instead
     const s = `${collection}%`;
     return q.innerJoin('collections', 'texts.author', 'collections.author')
-      .where('collections.collection', 'like', s);
+      .where('collections.collection', 'like', s)
+      .andWhere('texts.state', true);
   }
 
   // Gets a list of letters of authors, for generating a directory
@@ -215,6 +220,7 @@ export class Database {
       .select();
     withinDat(exp, dat);
     return exp.from('texts')
+      .where('texts.state', true)
       .distinct('letter')
       .orderBy('letter');
   }
@@ -222,7 +228,8 @@ export class Database {
   getTitlesForAuthor(author, dat) {
     const exp = this.db('texts')
       .distinct('dat', 'title')
-      .where('author', author);
+      .where('author', author)
+      .andWhere('texts.state', true);
     withinDat(exp, dat);
     return exp.orderBy('title');
   }
@@ -237,12 +244,13 @@ export class Database {
         'texts.title_hash',
         'texts.author_sort',
       this.db.raw('GROUP_CONCAT("texts.file" || ":" || "texts.downloaded") as "files"'))
-      .from('texts');
+      .from('texts')
+      .where('texts.state', true);
     if (opts.author) {
-      exp.where('texts.author', opts.author);
+      exp.AndWhere('texts.author', opts.author);
     }
     if (opts.title) {
-      exp.where('texts.title', opts.title);
+      exp.andWhere('texts.title', opts.title);
     }
     if (opts.collection) {
       const s = `${opts.collection}%`;
@@ -287,7 +295,9 @@ export class Database {
       .where('collections.collection', 'like', s);
     }
     withinDat(exp, dat || opts.dat);
-    return exp.orderBy('texts.dat', 'texts.author', 'texts.title');
+    return exp
+      .andWhere('texts.state', true)
+      .orderBy('texts.dat', 'texts.author', 'texts.title');
   }
 
   // Gets a list of collections in the catalog
@@ -300,6 +310,7 @@ export class Database {
       exp.where('collection', 'like', s);
     }
     return exp
+      .andWhere('texts.state', true)
       .groupBy('collection')
       .orderBy('collection');
   }
@@ -309,7 +320,8 @@ export class Database {
   getFiles(author, title, dat, file) {
     const exp = this.db('texts')
       .where('author', author)
-      .where('title', title);
+      .andWhere('title', title)
+      .andWhere('texts.state', true);
     withinDat(exp, dat);
     if (file) {
       exp.where('file', file);
@@ -345,11 +357,14 @@ export class Database {
       table.string('dat');
       table.string('name');
       table.string('dir');
-      table.integer('version');
+      table.integer('version'); // this will need to be updated whenever files are imported
       // table.unique('dat');
     })
     .createTableIfNotExists('texts', (table) => {
+      table.increments('text_id');
       table.string('dat');
+      table.integer('version');
+      table.boolean('state'); // is valid
       table.string('title_hash');
       table.string('file_hash');
       table.string('author');

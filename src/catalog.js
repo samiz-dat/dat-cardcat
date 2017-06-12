@@ -24,8 +24,6 @@ export class Catalog {
       base: 'catalog.db',
     }));
     this.multidat = new Multidat(baseDir);
-    // If you ever need to see what queries are being run uncomment the following.
-    // this.db.on('query', queryData => console.log(queryData));
     this.isReady = false;
 
     // For bulk imports we'll use queue
@@ -245,7 +243,10 @@ export class Catalog {
 
   // For a Dat, ingest its contents into the catalog
   ingestDatContents(dw) {
-    this.queuing.push(dw.key);
+    // TODO: replace this with logic that iterates over metadata already downloaded
+    // dont stream - iterate while waiting for db to process info
+
+    // this.queuing.push(dw.key);
     return this.db.clearTexts(dw.key)
     // return dw.pumpContents();
     // return dw.replayHistory();
@@ -257,24 +258,27 @@ export class Catalog {
 
   // Adds an entry from a Dat
   async ingestDatFile(dw, file, format = 'calibre') {
-    const importedData = parseEntry(file, format);
-    if (importedData) {
-      const downloaded = await dw.hasFile(file);
-      const downloadedStr = (downloaded) ? '[*]' : '[ ]';
-      console.log(chalk.bold('adding:'), downloadedStr, file);
-      const query = this.db.addText({
-        dat: dw.key,
-        author: importedData.author,
-        author_sort: importedData.authorSort,
-        title: importedData.title,
-        file: importedData.file,
-        downloaded,
-      });
-      if (this.queuing.length > 0) {
-        return Promise.resolve(query.toString());
-      }
-      return query;
-    }
+
+    // TODO: replace this
+
+    // const importedData = parseEntry(file, format);
+    // if (importedData) {
+    //   const downloaded = await dw.hasFile(file);
+    //   const downloadedStr = (downloaded) ? '[*]' : '[ ]';
+    //   console.log(chalk.bold('adding:'), downloadedStr, file);
+    //   const query = this.db.addText({
+    //     dat: dw.key,
+    //     author: importedData.author,
+    //     author_sort: importedData.authorSort,
+    //     title: importedData.title,
+    //     file: importedData.file,
+    //     downloaded,
+    //   });
+    //   if (this.queuing.length > 0) {
+    //     return Promise.resolve(query.toString());
+    //   }
+    //   return query;
+    // }
     return Promise.resolve(false);
   }
 
@@ -314,7 +318,17 @@ export class Catalog {
   // When a dat's metadata is synced
   handleDatDownloadMetadataEvent = (data) => {
     console.log('Metadata download event.', data.type, ':', data.file);
-    // this.ingestDatContents(dw);
+    const text = {
+      dat: data.key,
+      state: data.type === 'put',
+      ...parseEntry(data.file, 'calibre'),
+      downloaded: false, // need to check for downloaded - probaby at this point does not makes sense as we have not even downloaded the metadata.
+    };
+    // if this times out we should implement a simple promise queue,
+    // so that we just these requests to a list that gets executed when
+    // the preceeding functions .then is called.
+    this.db.addTextFromMetadata(text)
+      .catch(console.error);
   }
 
   handleDatSyncMetadataEvent = (dat) => {
@@ -323,34 +337,18 @@ export class Catalog {
   }
 
   // When a dat imports a file
-  handleDatImportEvent = (dw, filePath, stat) => {
-    // if (this.queuing.includes(dw.key)) {
-    //   this.importQueue.push([dw, filePath]);
-    // } else {
-    //   this.ingestDatFile(dw, filePath);
-    // }
-    console.log('Importing: ', filePath);
+  handleDatImportEvent = (data) => {
+    console.log('Importing: ', data);
   }
 
   // When a dat import process is finished
-  handleDatListingEvent = (dw, filePath) => {
-    // if (this.queuing.includes(dw.key)) {
-    //   this.importQueue.push([dw, filePath]);
-    //   if (this.importQueue.length > 0 && this.importQueue.length % this.queueBatchSize === 0) {
-    //     this.moveTheQueueAlong();
-    //   }
-    // } else {
-    //   this.ingestDatFile(dw, filePath);
-    // }
-    console.log('Importing: ', filePath);
+  handleDatListingEvent = (data) => {
+    console.log('Importing: ', data);
   }
 
   // When a dat import process is finished
-  handleDatListingEndEvent = (dw, filePath) => {
-    console.log(key)
-    // if (this.queuing.includes(dw.key)) {
-    //   this.moveTheQueueAlong(dw);
-    // }
+  handleDatListingEndEvent = (data) => {
+    console.log(data);
   }
 
   handleDatSyncCollectionsEvent = (dw) => {
