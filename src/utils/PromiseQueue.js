@@ -7,7 +7,8 @@ class PromiseQueue {
 
   next = () => {
     if (this.length > 0) {
-      return this.wrap(this.queue.shift());
+      const nextFn = this.queue.shift();
+      return this.wrap(nextFn.fn, nextFn.attempts);
     }
     this.promise = null;
     if (typeof this.callback === 'function') this.callback();
@@ -18,7 +19,7 @@ class PromiseQueue {
     console.error(err);
   }
 
-  wrap(fn, attempts = 1) {
+  wrap(fn, attempts) {
     let retryCount = 0;
     const retry = (err) => {
       retryCount += 1;
@@ -32,11 +33,12 @@ class PromiseQueue {
   }
 
   add(fn, attempts) {
+    const a = (attempts && attempts > 0) ? attempts : 1;
     if (typeof fn !== 'function') throw new Error('PromiseQueue.add() expects a function as an argument.');
     if (this.promise === null) {
-      this.promise = this.wrap(fn, attempts);
+      this.promise = this.wrap(fn, a);
     } else {
-      this.queue.push(fn);
+      this.queue.push({ fn, attempts: a });
     }
   }
 
