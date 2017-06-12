@@ -4,7 +4,7 @@ import PromiseQueue from '../src/utils/PromiseQueue';
 
 const expect = chai.expect;
 
-describe.only('PromiseQueue', () => {
+describe('PromiseQueue', () => {
   it('async functions are executed sequentially', (done) => {
     let counter = 0;
 
