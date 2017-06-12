@@ -210,12 +210,11 @@ export class Catalog {
   // Registers dat the DB
   registerDat(dw) {
     console.log(`Adding dat (${dw.key}) to the catalog.`);
-    // listen to events emitted from this dat wrapper
     return this.db.removeDat(dw.key)
       // .then(() => this.db.clearTexts(datkey))
       .then(() => this.db.addDat(dw.key, dw.name, dw.directory, dw.version))
       .catch(e => console.log(e))
-      .then(() => dw);
+      .then(() => dw); // at this point we should add all texts within the metadata;
   }
 
   // For a Dat, ingest its collections data (if there are any)

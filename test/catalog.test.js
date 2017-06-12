@@ -29,7 +29,7 @@ describe('catalog class', () => {
     close(done);
   });
 
-  it.only('connects to an import external dat libary', () => {
+  it('connects to an import external dat libary', () => {
     return createCatalog(libraryHome)
       .then((catalog) => {
         expect(catalog).to.be.instanceOf(Catalog);
