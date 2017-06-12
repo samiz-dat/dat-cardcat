@@ -24,11 +24,12 @@ describe.only('PromiseQueue', () => {
     const count = () => { counter += 1; };
     const expectOrder = i => () => { expect(counter).to.eql(i); };
 
-    const queue = new PromiseQueue(done);
+    const queue = new PromiseQueue();
     queue.add(() => Promise.delay(10).then(count));
     queue.add(() => Promise.reject('an error'));
     queue.add(() => Promise.reject('an error'));
     queue.add(expectOrder(1));
+    queue.add(() => done());
   });
 
   it('is reusable', (done) => {
