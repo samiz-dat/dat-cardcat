@@ -138,7 +138,7 @@ describe('DatWrapper class', () => {
         });
     });
 
-    it('imports all files within directory, emiting events on import and end', (done) => {
+    it.only('imports all files within directory, emiting events on import and end', (done) => {
       ownedDat.create()
         .then(d => d.run())
         .then(() => {
@@ -151,10 +151,12 @@ describe('DatWrapper class', () => {
           });
           ownedDat.on('imported', (data) => {
             expect(data.key).to.be.a('String');
-            expect(data.file).to.be.a('String');
+            expect(data.path).to.be.a('String');
             expect(imported).to.eql(10);
             expect(ownedDat.version).to.eql(imported);
-            done();
+            ownedDat.onEachMetadata(v => console.log('meta:', v))
+              .then(() => done());
+            // done();
           });
         });
     });

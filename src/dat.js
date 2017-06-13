@@ -15,6 +15,15 @@ import messages from 'dat-protocol-buffers';
 const createDatAsync = Promise.promisify(createDat);
 const renameAsync = Promise.promisify(fs.rename);
 
+function iteratePromised(co, fn) {
+  const runner = () => {
+    const v = co.next();
+    if (v.done) return 'ok';
+    return Promise.resolve(v.value).then(fn).then(runner);
+  };
+  return runner();
+}
+
 // import { lsFilesPromised } from './utils/filesystem';
 
 // fork() - download a dat and fork it (thru dat.json)
@@ -89,7 +98,7 @@ export default class DatWrapper extends EventEmitter {
   connectionEventHandler = () => {
     console.log('connects via network');
     console.log(chalk.gray(chalk.bold('peers:')), this.stats.peers);
-  };
+  }
 
   metadataDownloadEventHandler = (index, data) => {
     this.metadataDownloadCount++;
@@ -122,6 +131,40 @@ export default class DatWrapper extends EventEmitter {
     // But for now we need it because on first load of dat we aren't getting the "loaded" event above
     this.emit('sync collections', this.key);
   };
+
+  // call a function on each downloaded chuck of metadata.
+  onEachMetadata(fn) {
+    // returns a promise which will succeed if all are successful or fail and stop iterator.
+    return iteratePromised(this.metadataIterator(), fn);
+  }
+
+  // this should iterate over only the downloaded metadata,
+  // we can use this to populate database before joining the swarm
+  // only importing what has already been downloaded, and then
+  // fetch the rest via the 'metadata' downloaded events.
+  * metadataIterator() {
+    const metadata = this.dat.archive.metadata;
+    // this can be improved by using the bitfield in hypercore to find next non 0 block, but will do for now.
+    for (let i = 1; i <= this.version; i++) {
+      if (metadata.has(i)) {
+        yield new Promise((resolve, reject) =>
+          metadata.get(i, (error, result) => {
+            if (error) reject(error);
+            else {
+              const node = messages.Node.decode(result);
+              resolve({
+                version: i,
+                key: this.key,
+                type: node.value ? 'put' : 'del',
+                file: node.path,
+                stats: node.value,
+              });
+            }
+          }),
+        );
+      }
+    }
+  }
 
   isYours() {
     return this.dat.writable;
