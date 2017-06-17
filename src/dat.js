@@ -144,17 +144,22 @@ export default class DatWrapper extends EventEmitter {
   // fetch the rest via the 'metadata' downloaded events.
   * metadataIterator() {
     const metadata = this.dat.archive.metadata;
+    let imported = 0;
+    const total = metadata.downloaded() - 1; // -1 to exclude header
     // this can be improved by using the bitfield in hypercore to find next non 0 block, but will do for now.
     for (let i = 1; i <= this.version; i++) {
       if (metadata.has(i)) {
-        yield new Promise((resolve, reject) =>
+        yield new Promise((resolve, reject) => // fix this to not make functions in a loop.
           metadata.get(i, (error, result) => {
             if (error) reject(error);
             else {
+              imported += 1;
+              const progress = total > 0 ? (imported / total) * 100 : 0;
               const node = messages.Node.decode(result);
               resolve({
                 version: i,
                 key: this.key,
+                progress,
                 type: node.value ? 'put' : 'del',
                 file: node.path,
                 stats: node.value,

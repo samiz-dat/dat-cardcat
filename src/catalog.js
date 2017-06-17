@@ -236,7 +236,7 @@ export class Catalog extends EventEmitter {
 
   // Adds an entry from a Dat
   ingestDatFile = async (data) => {
-    console.log('trying to import:', data.type, ':', data.file);
+    console.log('trying to import:', data.type, ':', data.file, data.progress);
     const entry = parseEntry(data.file, 'calibre');
     if (entry) {
       const downloaded = await this.multidat.getDat(data.key).hasFile(data.file);
