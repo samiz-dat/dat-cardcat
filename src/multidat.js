@@ -30,6 +30,10 @@ export default class Multidat {
     return this.discoverDats();
   }
 
+  close() {
+    return Promise.all(this.getDats().map(dw => dw.close()));
+  }
+
   // ... but there might be an additional list of dats elsewhere to look for:
   // [{ dat: <key>, dir: <path>, name: <str>}, ]
   initOthers(lookFor = []) {
