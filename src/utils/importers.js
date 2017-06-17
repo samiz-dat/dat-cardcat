@@ -17,7 +17,7 @@ const parsers = {
       const name = parser(pathArr[0]);
       return {
         author: pathArr[0],
-        authorSort: `${name.last}, ${name.first}`,
+        author_sort: `${name.last}, ${name.first}`,
         title: pathArr[1],
         file: pathArr[2],
       };
