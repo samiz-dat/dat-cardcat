@@ -138,7 +138,7 @@ describe('DatWrapper class', () => {
         });
     });
 
-    it.only('imports all files within directory, emiting events on import and end', (done) => {
+    it('imports all files within directory, emiting events on import and end', (done) => {
       ownedDat.create()
         .then(d => d.run())
         .then(() => {
@@ -154,12 +154,11 @@ describe('DatWrapper class', () => {
             expect(data.path).to.be.a('String');
             expect(imported).to.eql(10);
             expect(ownedDat.version).to.eql(imported);
-            ownedDat.onEachMetadata(v => console.log('meta:', v))
-              .then(() => done());
-            // done();
+            // ownedDat.onEachMetadata(v => console.log('meta:', v))
+              // .then(() => done());
+            done();
           });
         });
     });
-    // TODO: setup tests for a dat that you own
   });
 });

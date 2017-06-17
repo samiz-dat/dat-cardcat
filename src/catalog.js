@@ -1,3 +1,4 @@
+import EventEmitter from 'events';
 import path from 'path';
 import fs from 'fs';
 import Promise from 'bluebird';
@@ -15,8 +16,9 @@ import parseEntry from './utils/importers';
 const rimrafAsync = Promise.promisify(rimraf);
 
 // Class definition
-export class Catalog {
+export class Catalog extends EventEmitter {
   constructor(baseDir) {
+    super();
     this.baseDir = baseDir;
     this.dats = [];
     this.db = new Database(path.format({
@@ -64,7 +66,18 @@ export class Catalog {
     }
     return this.initDatabase()
       .then(() => this.initMultidat())
+      .then(() => {
+        this.emit('ready');
+      })
+      .catch(err => this.emit('error', err))
       .then(() => this);
+  }
+
+  close() {
+    // close all dats
+    return this.multidat.close()
+      .then(() => this.emit('closed'))
+      .catch(err => this.emit('error', err));
   }
 
   initDatabase() {
@@ -78,8 +91,8 @@ export class Catalog {
       .then(() => this.cleanupDatRegistry())
       .then(() => this.multidat.getDats())
       .each(dw => this.registerDat(dw))
-      .each(dw => this.attachEventListenersAndJoinNetwork(dw))
-      //.each(dw => this.ingestDatContents(dw));
+      .each(dw => this.attachEventListenersAndJoinNetwork(dw));
+      // .each(dw => this.ingestDatContents(dw));
   }
 
   // Two functions for adding things into the catalog
@@ -88,7 +101,6 @@ export class Catalog {
     this.multidat.importDir(dir, name)
       .then(dw => this.registerDat(dw))
       .then(dw => this.attachEventListenersAndJoinNetwork(dw));
-      //.then(dw => this.ingestDatContents(dw));
   }
 
   // Imports a remote dat repository into the catalog
@@ -96,7 +108,6 @@ export class Catalog {
     return this.multidat.importRemoteDat(key, name)
       .then(dw => this.registerDat(dw))
       .then(dw => this.attachEventListenersAndJoinNetwork(dw));
-      // .then(dw => this.ingestDatContents(dw))
       // .catch(Error, () => console.log(`Dat ${key} failed to import.`));
   }
 
@@ -105,7 +116,6 @@ export class Catalog {
     this.multidat.forkDat(key, name)
       .then(dw => this.registerDat(dw))
       .then(dw => this.attachEventListenersAndJoinNetwork(dw));
-      // .then(dw => this.ingestDatContents(dw));
   }
 
   // See db functions in constructor for browsing and searching the catalog.
@@ -202,8 +212,6 @@ export class Catalog {
     dat.on('download metadata', this.handleDatDownloadMetadataEvent);
     dat.on('sync metadata', this.handleDatSyncMetadataEvent);
     // dat.on('sync collections', this.handleDatSyncCollectionsEvent);
-    // dat.on('listing data', this.handleDatListingEvent);
-    // dat.on('listing end', this.handleDatListingEndEvent);
     return dat.run();
   }
 
@@ -211,10 +219,40 @@ export class Catalog {
   registerDat(dw) {
     console.log(`Adding dat (${dw.key}) to the catalog.`);
     return this.db.removeDat(dw.key)
-      // .then(() => this.db.clearTexts(datkey))
       .then(() => this.db.addDat(dw.key, dw.name, dw.directory, dw.version))
-      .catch(e => console.log(e))
+      .then(() => this.ingestDatContents(dw))
+      .catch((err) => {
+        console.log(err);
+        this.emit('error', err);
+      })
       .then(() => dw); // at this point we should add all texts within the metadata;
+  }
+
+  // For a Dat, ingest its contents into the catalog
+  ingestDatContents(dw) {
+    return this.db.clearTexts(dw.key)
+      .then(() => dw.onEachMetadata(this.ingestDatFile));
+  }
+
+  // Adds an entry from a Dat
+  ingestDatFile = async (data) => {
+    console.log('trying to import:', data.type, ':', data.file);
+    const entry = parseEntry(data.file, 'calibre');
+    if (entry) {
+      const downloaded = await this.multidat.getDat(data.key).hasFile(data.file);
+      const downloadedStr = (downloaded) ? '[*]' : '[ ]';
+      console.log(chalk.bold('adding:'), downloadedStr, data.file);
+      const text = {
+        dat: data.key,
+        state: data.type === 'put',
+        ...entry,
+        downloaded,
+      };
+      this.db.addTextFromMetadata(text)
+        .then(() => this.emit('import', text))
+        .catch(console.error);
+    }
+    return Promise.resolve(false);
   }
 
   // For a Dat, ingest its collections data (if there are any)
@@ -237,47 +275,6 @@ export class Catalog {
         collection,
       });
     }
-    return Promise.resolve(false);
-  }
-
-  // For a Dat, ingest its contents into the catalog
-  ingestDatContents(dw) {
-    // TODO: replace this with logic that iterates over metadata already downloaded
-    // dont stream - iterate while waiting for db to process info
-
-    // this.queuing.push(dw.key);
-    return this.db.clearTexts(dw.key)
-    // return dw.pumpContents();
-    // return dw.replayHistory();
-    // this.db.clearTexts(dw.key)
-      // .then(() => dw.pumpContents(this.ingestDatFile, this));
-      // .then(() => dw.listContents())
-      // .each(file => this.ingestDatFile(dw, file));
-  }
-
-  // Adds an entry from a Dat
-  async ingestDatFile(dw, file, format = 'calibre') {
-
-    // TODO: replace this
-
-    // const importedData = parseEntry(file, format);
-    // if (importedData) {
-    //   const downloaded = await dw.hasFile(file);
-    //   const downloadedStr = (downloaded) ? '[*]' : '[ ]';
-    //   console.log(chalk.bold('adding:'), downloadedStr, file);
-    //   const query = this.db.addText({
-    //     dat: dw.key,
-    //     author: importedData.author,
-    //     author_sort: importedData.authorSort,
-    //     title: importedData.title,
-    //     file: importedData.file,
-    //     downloaded,
-    //   });
-    //   if (this.queuing.length > 0) {
-    //     return Promise.resolve(query.toString());
-    //   }
-    //   return query;
-    // }
     return Promise.resolve(false);
   }
 
