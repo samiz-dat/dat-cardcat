@@ -67,8 +67,7 @@ describe('DatWrapper class', () => {
       close(done);
     });
 
-    it('is writable', (done) => {
-      temp.track();
+    it('is not writable', (done) => {
       const tmpPath = temp.mkdirSync(temporaryDir);
       const dat = new DatWrapper({ key: externalLibraryKey, directory: `${tmpPath}` });
       dat.create()
@@ -81,7 +80,6 @@ describe('DatWrapper class', () => {
     });
 
     it('emits progress events when metadata is imported', (done) => {
-      temp.track();
       const tmpPath = temp.mkdirSync(temporaryDir);
       const dat = new DatWrapper({ key: externalLibraryKey, directory: `${tmpPath}` });
       dat.create()
@@ -147,6 +145,7 @@ describe('DatWrapper class', () => {
             expect(data.key).to.be.a('String');
             expect(data.file).to.be.a('String');
             expect(data.stat).to.be.a('Object');
+            console.log('PROGESS', data.progress);
             imported += 1;
           });
           ownedDat.on('imported', (data) => {
@@ -156,8 +155,9 @@ describe('DatWrapper class', () => {
             expect(ownedDat.version).to.eql(imported);
             // ownedDat.onEachMetadata(v => console.log('meta:', v))
               // .then(() => done());
-            done();
+            // done();
           });
+          done();
         });
     });
   });

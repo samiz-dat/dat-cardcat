@@ -235,22 +235,32 @@ export class Catalog extends EventEmitter {
   }
 
   // Adds an entry from a Dat
-  ingestDatFile = async (data) => {
-    console.log('trying to import:', data.type, ':', data.file, data.progress);
+  ingestDatFile = async (data, attempts = 10) => {
+    // console.log('trying to import:', data.type, ':', data.file, data.progress);
     const entry = parseEntry(data.file, 'calibre');
     if (entry) {
       const downloaded = await this.multidat.getDat(data.key).hasFile(data.file);
       const downloadedStr = (downloaded) ? '[*]' : '[ ]';
-      console.log(chalk.bold('adding:'), downloadedStr, data.file);
+      // console.log(chalk.bold('adding:'), downloadedStr, data.file);
       const text = {
         dat: data.key,
         state: data.type === 'put',
         ...entry,
         downloaded,
       };
-      this.db.addTextFromMetadata(text)
-        .then(() => this.emit('import', text))
-        .catch(console.error);
+      return this.db.addTextFromMetadata(text)
+        .then(() => this.emit('import', { ...text, progress: data.progress }))
+        .then(() => {
+          console.log(`${data.progress.toFixed(2)}%`,'adding:', downloadedStr, data.file);
+        })
+        .catch((e) => {
+          if (attempts > 0) {
+            console.log('retry', attempts);
+            return Promise.delay(1000).then(() => this.ingestDatFile(data, attempts - 1));
+          }
+          console.error('errrored', e);
+          return null;
+        });
     }
     return Promise.resolve(false);
   }
@@ -314,7 +324,7 @@ export class Catalog extends EventEmitter {
 
   // When a dat imports a file
   handleDatImportEvent = (data) => {
-    console.log('import download event.', data.type, ':', data.file);
+    console.log(`${data.progress.toFixed(2)}%`, 'import download event.', data.type, ':', data.file);
     const text = {
       dat: data.key,
       state: data.type === 'put',
@@ -325,12 +335,13 @@ export class Catalog extends EventEmitter {
     // so that we just these requests to a list that gets executed when
     // the preceeding functions .then is called.
     this.db.addTextFromMetadata(text)
+      .then(() => this.emit('import', { ...text, progress: data.progress }))
       .catch(console.error);
   }
 
   // When a dat's metadata is synced
   handleDatDownloadMetadataEvent = (data) => {
-    console.log('Metadata download event.', data.type, ':', data.file);
+    console.log(`${data.progress.toFixed(2)}%`, 'Metadata download event.', data.type, ':', data.file);
     const text = {
       dat: data.key,
       state: data.type === 'put',

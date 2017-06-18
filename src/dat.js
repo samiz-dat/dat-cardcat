@@ -189,8 +189,11 @@ export default class DatWrapper extends EventEmitter {
       const dat = this.dat;
       if (this.isYours()) {
         console.log('Importing files under:', importPath);
+        let putTotal = 0;
+        let putCount = 0;
         const opts = {
-          // watch: true,
+          watch: true,
+          count: true,
           dereference: true,
           indexing: true,
         };
@@ -202,14 +205,21 @@ export default class DatWrapper extends EventEmitter {
           });
           resolve(true);
         });
+        this.importer.on('count', (count) => {
+          // file count is actually just a put count
+          // this could funk out on dat's with lots of dels.
+          putTotal = count.files;
+        });
         this.importer.on('error', reject);
         // Emit event that something has been imported into the dat
         this.importer.on('put', (src) => {
+          putCount += 1;
           const data = {
             type: 'put',
             key: this.key,
             file: src.name.replace(this.directory, ''),
             stat: src.stat,
+            progress: putTotal > 0 ? (putCount / putTotal) * 100 : 100,
           };
           this.emit('import', data);
         });
@@ -219,6 +229,7 @@ export default class DatWrapper extends EventEmitter {
             key: this.key,
             file: src.name.replace(this.directory, ''),
             stat: src.stat,
+            progress: putTotal > 0 ? (putCount / putTotal) * 100 : 100,
           };
           this.emit('import', data);
         });

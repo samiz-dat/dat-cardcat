@@ -55,6 +55,7 @@ describe('catalog class', function () {
         expect(catalog).to.be.instanceOf(Catalog);
         expect(externalLibraryKey).to.be.a('string');
         return catalog.importDat(externalLibraryKey, 'external library')
+          .then(() => console.log('waiting(*'))
           .delay(500)
           .then(() => catalog.close());
       })
