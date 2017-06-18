@@ -49,7 +49,7 @@ describe('catalog class', function () {
       });
   });
 
-  it.only('imports dats within its home directory on startup', () => {
+  it('imports dats within its home directory on startup', () => {
     return createCatalog(libraryHome)
       .then((catalog) => {
         expect(catalog).to.be.instanceOf(Catalog);
