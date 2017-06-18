@@ -16,7 +16,6 @@
     "datcat": "./bin/index.js"
   },
   "author": "",
-  "private": true,
   "license": "ISC",
   "devDependencies": {
     "babel-cli": "^6.23.0",
