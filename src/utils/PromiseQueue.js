@@ -54,11 +54,16 @@ class PromiseQueue {
       if (!opts || !opts.priority) {
         this.queue.push(next);
       } else {
+        let found = false;
         for (let i = this.length - 1; i >= 0; i--) {
-          if (this.queue[i].priority && this.queue[i].priority > opts.priority) {
-            this.queue.splice(i, 0, next);
+          if (this.queue[i].priority && this.queue[i].priority >= opts.priority) {
+            this.queue.splice(i + 1, 0, next);
+            found = true;
             break;
           }
+        }
+        if (!found) {
+          this.queue.unshift(next);
         }
       }
     }

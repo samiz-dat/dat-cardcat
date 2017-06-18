@@ -4,7 +4,7 @@ import PromiseQueue from '../src/utils/PromiseQueue';
 
 const expect = chai.expect;
 
-describe.only('PromiseQueue', () => {
+describe('PromiseQueue', () => {
   it('async functions are executed sequentially', (done) => {
     let counter = 0;
 
@@ -16,6 +16,39 @@ describe.only('PromiseQueue', () => {
     queue.add(expectOrder(1));
     queue.add(() => Promise.delay(10).then(count));
     queue.add(expectOrder(2));
+  });
+
+  it('executes callback provided with value when generator is finally executed', (done) => {
+    let counter = 0;
+
+    const count = () => {
+      counter += 1;
+      return counter;
+    };
+    const expectReturnedValue = i => (v) => {
+      expect(v).to.eql(i);
+    };
+
+    const queue = new PromiseQueue(done);
+    queue.add(() => Promise.delay(10).then(count), expectReturnedValue(1));
+    queue.add(() => Promise.delay(10).then(count), expectReturnedValue(2));
+  });
+
+  it('prioritises based on priority options', (done) => {
+    let counter = 0;
+
+    const count = () => { counter += 1; };
+    const expectOrder = i => () => {
+      expect(counter).to.eql(i);
+    };
+
+    const queue = new PromiseQueue(done);
+    queue.add(() => Promise.delay(10).then(count), expectOrder(1), { priority: 0 }); // executed immediately because queue is empty
+    queue.add(() => Promise.delay(10).then(count), expectOrder(5), { priority: 0 });
+    queue.add(() => Promise.delay(10).then(count), expectOrder(3), { priority: 2 });
+    queue.add(() => Promise.delay(10).then(count), expectOrder(6), { priority: 0 });
+    queue.add(() => Promise.delay(10).then(count), expectOrder(4), { priority: 2 });
+    queue.add(() => Promise.delay(10).then(count), expectOrder(2), { priority: 5 });
   });
 
   it('does not stop on error', (done) => {
