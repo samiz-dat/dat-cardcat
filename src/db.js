@@ -91,6 +91,14 @@ export class Database {
     return this.db.select('dir').from('dats').where('dat', datKey).first();
   }
 
+  lastImportedVersion(datKey) {
+    return this.db('texts')
+      .max('version as version')
+      .where('dat', datKey)
+      .whereNotNull('version')
+      .first();
+  }
+
   // Insert a text into the texts table
   addText(opts) {
     const p = this.db.insert({
@@ -121,6 +129,7 @@ export class Database {
       .first()
       .then((row) => {
         let promise = -1;
+        // console.log(opts.version, 'version!');
         if (!row) {
           // add new text
           promise = this.db('texts').insert({

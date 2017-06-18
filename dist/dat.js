@@ -110,6 +110,7 @@ class DatWrapper extends _events2.default {
         const progress = this.version > 0 ? this.metadataDownloadCount / (this.version + 1) * 100 : 0;
         this.emit('download metadata', {
           key: this.key,
+          version: index,
           type: block.value ? 'put' : 'del',
           progress,
           file: block.path,
@@ -270,6 +271,7 @@ class DatWrapper extends _events2.default {
 
 
 
+
     hasFile = file => new _bluebird2.default(r => _fs2.default.access(_path2.default.join(this.directory, file), _fs2.default.F_OK, e => r(!e)));this.directory = opts.directory;this.metadataDownloadCount = 0;this.metadataComplete = false; // create if it doesn't exist
     if (!_fs2.default.existsSync(opts.directory)) {_fs2.default.mkdirSync(opts.directory);}this.key = opts.key;this.name = opts.name;this.stats = false;this.opts = opts; // Don't need the whole history (also we do need files as files)
     this.opts.latest = true; // If we're creating/ hosting a dat, set indexing to true
@@ -280,19 +282,19 @@ class DatWrapper extends _events2.default {
   run() {this.importFiles();this.collections = new _datCollections2.default(this.dat.archive);this.collections.on('loaded', () => {console.log(`collections data loaded (${this.name})`); // this.emit('sync collections', this);
     });const network = this.dat.joinNetwork();this.stats = this.dat.trackStats();network.once('connection', this.connectionEventHandler); // Watch for metadata syncing
     const metadata = this.dat.archive.metadata;metadata.on('download', this.metadataDownloadEventHandler);metadata.on('sync', this.metadataSyncEventHandler);return this;} // call a function on each downloaded chuck of metadata.
-  onEachMetadata(fn) {// returns a promise which will succeed if all are successful or fail and stop iterator.
-    return iteratePromised(this.metadataIterator(), fn);} // this should iterate over only the downloaded metadata,
+  onEachMetadata(fn, startingFrom) {// returns a promise which will succeed if all are successful or fail and stop iterator.
+    return iteratePromised(this.metadataIterator(startingFrom), fn);} // this should iterate over only the downloaded metadata,
   // we can use this to populate database before joining the swarm
   // only importing what has already been downloaded, and then
   // fetch the rest via the 'metadata' downloaded events.
-  *metadataIterator() {const metadata = this.dat.archive.metadata;let imported = 0;const total = metadata.downloaded() - 1; // -1 to exclude header
-    // this can be improved by using the bitfield in hypercore to find next non 0 block, but will do for now.
-    for (let i = 1; i <= this.version; i++) {if (metadata.has(i)) {yield new _bluebird2.default((resolve, reject) => // fix this to not make functions in a loop.
+  *metadataIterator(start = 1) {const metadata = this.dat.archive.metadata;let imported = start - 1;const total = metadata.downloaded(); // this can be improved by using the bitfield in hypercore to find next non 0 block, but will do for now.
+    for (let i = start; i <= this.version; i++) {if (metadata.has(i)) {yield new _bluebird2.default((resolve, reject) => // fix this to not make functions in a loop.
         metadata.get(i, (error, result) => {if (error) reject(error);else {imported += 1;const progress = total > 0 ? imported / total * 100 : 0;const node = _datProtocolBuffers2.default.Node.decode(result);resolve({ version: i, key: this.key, progress, type: node.value ? 'put' : 'del', file: node.path, stats: node.value });}}));}}}isYours() {return this.dat.writable;} // How many peers for this dat
-  get peers() {return this.stats.peers || { total: 0, complete: 0 };}get version() {return this.dat.archive.version;}importFiles(importPath = this.directory) {return new _bluebird2.default((resolve, reject) => {const dat = this.dat;if (this.isYours()) {console.log('Importing files under:', importPath);let putTotal = 0;let putCount = 0;const opts = { watch: true, count: true, dereference: true, indexing: true };this.importer = dat.importFiles(importPath, opts, () => {console.log(`Finished importing files in ${importPath}`);this.emit('imported', { key: this.key, path: importPath });resolve(true);});this.importer.on('count', count => {// file count is actually just a put count
+  get peers() {return this.stats.peers || { total: 0, complete: 0 };}get version() {return this.dat.archive.version;}importFiles(importPath = this.directory) {return new _bluebird2.default((resolve, reject) => {if (this.isYours()) {console.log('Importing files under:', importPath);let putTotal = 0;let putCount = 0;const opts = { watch: true, count: true, dereference: true, indexing: true };this.importer = this.dat.importFiles(importPath, opts, () => {console.log(`Finished importing files in ${importPath}`);this.emit('imported', { key: this.key, path: importPath });resolve(true);});this.importer.on('count', count => {// file count is actually just a put count
           // this could funk out on dat's with lots of dels.
           putTotal = count.files;});this.importer.on('error', reject); // Emit event that something has been imported into the dat
-        this.importer.on('put', src => {putCount += 1;const data = { type: 'put', key: this.key, file: src.name.replace(this.directory, ''), stat: src.stat, progress: putTotal > 0 ? putCount / putTotal * 100 : 100 };this.emit('import', data);});this.importer.on('del', src => {const data = { type: 'del', key: this.key, file: src.name.replace(this.directory, ''), stat: src.stat, progress: putTotal > 0 ? putCount / putTotal * 100 : 100 };this.emit('import', data);});} else {resolve(false);}});} // Import a file or directory from another archive
+        this.importer.on('put', src => {putCount += 1;const data = { type: 'put', key: this.key, file: src.name.replace(this.directory, ''), stat: src.stat, progress: putTotal > 0 ? putCount / putTotal * 100 : 100, version: this.version // I am not sure if this works as version is not set by mirror-folder
+          };this.emit('import', data);});this.importer.on('del', src => {const data = { type: 'del', key: this.key, file: src.name.replace(this.directory, ''), stat: src.stat, progress: putTotal > 0 ? putCount / putTotal * 100 : 100, version: this.version };this.emit('import', data);});} else {resolve(false);}});} // Import a file or directory from another archive
   importFromDat(srcDatWrapper, fileOrDir, overwriteExisting = true) {var _this = this;return _asyncToGenerator(function* () {if (_this.isYours()) {const dstPath = _path2.default.join(_this.directory, fileOrDir);return _es2.default.exportArchiveToFilesystem({ srcArchive: srcDatWrapper.dat.archive, dstPath, srcPath: fileOrDir, overwriteExisting }); // .then(() => this.importFiles());
       }console.log('Warning: You tried to write to a Dat that is not yours. Nothing has been written.'); // Fallback
       return _bluebird2.default.resolve(false);})();} // Lists the contents of the dat
@@ -312,3 +314,4 @@ class DatWrapper extends _events2.default {
       resolve();
     }));
   }}exports.default = DatWrapper;
+//# sourceMappingURL=dat.js.map

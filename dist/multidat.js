@@ -191,3 +191,4 @@ class Multidat {constructor(baseDir) {
     const to = this.getDat(keyTo);
     return to.importFromDat(from, fileOrDir);
   }}exports.default = Multidat;
+//# sourceMappingURL=multidat.js.map

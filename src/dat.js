@@ -110,6 +110,7 @@ export default class DatWrapper extends EventEmitter {
       const progress = this.version > 0 ? (this.metadataDownloadCount / (this.version + 1)) * 100 : 0;
       this.emit('download metadata', {
         key: this.key,
+        version: index,
         type: block.value ? 'put' : 'del',
         progress,
         file: block.path,
@@ -133,21 +134,21 @@ export default class DatWrapper extends EventEmitter {
   };
 
   // call a function on each downloaded chuck of metadata.
-  onEachMetadata(fn) {
+  onEachMetadata(fn, startingFrom) {
     // returns a promise which will succeed if all are successful or fail and stop iterator.
-    return iteratePromised(this.metadataIterator(), fn);
+    return iteratePromised(this.metadataIterator(startingFrom), fn);
   }
 
   // this should iterate over only the downloaded metadata,
   // we can use this to populate database before joining the swarm
   // only importing what has already been downloaded, and then
   // fetch the rest via the 'metadata' downloaded events.
-  * metadataIterator() {
+  * metadataIterator(start = 1) {
     const metadata = this.dat.archive.metadata;
-    let imported = 0;
-    const total = metadata.downloaded() - 1; // -1 to exclude header
+    let imported = start - 1;
+    const total = metadata.downloaded();
     // this can be improved by using the bitfield in hypercore to find next non 0 block, but will do for now.
-    for (let i = 1; i <= this.version; i++) {
+    for (let i = start; i <= this.version; i++) {
       if (metadata.has(i)) {
         yield new Promise((resolve, reject) => // fix this to not make functions in a loop.
           metadata.get(i, (error, result) => {
@@ -186,7 +187,6 @@ export default class DatWrapper extends EventEmitter {
 
   importFiles(importPath = this.directory) {
     return new Promise((resolve, reject) => {
-      const dat = this.dat;
       if (this.isYours()) {
         console.log('Importing files under:', importPath);
         let putTotal = 0;
@@ -197,7 +197,7 @@ export default class DatWrapper extends EventEmitter {
           dereference: true,
           indexing: true,
         };
-        this.importer = dat.importFiles(importPath, opts, () => {
+        this.importer = this.dat.importFiles(importPath, opts, () => {
           console.log(`Finished importing files in ${importPath}`);
           this.emit('imported', {
             key: this.key,
@@ -220,6 +220,7 @@ export default class DatWrapper extends EventEmitter {
             file: src.name.replace(this.directory, ''),
             stat: src.stat,
             progress: putTotal > 0 ? (putCount / putTotal) * 100 : 100,
+            version: this.version, // I am not sure if this works as version is not set by mirror-folder
           };
           this.emit('import', data);
         });
@@ -230,6 +231,7 @@ export default class DatWrapper extends EventEmitter {
             file: src.name.replace(this.directory, ''),
             stat: src.stat,
             progress: putTotal > 0 ? (putCount / putTotal) * 100 : 100,
+            version: this.version,
           };
           this.emit('import', data);
         });

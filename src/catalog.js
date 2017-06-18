@@ -92,7 +92,6 @@ export class Catalog extends EventEmitter {
       .then(() => this.multidat.getDats())
       .each(dw => this.registerDat(dw))
       .each(dw => this.attachEventListenersAndJoinNetwork(dw));
-      // .each(dw => this.ingestDatContents(dw));
   }
 
   // Two functions for adding things into the catalog
@@ -203,8 +202,8 @@ export class Catalog extends EventEmitter {
       .each((dat) => {
         console.log(`Removing: ${chalk.bold(dat.dir)} from catalog (directory does not exist)`);
         return this.removeDat(dat.dat, false);
-      })
-      .then(() => this.db.clearTexts());
+      });
+      // .then(() => this.db.clearTexts());
   }
 
   attachEventListenersAndJoinNetwork = (dat) => {
@@ -230,6 +229,20 @@ export class Catalog extends EventEmitter {
 
   // For a Dat, ingest its contents into the catalog
   ingestDatContents(dw) {
+    // rather than clear texts check if metadata is complete
+    // only ingest if dat version is > max db version for key
+    // or if metadata is incomplete,
+    if (dw.metadataComplete) {
+      return this.db.lastImportedVersion(dw.key).then((data) => {
+        console.log(data);
+        if (!data.version || data.version < dw.version) {
+          console.log('importing from version', data.version);
+          return dw.onEachMetadata(this.ingestDatFile, data.version || 1);
+        }
+        console.log('not importing');
+        return null;
+      });
+    }
     return this.db.clearTexts(dw.key)
       .then(() => dw.onEachMetadata(this.ingestDatFile));
   }
@@ -245,13 +258,14 @@ export class Catalog extends EventEmitter {
       const text = {
         dat: data.key,
         state: data.type === 'put',
+        version: data.version,
         ...entry,
         downloaded,
       };
       return this.db.addTextFromMetadata(text)
         .then(() => this.emit('import', { ...text, progress: data.progress }))
         .then(() => {
-          console.log(`${data.progress.toFixed(2)}%`,'adding:', downloadedStr, data.file);
+          console.log(`${data.progress.toFixed(2)}%`, 'adding:', downloadedStr, data.file);
         })
         .catch((e) => {
           if (attempts > 0) {
@@ -330,6 +344,7 @@ export class Catalog extends EventEmitter {
       const text = {
         dat: data.key,
         state: data.type === 'put',
+        version: data.version,
         ...entry,
         downloaded: true, // downloaed is true as you are importing it, right?
       };
@@ -353,6 +368,7 @@ export class Catalog extends EventEmitter {
       const text = {
         dat: data.key,
         state: data.type === 'put',
+        version: data.version,
         ...entry,
         downloaded: false, // need to check for downloaded - probaby at this point does not makes sense as we have not even downloaded the metadata.
       };
@@ -369,7 +385,6 @@ export class Catalog extends EventEmitter {
 
   handleDatSyncMetadataEvent = (dat) => {
     console.log('Metadata sync event. Ingesting contents for:', dat);
-    // this.ingestDatContents(dw);
   }
 
   // When a dat import process is finished
