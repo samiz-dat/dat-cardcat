@@ -4,7 +4,7 @@ import PromiseQueue from '../src/utils/PromiseQueue';
 
 const expect = chai.expect;
 
-describe('PromiseQueue', () => {
+describe.only('PromiseQueue', () => {
   it('async functions are executed sequentially', (done) => {
     let counter = 0;
 
@@ -41,7 +41,7 @@ describe('PromiseQueue', () => {
     };
     const queue = new PromiseQueue();
     queue.add(() => Promise.delay(20));
-    queue.add(failing, 3);
+    queue.add(failing, { attempts: 3 });
     queue.add(() => {
       expect(counter).to.eql(3);
       done();
@@ -55,7 +55,7 @@ describe('PromiseQueue', () => {
       return (counter < 8) ? Promise.reject() : Promise.resolve();
     };
     const queue = new PromiseQueue();
-    queue.add(failing, 10);
+    queue.add(failing, { attempts: 10 });
     queue.add(() => {
       expect(counter).to.eql(8);
       done();
