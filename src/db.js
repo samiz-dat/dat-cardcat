@@ -180,7 +180,7 @@ export class Database {
       this.db.raw('GROUP_CONCAT("file" || ":" || "downloaded") as "files"'))
       .from('texts')
       .where('state', true)
-      .Andwhere(function () { // a bit inelegant but groups where statements
+      .andWhere(function () { // a bit inelegant but groups where statements
         this.where('title', 'like', s)
           .orWhere('author', 'like', s);
       })
