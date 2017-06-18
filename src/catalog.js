@@ -340,24 +340,31 @@ export class Catalog extends EventEmitter {
         .then(() => this.emit('import', { ...text, progress: data.progress }))
         .catch(console.error);
     } else {
-      console.log(`cannot import ${data.file}: maybe not calibre formated?`)
+      console.log(`cannot import ${data.file}: maybe not calibre formated?`);
     }
   }
 
   // When a dat's metadata is synced
   handleDatDownloadMetadataEvent = (data) => {
+    // this is almost identical to import MetadataEvent except for download flag - TODO: refactor to reduce duplication.
     console.log(`${data.progress.toFixed(2)}%`, 'Metadata download event.', data.type, ':', data.file);
-    const text = {
-      dat: data.key,
-      state: data.type === 'put',
-      ...parseEntry(data.file, 'calibre'),
-      downloaded: false, // need to check for downloaded - probaby at this point does not makes sense as we have not even downloaded the metadata.
-    };
-    // if this times out we should implement a simple promise queue,
-    // so that we just these requests to a list that gets executed when
-    // the preceeding functions .then is called.
-    this.db.addTextFromMetadata(text)
-      .catch(console.error);
+    const entry = parseEntry(data.file, 'calibre');
+    if (entry) {
+      const text = {
+        dat: data.key,
+        state: data.type === 'put',
+        ...entry,
+        downloaded: false, // need to check for downloaded - probaby at this point does not makes sense as we have not even downloaded the metadata.
+      };
+      // if this times out we should implement a simple promise queue,
+      // so that we just these requests to a list that gets executed when
+      // the preceeding functions .then is called.
+      this.db.addTextFromMetadata(text)
+        .then(() => this.emit('import', { ...text, progress: data.progress }))
+        .catch(console.error);
+    } else {
+      console.log(`cannot import ${data.file}: maybe not calibre formated?`);
+    }
   }
 
   handleDatSyncMetadataEvent = (dat) => {
