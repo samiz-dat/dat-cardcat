@@ -325,18 +325,23 @@ export class Catalog extends EventEmitter {
   // When a dat imports a file
   handleDatImportEvent = (data) => {
     console.log(`${data.progress.toFixed(2)}%`, 'import download event.', data.type, ':', data.file);
-    const text = {
-      dat: data.key,
-      state: data.type === 'put',
-      ...parseEntry(data.file, 'calibre'),
-      downloaded: true, // downloaed is true as you are importing it, right?
-    };
-    // if this times out we should implement a simple promise queue,
-    // so that we just these requests to a list that gets executed when
-    // the preceeding functions .then is called.
-    this.db.addTextFromMetadata(text)
-      .then(() => this.emit('import', { ...text, progress: data.progress }))
-      .catch(console.error);
+    const entry = parseEntry(data.file, 'calibre');
+    if (entry) {
+      const text = {
+        dat: data.key,
+        state: data.type === 'put',
+        ...entry,
+        downloaded: true, // downloaed is true as you are importing it, right?
+      };
+      // if this times out we should implement a simple promise queue,
+      // so that we just these requests to a list that gets executed when
+      // the preceeding functions .then is called.
+      this.db.addTextFromMetadata(text)
+        .then(() => this.emit('import', { ...text, progress: data.progress }))
+        .catch(console.error);
+    } else {
+      console.log(`cannot import ${data.file}: maybe not calibre formated?`)
+    }
   }
 
   // When a dat's metadata is synced
