@@ -11,6 +11,7 @@ import Database from './db'; // eslint-disable-line
 import Multidat from './multidat';
 
 import parseEntry from './utils/importers';
+import sequentialise from './utils/sequentialise';
 // @todo: this.db.close(); should be called on shutdown
 
 const rimrafAsync = Promise.promisify(rimraf);
@@ -21,10 +22,10 @@ export class Catalog extends EventEmitter {
     super();
     this.baseDir = baseDir;
     this.dats = [];
-    this.db = new Database(path.format({
+    this.db = sequentialise(new Database(path.format({
       dir: this.baseDir,
       base: 'catalog.db',
-    }));
+    })));
     this.multidat = new Multidat(baseDir);
     this.isReady = false;
 
