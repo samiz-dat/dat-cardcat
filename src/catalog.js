@@ -236,10 +236,10 @@ export class Catalog extends EventEmitter {
       return this.db.lastImportedVersion(dw.key).then((data) => {
         console.log(data);
         if (!data.version || data.version < dw.version) {
-          console.log('importing from version', data.version);
-          return dw.onEachMetadata(this.ingestDatFile, data.version || 1);
+          console.log('importing from version', data.version + 1, 'to version', dw.version);
+          return dw.onEachMetadata(this.ingestDatFile, data.version + 1 || 1);
         }
-        console.log('not importing');
+        console.log('not importing. already at version ', data.version);
         return null;
       });
     }
