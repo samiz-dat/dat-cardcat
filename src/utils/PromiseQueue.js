@@ -17,6 +17,15 @@ class PromiseQueue {
 
   errored = (err) => {
     console.error(err);
+    return err;
+  }
+
+  resolve(fn) {
+    try {
+      return Promise.resolve(fn());
+    } catch (e) {
+      return Promise.reject(e);
+    }
   }
 
   wrap(fn, cb, attempts) {
@@ -24,12 +33,13 @@ class PromiseQueue {
     const retry = (err) => {
       retryCount += 1;
       return (retryCount < attempts)
-        ? Promise.resolve(fn()).catch(retry)
+        ? this.resolve(fn).catch(retry)
         : this.errored(err);
     };
-    return Promise.resolve(fn())
+    return this.resolve(fn)
       .catch(retry)
       .then((...args) => {
+        // need a nice way of differentiating between failed calls and successfull
         if (cb) cb(...args);
       })
       .then(this.next);

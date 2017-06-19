@@ -29,27 +29,6 @@ export class Database {
     // this.db.on('query', queryData => console.log(queryData));
   }
 
-  transact(queries) {
-    console.log('transact(queries)', queries.length);
-    if (queries.length === 0) {
-      return Promise.resolve(false);
-    }
-    return this.doTransaction(queries);
-  }
-
-  async doTransaction(queries) {
-    if (queries.length === 0) {
-      return Promise.resolve(false);
-    }
-    const q = await this.db.raw('BEGIN TRANSACTION')
-      .then(() => {
-        Promise.each(queries, query => this.db.raw(`${query}`));
-      })
-      .then(() => this.db.raw('COMMIT'))
-      .catch(e => console.log(e));
-    return q;
-  }
-
   // Add a dat to the database
   addDat(dat, name, dir, version) {
     return this.db.insert({ dat, name, dir, version }).into('dats');
@@ -97,25 +76,6 @@ export class Database {
       .where('dat', datKey)
       .whereNotNull('version')
       .first();
-  }
-
-  // Insert a text into the texts table
-  addText(opts) {
-    const p = this.db.insert({
-      dat: opts.dat,
-      title_hash: opts.title_hash || '',
-      file_hash: opts.file_hash || '',
-      author: opts.author,
-      author_sort: opts.author_sort,
-      title: opts.title,
-      file: opts.file,
-      downloaded: opts.downloaded || 0,
-    }).into('texts');
-    if (this.transacting) {
-      this.transactionStatements.push(p.toString());
-      return Promise.resolve(true);
-    }
-    return p;
   }
 
   addTextFromMetadata(opts) {
@@ -295,7 +255,7 @@ export class Database {
     }
     if (opts.collection) {
       const s = `${opts.collection}%`;
-      exp.innerJoin('collections', function() {
+      exp.innerJoin('collections', function () {
         this
           .on('texts.dat', 'collections.dat')
           .on('texts.author', 'collections.author')
