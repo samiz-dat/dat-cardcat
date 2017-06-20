@@ -130,7 +130,7 @@ class DatWrapper extends _events2.default {
       this.emit('sync metadata', this.key);
       // @todo: remove this next hack line.
       // But for now we need it because on first load of dat we aren't getting the "loaded" event above
-      this.emit('sync collections', this.key);
+      // this.emit('sync collections', this.key);
     };this.
 
 
@@ -302,9 +302,12 @@ class DatWrapper extends _events2.default {
   downloadContent(fn = '') {const filename = `/${fn}/`;console.log(`Downloading: ${filename}`);console.log(this.stats.peers);return _es2.default.download(this.dat.archive, filename);} // Has the file been downloaded?
   // Rename
   rename(dir, name) {return renameAsync(this.directory, dir).then(() => {this.directory = dir;this.name = name;});} // Initialize the collections
-  listFlattenedCollections() {return this.collections.flatten();} // Write a manifest file
+  listFlattenedCollections() {if (this.collections) {return this.collections.flatten();}return _bluebird2.default.reject();} // Write a manifest file
   // @todo: fix me! why do i write empty manifests?
-  writeManifest(opts = {}) {var _this2 = this;return _asyncToGenerator(function* () {const manifest = _extends({ url: `dat://${_this2.key}`, title: _this2.name }, opts);yield _es2.default.writeManifest(_this2.dat.archive, manifest);return _this2;})();}readManifest() {return _es2.default.readManifest(this.dat.archive);}updateManifest(manifest) {
+  writeManifest(opts = {}) {var _this2 = this;return _asyncToGenerator(function* () {const manifest = _extends({ url: `dat://${_this2.key}`, title: _this2.name }, opts);yield _es2.default.writeManifest(_this2.dat.archive, manifest);return _this2;})();}readManifest() {return _es2.default.readManifest(this.dat.archive);
+  }
+
+  updateManifest(manifest) {
     return _es2.default.updateManifest(this.dat.archive, manifest);
   }
 

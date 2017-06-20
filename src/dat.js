@@ -130,7 +130,7 @@ export default class DatWrapper extends EventEmitter {
     this.emit('sync metadata', this.key);
     // @todo: remove this next hack line.
     // But for now we need it because on first load of dat we aren't getting the "loaded" event above
-    this.emit('sync collections', this.key);
+    // this.emit('sync collections', this.key);
   };
 
   // call a function on each downloaded chuck of metadata.
@@ -285,7 +285,10 @@ export default class DatWrapper extends EventEmitter {
 
   // Initialize the collections
   listFlattenedCollections() {
-    return this.collections.flatten();
+    if (this.collections) {
+      return this.collections.flatten();
+    }
+    return Promise.reject();
   }
 
   // Write a manifest file

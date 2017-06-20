@@ -1,7 +1,7 @@
 'use strict';Object.defineProperty(exports, "__esModule", { value: true });exports.Database = undefined;var _path = require('path');var _path2 = _interopRequireDefault(_path);
 var _knex = require('knex');var _knex2 = _interopRequireDefault(_knex);
 var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);
-var _openPackagingFormat = require('open-packaging-format');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}function _asyncToGenerator(fn) {return function () {var gen = fn.apply(this, arguments);return new _bluebird2.default(function (resolve, reject) {function step(key, arg) {try {var info = gen[key](arg);var value = info.value;} catch (error) {reject(error);return;}if (info.done) {resolve(value);} else {return _bluebird2.default.resolve(value).then(function (value) {step("next", value);}, function (err) {step("throw", err);});}}return step("next");});};}
+var _openPackagingFormat = require('open-packaging-format');function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}
 
 // Narrows query to within a dat/ list of dats
 function withinDat(query, dat, table = 'texts') {
@@ -298,57 +298,16 @@ class Database {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     getDats = () => this.db('dats').select();this.
     getDat = key => this.db('dats').select().where('dat', key);this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename }, useNullAsDefault: true }); // If you ever need to see what queries are being run uncomment the following.
     // this.db.on('query', queryData => console.log(queryData));
-  }transact(queries) {console.log('transact(queries)', queries.length);if (queries.length === 0) {return _bluebird2.default.resolve(false);}return this.doTransaction(queries);}doTransaction(queries) {var _this = this;return _asyncToGenerator(function* () {if (queries.length === 0) {return _bluebird2.default.resolve(false);}const q = yield _this.db.raw('BEGIN TRANSACTION').then(function () {_bluebird2.default.each(queries, function (query) {return _this.db.raw(`${query}`);});}).then(function () {return _this.db.raw('COMMIT');}).catch(function (e) {return console.log(e);});return q;})();} // Add a dat to the database
+  } // Add a dat to the database
   addDat(dat, name, dir, version) {return this.db.insert({ dat, name, dir, version }).into('dats');} // Remove a dat from the database
   removeDat(datKey) {return this.db('dats').where('dat', datKey).del();} // Update a dat's name and directory
   updateDat(datKey, name, dir) {return this.db('dats').where('dat', datKey).update({ name, dir });} // Remove all entries/ texts for a dat
   clearTexts(datKey) {if (datKey) {return this.db('texts').where('dat', datKey).del();}return this.db('texts').del();} // Remove all collection entries for a dat
   clearCollections(datKey) {if (datKey) {return this.db('collections').where('dat', datKey).del();}return this.db('collections').del();} // Returns the path to a dat as found in db.
-  pathToDat(datKey) {return this.db.select('dir').from('dats').where('dat', datKey).first();}lastImportedVersion(datKey) {return this.db('texts').max('version as version').where('dat', datKey).whereNotNull('version').first();} // Insert a text into the texts table
-  addText(opts) {const p = this.db.insert({ dat: opts.dat, title_hash: opts.title_hash || '', file_hash: opts.file_hash || '', author: opts.author, author_sort: opts.author_sort, title: opts.title, file: opts.file, downloaded: opts.downloaded || 0 }).into('texts');if (this.transacting) {this.transactionStatements.push(p.toString());return _bluebird2.default.resolve(true);}return p;}addTextFromMetadata(opts) {return this.db('texts').where({ dat: opts.dat, author: opts.author, title: opts.title, file: opts.file }).first().then(row => {let promise = -1; // console.log(opts.version, 'version!');
+  pathToDat(datKey) {return this.db.select('dir').from('dats').where('dat', datKey).first();}lastImportedVersion(datKey) {return this.db('texts').max('version as version').where('dat', datKey).whereNotNull('version').first();}addTextFromMetadata(opts) {return this.db('texts').where({ dat: opts.dat, author: opts.author, title: opts.title, file: opts.file }).first().then(row => {let promise = -1; // console.log(opts.version, 'version!');
       if (!row) {// add new text
         promise = this.db('texts').insert({ dat: opts.dat, version: opts.version, state: opts.state, title_hash: opts.title_hash || '', file_hash: opts.file_hash || '', author: opts.author, author_sort: opts.author_sort, title: opts.title, file: opts.file, downloaded: opts.downloaded || 0 });} else if (opts.version > row.version) {// update state and version if this text is newer version
         promise = this.db('texts').update({ version: opts.version, state: opts.state // state stored del or pul status as a bool
@@ -377,7 +336,8 @@ class Database {
     const tablesDropped = this.db.schema.dropTableIfExists('datsX').dropTableIfExists('textsX').dropTableIfExists('more_authorsX');return tablesDropped.createTableIfNotExists('dats', table => {table.string('dat');table.string('name');table.string('dir');table.integer('version'); // this will need to be updated whenever files are imported
       // table.unique('dat');
     }).createTableIfNotExists('texts', table => {table.increments('text_id');table.string('dat');table.integer('version');table.boolean('state'); // is valid
-      table.string('title_hash');table.string('file_hash');table.string('author');table.string('author_sort');
+      table.string('title_hash');table.string('file_hash');table.string('author');
+      table.string('author_sort');
       table.string('title');
       table.string('file');
       table.boolean('downloaded');

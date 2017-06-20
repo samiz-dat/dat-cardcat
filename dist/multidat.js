@@ -38,10 +38,10 @@ class Multidat {constructor(baseDir) {
   // [{ dat: <key>, dir: <path>, name: <str>}, ]
   initOthers(lookFor = []) {
     return _bluebird2.default.map(lookFor, dat => dat).
-    filter(dat => _fs2.default.existsSync(dat.dir) //
-    ).filter(dat => !dat.dir.startsWith(this.baseDir) // not in data directory
-    ).filter(dat => !this.dats[dat.key] // not in registry
-    ).each(dat => this.importDir(dat.dir, dat.name)).
+    filter(dat => _fs2.default.existsSync(dat.dir)) //
+    .filter(dat => !dat.dir.startsWith(this.baseDir)) // not in data directory
+    .filter(dat => !this.dats[dat.key]) // not in registry
+    .each(dat => this.importDir(dat.dir, dat.name)).
     then(() => this.dats);
   }
 

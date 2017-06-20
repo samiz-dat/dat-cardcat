@@ -279,6 +279,10 @@ export class Catalog extends EventEmitter {
           console.error('errrored', e);
           return null;
         });
+    // Special case of the collections file
+    } else if (data.file === '/dat-collections.json' && data.type === 'put') {
+      const dw = await this.multidat.getDat(data.key);
+      return this.ingestDatCollections(dw);
     }
     return Promise.resolve(false);
   }
@@ -288,7 +292,7 @@ export class Catalog extends EventEmitter {
     this.db.clearCollections(dw.key)
       .then(() => dw.listFlattenedCollections())
       .each(item => this.ingestDatCollectedFile(dw, item[0], item[1]))
-      .catch();
+      .catch(() => {});
   }
 
   ingestDatCollectedFile(dw, file, collectionArr, format = 'authorTitle') {
