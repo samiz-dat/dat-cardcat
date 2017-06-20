@@ -25,7 +25,10 @@ export class Catalog extends EventEmitter {
     this.db = sequentialise(new Database(path.format({
       dir: this.baseDir,
       base: 'catalog.db',
-    })));
+    })), {
+      ignore: ['db'],
+      promise: Promise,
+    });
     this.multidat = new Multidat(baseDir);
     this.isReady = false;
 

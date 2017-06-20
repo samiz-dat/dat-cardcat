@@ -30,13 +30,13 @@ describe('sequentialise', () => {
     expect(delayedPromise).to.be.a.instanceof(Promise);
     delayedPromise.then((result) => {
       expect(result).to.equal(args);
-    });
+    }).catch(done);
     const immediatePromise = linear.immediate(2, 3);
     expect(immediatePromise).to.be.a.instanceof(Promise);
     immediatePromise.then((result) => {
       expect(result).to.equal(5);
       done();
-    });
+    }).catch(done);
   });
 
   it('functions are executed sequentially', (done) => {
@@ -50,12 +50,12 @@ describe('sequentialise', () => {
       count++;
       expect(result).to.equal('ok');
       expect(count).to.equal(1);
-    });
+    }).catch(done);
     linear.immediate().then(() => {
       count++;
       expect(count).to.equal(2);
       done();
-    });
+    }).catch(done);
   });
 
   it('when passed arguents more than the original method expects, the last is passed as options to the promise queue', (done) => {
@@ -77,31 +77,64 @@ describe('sequentialise', () => {
       count++;
       expect(count).to.equal(1);
       expect(res).to.equal('no args');
-    });
+    }).catch(done);
     // test priority
-    linear.delayed(100, 'first', { priority: 1 }).then((res) => {
+    linear.delayed(100, 'last', { priority: 1 }).then((res) => {
       count++;
-      expect(count).to.equal(1);
-      expect(res).to.equal('first');
-    });
+      expect(count).to.equal(5);
+      expect(res).to.equal('last');
+    }).catch(done);
 
     linear.delayed(10, 'third', { priority: 2 }).then((res) => {
       count++;
       expect(count).to.equal(3);
       expect(res).to.equal('third');
-    });
+    }).catch(done);
 
-    linear.delayed(10, 'last', { priority: 2 }).then((res) => {
+    linear.delayed(10, 'fouth', { priority: 2 }).then((res) => {
       count++;
       expect(count).to.equal(4);
-      expect(res).to.equal('last');
+      expect(res).to.equal('fouth');
       done();
-    });
+    }).catch(done);
 
     linear.delayed(10, 'second', { priority: 4 }).then((res) => {
       count++;
       expect(count).to.equal(2);
       expect(res).to.equal('second');
-    });
+    }).catch(done);
+  });
+
+  it('accepts second argument as options object with ignore property being an array of method names not to sequentialise', (done) => {
+    const object = {
+      delayed: x => bluebird.delay(100).then(() => x),
+      immediate: () => 'immediate',
+      ignore: () => 'ignored',
+    };
+    const linear = sequentialise(object, { ignore: ['immediate', 'ignore'] });
+    const delayed = linear.delayed('ok');
+    expect(linear.ignore()).to.not.be.instanceof(Promise);
+    expect(linear.immediate()).to.not.be.instanceof(Promise);
+    expect(delayed).to.be.instanceof(Promise);
+    delayed.then((result) => {
+      expect(result).to.equal('ok');
+      done();
+    }).catch(done);
+    expect(linear.ignore()).to.equal('ignored');
+    expect(linear.immediate()).to.equal('immediate');
+  });
+
+  it('accepts second argument as options object with promise property being constructor for promise type', (done) => {
+    const object = {
+      identity: x => x,
+    };
+    const linear = sequentialise(object, { promise: bluebird });
+    const identity = linear.identity('ok');
+    expect(identity).to.be.instanceof(bluebird);
+    identity.then((v) => {
+      expect(v).to.equal('ok');
+      done();
+    })
+    .catch(done);
   });
 });
