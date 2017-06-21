@@ -1,5 +1,6 @@
 // import chai from 'chai';
 import temp from 'temp';
+import fs from 'fs';
 import createDat from 'dat-node';
 import Promise from 'bluebird';
 import { shareLibraryDat } from './helpers/shareDats';
@@ -24,13 +25,13 @@ describe('replicate issue with dat.close', () => {
     close(done);
   });
 
-  it('breaks', () => {
+  it('breaks', (done) => {
     const opts = {
       latest: true,
       indexing: true,
     };
     const tmpPath = temp.mkdirSync(temporaryDir);
-    return createDatAsync(tmpPath, opts)
+    createDatAsync(tmpPath, opts)
       .then((dat) => {
         const importOpts = {
           key: externalLibraryKey,
@@ -39,10 +40,13 @@ describe('replicate issue with dat.close', () => {
           dereference: true,
           indexing: true,
         };
-        dat.importFiles(importOpts, () => {
-          console.log('finished importing');
+        fs.lstat(tmpPath, (err, stat) => {
+          console.log(err, stat); // what happens here?
+          dat.importFiles(importOpts, () => {
+            console.log('finished importing');
+          });
+          new Promise(resolve => dat.close(resolve)).then(done);
         });
-        return new Promise(resolve => dat.close(resolve));
       });
   });
 });
