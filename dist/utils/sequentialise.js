@@ -36,8 +36,5 @@ sequentialise;var _PromiseQueue = require('./PromiseQueue');var _PromiseQueue2 =
 //     return new Promise(resolve => this.queue.add(queryFn, resolve, opts));
 //   }
 // }
-function sequentialise(obj, opts) {const P = opts && opts.promise ? opts.promise : Promise;const ignore = opts && Array.isArray(opts.ignore) ? opts.ignore : [];const queue = new _PromiseQueue2.default();function execute(queryFn, queueOptions) {return new P(resolve => queue.add(queryFn, resolve, queueOptions));}const handler = { get(target, propKey, receiver) {const origMethod = target[propKey];if (typeof origMethod !== 'function' || ignore.includes(propKey)) return origMethod;return (...args) => {const queueOptions = args.length > origMethod.length ? args.pop() : undefined;return execute(origMethod.bind(receiver, ...args), queueOptions);};} };
-
-  return new Proxy(obj, handler);
-}
+function sequentialise(obj, opts) {const P = opts && opts.promise ? opts.promise : Promise;const ignore = opts && Array.isArray(opts.ignore) ? opts.ignore : [];const queue = new _PromiseQueue2.default(null, P);const handler = { get(target, propKey, receiver) {const origMethod = target[propKey];if (typeof origMethod !== 'function' || ignore.includes(propKey)) return origMethod;return (...args) => {const queueOptions = args.length > origMethod.length ? args.pop() : undefined;return queue.add(origMethod.bind(receiver, ...args), queueOptions);};} };return new Proxy(obj, handler);}
 //# sourceMappingURL=sequentialise.js.map

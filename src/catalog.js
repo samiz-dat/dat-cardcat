@@ -292,7 +292,8 @@ export class Catalog extends EventEmitter {
     this.db.clearCollections(dw.key)
       .then(() => dw.listFlattenedCollections())
       .each(item => this.ingestDatCollectedFile(dw, item[0], item[1]))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => this.emit('collections updated'));
   }
 
   ingestDatCollectedFile(dw, file, collectionArr, format = 'authorTitle') {
@@ -306,8 +307,7 @@ export class Catalog extends EventEmitter {
         title: importedData.title,
         collection,
       };
-      return this.db.addCollectedText(data)
-        .then(() => this.emit('collect', { ...data, file }));
+      return this.db.addCollectedText(data);
     }
     return Promise.resolve(false);
   }
