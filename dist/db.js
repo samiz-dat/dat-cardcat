@@ -297,7 +297,6 @@ class Database {
 
 
 
-
     getDats = () => this.db('dats').select();this.
     getDat = key => this.db('dats').select().where('dat', key);this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename }, useNullAsDefault: true }); // If you ever need to see what queries are being run uncomment the following.
     // this.db.on('query', queryData => console.log(queryData));
@@ -324,7 +323,7 @@ class Database {
   getTitlesWith(opts, dat) {const exp = this.db.select('texts.dat', 'texts.author', 'texts.title', 'texts.title_hash', 'texts.author_sort', this.db.raw('GROUP_CONCAT("texts.file" || ":" || "texts.downloaded") as "files"')).from('texts').where('texts.state', true);if (opts.author) {exp.AndWhere('texts.author', opts.author);}if (opts.title) {exp.andWhere('texts.title', opts.title);}if (opts.collection) {const s = `${opts.collection}%`;exp.innerJoin('collections', function () {this.on('texts.dat', 'collections.dat').on('texts.author', 'collections.author').on('texts.title', 'collections.title');}).where('collections.collection', 'like', s);}withinDat(exp, dat);return exp.groupBy('texts.author', 'texts.title').orderBy('texts.author_sort', 'texts.title');} // Gets entire entries for catalog items matching author/title/file.
   // Can specify a dat or a list of dats to get within.
   getItemsWith(opts, dat, distinct) {const exp = this.db('texts');if (distinct) {exp.distinct(distinct);}if (opts.author) {exp.where('texts.author', opts.author);}if (opts.title) {exp.where('texts.title', opts.title);}if (opts.file) {exp.where('texts.file', opts.file);}if (opts.collection) {const s = `${opts.collection}%`;exp.innerJoin('collections', function () {this.on('texts.dat', 'collections.dat').on('texts.author', 'collections.author').on('texts.title', 'collections.title');}).where('collections.collection', 'like', s);}withinDat(exp, dat || opts.dat);return exp.andWhere('texts.state', true).orderBy('texts.dat', 'texts.author', 'texts.title');} // Gets a list of collections in the catalog
-  getCollections(startingWith, dat) {const exp = this.db.select('collection').from('collections').count('* as count');withinDat(exp, dat);if (startingWith) {const s = `${startingWith}%`;exp.where('collection', 'like', s);}return exp.andWhere('texts.state', true).groupBy('collection').orderBy('collection');} // Optionally only include files from a particular dat.
+  getCollections(startingWith, dat) {const exp = this.db.select('collection').from('collections').count('* as count');withinDat(exp, dat);if (startingWith) {const s = `${startingWith}%`;exp.where('collection', 'like', s);}return exp.groupBy('collection').orderBy('collection');} // Optionally only include files from a particular dat.
   // Optionally specify a filename to find.
   getFiles(author, title, dat, file) {const exp = this.db('texts').where('author', author).andWhere('title', title).andWhere('texts.state', true);withinDat(exp, dat);if (file) {exp.where('file', file);}return exp.orderBy('dat', 'file');} // Gets dats containing items described in opts (author/title/file)
   // Optionally provide one or more dats to look within.

@@ -279,7 +279,6 @@ export class Database {
       exp.where('collection', 'like', s);
     }
     return exp
-      .andWhere('texts.state', true)
       .groupBy('collection')
       .orderBy('collection');
   }
