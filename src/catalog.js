@@ -16,11 +16,23 @@ import sequentialise from './utils/sequentialise';
 
 const rimrafAsync = Promise.promisify(rimraf);
 
+// Ensures that the catalog directory will be available
+function prepareCatalogDir(dataDir) {
+  // Directory to store all the data in
+  let dataDirFinal = path.join(process.cwd(), config.get('dataDir'));
+  dataDirFinal = dataDir || dataDirFinal;
+  // Create data directory if it doesn't exist yet
+  if (!fs.existsSync(dataDirFinal)) {
+    fs.mkdirSync(dataDirFinal);
+  }
+  return dataDirFinal;
+}
+
 // Class definition
 export class Catalog extends EventEmitter {
   constructor(baseDir) {
     super();
-    this.baseDir = baseDir;
+    this.baseDir = prepareCatalogDir(baseDir);
     this.dats = [];
     this.db = sequentialise(new Database(path.format({
       dir: this.baseDir,
@@ -29,7 +41,7 @@ export class Catalog extends EventEmitter {
       ignore: ['db'],
       promise: Promise,
     });
-    this.multidat = new Multidat(baseDir);
+    this.multidat = new Multidat(this.baseDir);
     this.isReady = false;
 
     // For bulk imports we'll use queue
@@ -414,16 +426,7 @@ export class Catalog extends EventEmitter {
 }
 
 export function createCatalog(dataDir, databaseOnlyMode) {
-  // Directory to store all the data in
-  let dataDirFinal = path.join(process.cwd(), config.get('dataDir'));
-  dataDirFinal = dataDir || dataDirFinal;
-
-  // Create data directory if it doesn't exist yet
-  if (!fs.existsSync(dataDirFinal)) {
-    fs.mkdirSync(dataDirFinal);
-  }
-
-  const catalog = new Catalog(dataDirFinal);
+  const catalog = new Catalog(dataDir);
   return catalog.init(databaseOnlyMode);
 }
 

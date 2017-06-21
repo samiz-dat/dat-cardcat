@@ -413,10 +413,25 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 createCatalog = createCatalog;var _events = require('events');var _events2 = _interopRequireDefault(_events);var _path = require('path');var _path2 = _interopRequireDefault(_path);var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);var _lodash = require('lodash');var _lodash2 = _interopRequireDefault(_lodash);var _rimraf = require('rimraf');var _rimraf2 = _interopRequireDefault(_rimraf);var _config = require('./config');var _config2 = _interopRequireDefault(_config);var _db = require('./db');var _db2 = _interopRequireDefault(_db);var _multidat = require('./multidat');var _multidat2 = _interopRequireDefault(_multidat);var _importers = require('./utils/importers');var _importers2 = _interopRequireDefault(_importers);var _sequentialise = require('./utils/sequentialise');var _sequentialise2 = _interopRequireDefault(_sequentialise);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}function _asyncToGenerator(fn) {return function () {var gen = fn.apply(this, arguments);return new _bluebird2.default(function (resolve, reject) {function step(key, arg) {try {var info = gen[key](arg);var value = info.value;} catch (error) {reject(error);return;}if (info.done) {resolve(value);} else {return _bluebird2.default.resolve(value).then(function (value) {step("next", value);}, function (err) {step("throw", err);});}}return step("next");});};} // This will b removed soon
 // eslint-disable-line
 // @todo: this.db.close(); should be called on shutdown
-const rimrafAsync = _bluebird2.default.promisify(_rimraf2.default); // Class definition
+const rimrafAsync = _bluebird2.default.promisify(_rimraf2.default); // Ensures that the catalog directory will be available
+function prepareCatalogDir(dataDir) {// Directory to store all the data in
+  let dataDirFinal = _path2.default.join(process.cwd(), _config2.default.get('dataDir'));dataDirFinal = dataDir || dataDirFinal; // Create data directory if it doesn't exist yet
+  if (!_fs2.default.existsSync(dataDirFinal)) {_fs2.default.mkdirSync(dataDirFinal);}return dataDirFinal;} // Class definition
 class Catalog extends _events2.default {constructor(baseDir) {var _this;_this = super();this.attachEventListenersAndJoinNetwork = dat => {dat.on('import', this.handleDatImportEvent);dat.on('download metadata', this.handleDatDownloadMetadataEvent);dat.on('sync metadata', this.handleDatSyncMetadataEvent); // dat.on('sync collections', this.handleDatSyncCollectionsEvent);
       return dat.run();};this.ingestDatFile = (() => {var _ref = _asyncToGenerator(function* (data, attempts = 10) {// console.log('trying to import:', data.type, ':', data.file, data.progress);
         const entry = (0, _importers2.default)(data.file, 'calibre');if (entry) {const downloaded = yield _this.multidat.getDat(data.key).hasFile(data.file);const downloadedStr = downloaded ? '[*]' : '[ ]'; // console.log(chalk.bold('adding:'), downloadedStr, data.file);
@@ -430,7 +445,7 @@ class Catalog extends _events2.default {constructor(baseDir) {var _this;_this = 
         }); // if this times out we should implement a simple promise queue,
         // so that we just these requests to a list that gets executed when
         // the preceeding functions .then is called.
-        this.db.addTextFromMetadata(text).then(() => this.emit('import', _extends({}, text, { progress: data.progress }))).catch(console.error);} else {console.log(`cannot import ${data.file}: maybe not calibre formated?`);}};this.handleDatSyncMetadataEvent = dat => {console.log('Metadata sync event. Ingesting contents for:', dat);};this.handleDatListingEvent = data => {console.log('Importing: ', data);};this.handleDatListingEndEvent = data => {console.log(data);};this.handleDatSyncCollectionsEvent = dw => {console.log('Collections sync event. Ingesting collections for:', dw.name);this.ingestDatCollections(dw);};this.baseDir = baseDir;this.dats = [];this.db = (0, _sequentialise2.default)(new _db2.default(_path2.default.format({ dir: this.baseDir, base: 'catalog.db' })), { ignore: ['db'], promise: _bluebird2.default });this.multidat = new _multidat2.default(baseDir);this.isReady = false; // For bulk imports we'll use queue
+        this.db.addTextFromMetadata(text).then(() => this.emit('import', _extends({}, text, { progress: data.progress }))).catch(console.error);} else {console.log(`cannot import ${data.file}: maybe not calibre formated?`);}};this.handleDatSyncMetadataEvent = dat => {console.log('Metadata sync event. Ingesting contents for:', dat);};this.handleDatListingEvent = data => {console.log('Importing: ', data);};this.handleDatListingEndEvent = data => {console.log(data);};this.handleDatSyncCollectionsEvent = dw => {console.log('Collections sync event. Ingesting collections for:', dw.name);this.ingestDatCollections(dw);};this.baseDir = prepareCatalogDir(baseDir);this.dats = [];this.db = (0, _sequentialise2.default)(new _db2.default(_path2.default.format({ dir: this.baseDir, base: 'catalog.db' })), { ignore: ['db'], promise: _bluebird2.default });this.multidat = new _multidat2.default(this.baseDir);this.isReady = false; // For bulk imports we'll use queue
     this.importQueue = [];this.queuing = [];this.queueBatchSize = parseInt(_config2.default.get('queueBatchSize'), 10); // Now, database functions are passed on from this.db
     // explicitly declare publicly accessible database functions
     const publicDatabaseFuncs = ['getDats', 'getAuthors', 'getCollectionAuthors', 'getAuthorLetters', 'getCollections', 'getTitlesWith', 'search', 'getTitlesForAuthor', 'setDownloaded'];publicDatabaseFuncs.forEach(fn => {if (typeof this.db[fn] === 'function') this[fn] = (...args) => this.db[fn](...args);else console.warn(`Database function "${fn}" does not exist and has not been attached to Catalog object.`);});const publicMultidatFuncs = ['copyFromDatToDat'];publicMultidatFuncs.forEach(fn => {if (typeof this.multidat[fn] === 'function') this[fn] = (...args) => this.multidat[fn](...args);else console.warn(`Multidat function "${fn}" does not exist and has not been attached to Catalog object.`);});}init(databaseOnlyMode) {if (databaseOnlyMode) {return this.initDatabase().then(() => this);}return this.initDatabase().then(() => this.initMultidat()).then(() => {this.emit('ready');}).catch(err => this.emit('error', err)).then(() => this);}close() {// close all dats
@@ -482,7 +497,5 @@ class Catalog extends _events2.default {constructor(baseDir) {var _this;_this = 
   // When a dat's metadata is synced
   // When a dat import process is finished
   // When a dat import process is finished
-}exports.Catalog = Catalog;function createCatalog(dataDir, databaseOnlyMode) {// Directory to store all the data in
-  let dataDirFinal = _path2.default.join(process.cwd(), _config2.default.get('dataDir'));dataDirFinal = dataDir || dataDirFinal; // Create data directory if it doesn't exist yet
-  if (!_fs2.default.existsSync(dataDirFinal)) {_fs2.default.mkdirSync(dataDirFinal);}const catalog = new Catalog(dataDirFinal);return catalog.init(databaseOnlyMode);}exports.default = Catalog;
+}exports.Catalog = Catalog;function createCatalog(dataDir, databaseOnlyMode) {const catalog = new Catalog(dataDir);return catalog.init(databaseOnlyMode);}exports.default = Catalog;
 //# sourceMappingURL=catalog.js.map
