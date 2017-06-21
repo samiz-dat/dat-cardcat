@@ -300,12 +300,14 @@ export class Catalog extends EventEmitter {
     if (importedData) {
       const collection = collectionArr.join(';;');
       console.log(chalk.bold('collecting:'), file, collection);
-      return this.db.addCollectedText({
+      const data = {
         dat: dw.key,
         author: importedData.author,
         title: importedData.title,
         collection,
-      });
+      };
+      return this.db.addCollectedText(data)
+        .then(() => this.emit('collect', { ...data, file }));
     }
     return Promise.resolve(false);
   }
@@ -422,7 +424,6 @@ export function createCatalog(dataDir, databaseOnlyMode) {
   }
 
   const catalog = new Catalog(dataDirFinal);
-  // @todo: adjust init() to not load any dats, allowing for quick db searches
   return catalog.init(databaseOnlyMode);
 }
 
