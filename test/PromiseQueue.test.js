@@ -30,8 +30,8 @@ describe('PromiseQueue', () => {
     };
 
     const queue = new PromiseQueue(done);
-    queue.add(() => Promise.delay(10).then(count), expectReturnedValue(1));
-    queue.add(() => Promise.delay(10).then(count), expectReturnedValue(2));
+    queue.add(() => Promise.delay(10).then(count)).then(expectReturnedValue(1)).catch(e => done(e));
+    queue.add(() => Promise.delay(10).then(count)).then(expectReturnedValue(2)).catch(e => done(e));
   });
 
   it('prioritises based on priority options', (done) => {
@@ -43,12 +43,12 @@ describe('PromiseQueue', () => {
     };
 
     const queue = new PromiseQueue(done);
-    queue.add(() => Promise.delay(10).then(count), expectOrder(1), { priority: 0 }); // executed immediately because queue is empty
-    queue.add(() => Promise.delay(10).then(count), expectOrder(5), { priority: 0 });
-    queue.add(() => Promise.delay(10).then(count), expectOrder(3), { priority: 2 });
-    queue.add(() => Promise.delay(10).then(count), expectOrder(6), { priority: 0 });
-    queue.add(() => Promise.delay(10).then(count), expectOrder(4), { priority: 2 });
-    queue.add(() => Promise.delay(10).then(count), expectOrder(2), { priority: 5 });
+    queue.add(() => Promise.delay(10).then(count), { priority: 0 }).then(expectOrder(1)).catch(e => done(e));
+    queue.add(() => Promise.delay(10).then(count), { priority: 0 }).then(expectOrder(5)).catch(e => done(e));
+    queue.add(() => Promise.delay(10).then(count), { priority: 2 }).then(expectOrder(3));
+    queue.add(() => Promise.delay(10).then(count), { priority: 0 }).then(expectOrder(6));
+    queue.add(() => Promise.delay(10).then(count), { priority: 2 }).then(expectOrder(4));
+    queue.add(() => Promise.delay(10).then(count), { priority: 5 }).then(expectOrder(2));
   });
 
   it('does not stop on error', (done) => {
@@ -58,10 +58,10 @@ describe('PromiseQueue', () => {
     const expectOrder = i => () => { expect(counter).to.eql(i); };
 
     const queue = new PromiseQueue();
-    queue.add(() => Promise.reject());
+    queue.add(() => Promise.reject()).catch(e => 'e');
     queue.add(() => Promise.delay(10).then(count));
-    queue.add(() => Promise.reject());
-    queue.add(() => Promise.reject());
+    queue.add(() => Promise.reject()).catch(e => 'e');
+    queue.add(() => Promise.reject()).catch(e => 'e');
     queue.add(expectOrder(1));
     queue.add(() => done());
   });

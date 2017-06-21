@@ -23,18 +23,15 @@ export default function sequentialise(obj, opts) {
   const P = (opts && opts.promise) ? opts.promise : Promise;
   const ignore = (opts && Array.isArray(opts.ignore)) ? opts.ignore : [];
 
-  const queue = new PromiseQueue();
+  const queue = new PromiseQueue(null, P);
 
-  function execute(queryFn, queueOptions) {
-    return new P(resolve => queue.add(queryFn, resolve, queueOptions));
-  }
   const handler = {
     get(target, propKey, receiver) {
       const origMethod = target[propKey];
       if (typeof origMethod !== 'function' || (ignore.includes(propKey))) return origMethod;
       return (...args) => {
         const queueOptions = (args.length > origMethod.length) ? args.pop() : undefined;
-        return execute(origMethod.bind(receiver, ...args), queueOptions);
+        return queue.add(origMethod.bind(receiver, ...args), queueOptions);
       };
     },
   };
