@@ -21,17 +21,21 @@ function withinColl(query, coll) {
   if (Array.isArray(coll) && coll.length === 0) {
     return query;
   }
+  let collCond = coll;
+  if (Array.isArray(coll) && coll.length === 1) {
+    collCond = coll[0];
+  }
   query.innerJoin('collections', function() {
     this
       .on('texts.dat', 'collections.dat')
       .on('texts.author', 'collections.author')
       .on('texts.title', 'collections.title');
   });
-  if (typeof coll === 'string') {
-    const s = `${coll}%`;
+  if (typeof collCond === 'string') {
+    const s = `${collCond}%`;
     query.where('collections.collection', 'like', s);
-  } else if (Array.isArray(coll)) {
-    query.whereIn('collections.collection', coll);
+  } else if (Array.isArray(collCond)) {
+    query.whereIn('collections.collection', collCond);
   }
   return query;
 }
@@ -181,13 +185,16 @@ export class Database {
   }
 
   // Gets a count of authors in the catalog
-  getAuthors(startingWith, dat) {
+  getAuthors(startingWith, opts, dat) {
     const exp = this.db.select('texts.author').from('texts')
       .countDistinct('texts.title as count');
     withinDat(exp, dat);
     if (startingWith) {
       const s = `${startingWith}%`;
       exp.where('texts.author_sort', 'like', s);
+    }
+    if (opts.collection) {
+      withinColl(exp, opts.collection);
     }
     return exp
       .where('texts.state', true)
