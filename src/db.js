@@ -18,6 +18,9 @@ function withinDat(query, dat, table = 'texts') {
 // Narrows query to within a collection/ list of collections
 // Note: it is assumed that it is being joined to the `texts` table
 function withinColl(query, coll) {
+  if (Array.isArray(coll) && coll.length === 0) {
+    return query;
+  }
   query.innerJoin('collections', function() {
     this
       .on('texts.dat', 'collections.dat')
