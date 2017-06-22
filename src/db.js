@@ -251,10 +251,10 @@ export class Database {
       .from('texts')
       .where('texts.state', true);
     if (opts.author) {
-      exp.AndWhere('texts.author', opts.author);
+      exp.where('texts.author', opts.author);
     }
     if (opts.title) {
-      exp.andWhere('texts.title', opts.title);
+      exp.where('texts.title', opts.title);
     }
     if (opts.collection) {
       withinColl(exp, opts.collection);

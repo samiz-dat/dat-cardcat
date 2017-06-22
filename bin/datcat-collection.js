@@ -24,6 +24,19 @@ cmd
 
 // Get authors in a collection
 cmd
+  .command('author-letters <name>')
+  .action((name) => {
+    catalog.createCatalog(false, true)
+      .then(c => c.getAuthorLetters({ collection: name }))
+      .then((rows) => {
+        for (const doc of rows) {
+          console.log(doc.letter);
+        }
+      });
+  });
+
+// Get authors in a collection
+cmd
   .option('-d, --dats', 'show dat keys')
   .command('authors <name>')
   .action((name) => {
@@ -43,10 +56,10 @@ cmd
 // Get titles in a collection
 cmd
   .option('-d, --dats', 'show dat keys')
-  .command('titles <name>')
-  .action((name) => {
+  .command('titles <name> [author]')
+  .action((collection, author) => {
     catalog.createCatalog(false, true)
-      .then(c => c.getTitlesWith({ collection: name }))
+      .then(c => c.getTitlesWith({ collection, author }))
       .then((rows) => {
         for (const doc of rows) {
           console.log(`${doc.author}: ${doc.title})`);
