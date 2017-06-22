@@ -286,7 +286,7 @@ export class Database {
     }
     withinDat(exp, dat || opts.dat);
     return exp
-      .andWhere('texts.state', true)
+      .where('texts.state', true)
       .orderBy('texts.dat', 'texts.author', 'texts.title');
   }
 
