@@ -15,6 +15,25 @@ function withinDat(query, dat, table = 'texts') {
   return query;
 }
 
+// Narrows query to within a collection/ list of collections
+// Note: it is assumed that it is being joined to the `texts` table
+function withinColl(query, coll) {
+  query.innerJoin('collections', function() {
+    this
+      .on('texts.dat', 'collections.dat')
+      .on('texts.author', 'collections.author')
+      .on('texts.title', 'collections.title');
+  });
+  if (typeof coll === 'string') {
+    const s = `${coll}%`;
+    query.where('collections.collection', 'like', s);
+  } else if (Array.isArray(coll)) {
+    query.whereIn('collections.collection', coll);
+  }
+  return query;
+}
+
+//
 export class Database {
   // Constructor
   constructor(filename) {
@@ -184,22 +203,28 @@ export class Database {
   }
 
   // Gets a list of letters of authors, for generating a directory
-  getAuthorLetters(dat) {
+  getAuthorLetters(opts, dat) {
     const exp = this.db.column(this.db.raw('lower(substr(author_sort,1,1)) as letter'))
       .select();
     withinDat(exp, dat);
+    if (opts.collection) {
+      withinColl(exp, opts.collection);
+    }
     return exp.from('texts')
       .where('texts.state', true)
       .distinct('letter')
       .orderBy('letter');
   }
 
-  getTitlesForAuthor(author, dat) {
+  getTitlesForAuthor(author, opts, dat) {
     const exp = this.db('texts')
       .distinct('dat', 'title')
       .where('author', author)
       .andWhere('texts.state', true);
     withinDat(exp, dat);
+    if (opts.collection) {
+      withinColl(exp, opts.collection);
+    }
     return exp.orderBy('title');
   }
 
@@ -222,14 +247,7 @@ export class Database {
       exp.andWhere('texts.title', opts.title);
     }
     if (opts.collection) {
-      const s = `${opts.collection}%`;
-      exp.innerJoin('collections', function() {
-        this
-          .on('texts.dat', 'collections.dat')
-          .on('texts.author', 'collections.author')
-          .on('texts.title', 'collections.title');
-      })
-      .where('collections.collection', 'like', s);
+      withinColl(exp, opts.collection);
     }
     withinDat(exp, dat);
     return exp
@@ -254,14 +272,7 @@ export class Database {
       exp.where('texts.file', opts.file);
     }
     if (opts.collection) {
-      const s = `${opts.collection}%`;
-      exp.innerJoin('collections', function () {
-        this
-          .on('texts.dat', 'collections.dat')
-          .on('texts.author', 'collections.author')
-          .on('texts.title', 'collections.title');
-      })
-      .where('collections.collection', 'like', s);
+      withinColl(exp, opts.collection);
     }
     withinDat(exp, dat || opts.dat);
     return exp
