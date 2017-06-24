@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import EventEmitter from 'events';
 import createDat from 'dat-node';
-import Collections from 'dat-collections';
+import { openCollections, createCollection } from 'dat-collections';
 // import _ from 'lodash';
 import Promise from 'bluebird';
 import chalk from 'chalk';
@@ -57,7 +57,7 @@ export default class DatWrapper extends EventEmitter {
     this.opts.indexing = true;
     this.importer = false;
     // Collections
-    this.collections = false;
+    this.availableCollections = false;
   }
 
   // Just creates a dat object
@@ -77,12 +77,6 @@ export default class DatWrapper extends EventEmitter {
   // join network and import files
   run() {
     this.importFiles();
-
-    this.collections = new Collections(this.dat.archive);
-    this.collections.on('loaded', () => {
-      console.log(`collections data loaded (${this.name})`);
-      // this.emit('sync collections', this);
-    });
 
     const network = this.dat.joinNetwork();
     this.stats = this.dat.trackStats();
@@ -283,12 +277,35 @@ export default class DatWrapper extends EventEmitter {
       });
   }
 
-  // Initialize the collections
-  listFlattenedCollections() {
-    if (this.collections) {
-      return this.collections.flatten();
+  // Returns a list of the collections available through this dat
+  getAvailableCollections() {
+    if (this.availableCollections) {
+      return this.availableCollections.list()
+      .catch(() => []);
     }
-    return Promise.reject();
+    return openCollections(this.dat.archive, 'dat-collections')
+    .tap((colls) => { this.availableCollections = colls; })
+    .then(colls => colls.list())
+    .catch(() => []);
+  }
+
+  // Loads a single collection and returns a list of its flattened contents
+  loadCollection(name) {
+    return createCollection(this.dat.archive, path.join('dat-collections', name))
+    .then(collection => collection.flatten())
+    .catch(() => []);
+  }
+
+  // Returns a {title, description} object for information about a collection.
+  // path is an array, potentially describing a subcollection
+  informationAboutCollection(name, subcoll) {
+    const info = { title: '', description: '' };
+    return createCollection(this.dat.archive, path.join('dat-collections', name))
+    .then(collection =>
+      collection.title(subcoll).then((s) => { info.title = s; })
+      .then(collection.description(subcoll).then((s) => { info.description = s; })))
+    .then(() => info)
+    .catch(() => info);
   }
 
   // Write a manifest file

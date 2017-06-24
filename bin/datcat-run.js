@@ -27,7 +27,10 @@ const taskQuestions = [
       new inquirer.Separator(),
       'Search for something',
       'Browse by author name',
+      new inquirer.Separator(),
       'List collections',
+      'See collections available to load',
+      new inquirer.Separator(),
     ],
   },
 ];
@@ -63,6 +66,19 @@ const authorTaskChoices = [
     choices: [
       'List titles',
       'Checkout everything',
+    ],
+  },
+];
+
+const availableCollectionTaskChoices = [
+  {
+    type: 'list',
+    name: 'choice',
+    message: 'Select one:',
+    choices: [
+      'See information about',
+      'Load collection into cardcat',
+      'Back to available collections',
     ],
   },
 ];
@@ -271,6 +287,44 @@ function collectionTasks(collection) {
   });
 }
 
+function availableCollectionTasks(key, name) {
+  return inquirer.prompt(availableCollectionTaskChoices)
+  .then((answers) => {
+    switch (answers.choice) {
+      case 'See information about': {
+        return cardcat.informationAboutCollection(name, key)
+        .then((info) => {
+          console.log(`Title: ${info.title}\nDescription: ${info.description}`);
+        })
+        .then(() => availableCollectionTasks(key, name));
+      }
+      case 'Load collection into cardcat': {
+        return cardcat.ingestDatCollection(name, key)
+        .then(() => {
+          console.log(`${name} is loaded`);
+        })
+        .then(() => askToAskAgain());
+      }
+      case 'Back to available collections': {
+        return availableCollectionsTask();
+      }
+      default: {
+        return availableCollectionsTask();
+      }
+    }
+  });
+}
+
+function availableCollectionsTask() {
+  textChoices[0].choices = [];
+  return cardcat.getAvailableCollections()
+    .then((collections) => {
+      textChoices[0].choices = collections.map(c => `${c[1]}\t${c[0]}`);
+      return inquirer.prompt(textChoices)
+        .then(answers => availableCollectionTasks(...answers.choice.split('\t')));
+    });
+}
+
 function collectionsTask() {
   textChoices[0].choices = [];
   return cardcat.getCollections()
@@ -314,6 +368,9 @@ function getTask() {
       }
       case 'List collections': {
         return collectionsTask();
+      }
+      case 'See collections available to load': {
+        return availableCollectionsTask();
       }
       default: {
         console.log(`${answers.task} aren't handled yet`);

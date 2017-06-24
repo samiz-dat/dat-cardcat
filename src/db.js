@@ -84,8 +84,15 @@ export class Database {
   }
 
   // Remove all collection entries for a dat
-  clearCollections(datKey) {
+  clearCollections(datKey, collection) {
     if (datKey) {
+      if (collection) {
+        return this.db('collections')
+        .where({
+          dat: datKey,
+          collection,
+        }).del();
+      }
       return this.db('collections').where('dat', datKey).del();
     }
     return this.db('collections').del();
@@ -185,7 +192,7 @@ export class Database {
   }
 
   // Gets a count of authors in the catalog
-  getAuthors(startingWith, opts, dat) {
+  getAuthors(startingWith, opts = {}, dat) {
     const exp = this.db.select('texts.author').from('texts')
       .countDistinct('texts.title as count');
     withinDat(exp, dat);

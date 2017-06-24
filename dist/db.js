@@ -318,6 +318,13 @@ class Database {
 
 
 
+
+
+
+
+
+
+
     getDats = () => this.db('dats').select();this.
     getDat = key => this.db('dats').select().where('dat', key);this.db = (0, _knex2.default)({ client: 'sqlite3', connection: { filename }, useNullAsDefault: true }); // If you ever need to see what queries are being run uncomment the following.
     // this.db.on('query', queryData => console.log(queryData));
@@ -326,7 +333,7 @@ class Database {
   removeDat(datKey) {return this.db('dats').where('dat', datKey).del();} // Update a dat's name and directory
   updateDat(datKey, name, dir) {return this.db('dats').where('dat', datKey).update({ name, dir });} // Remove all entries/ texts for a dat
   clearTexts(datKey) {if (datKey) {return this.db('texts').where('dat', datKey).del();}return this.db('texts').del();} // Remove all collection entries for a dat
-  clearCollections(datKey) {if (datKey) {return this.db('collections').where('dat', datKey).del();}return this.db('collections').del();} // Returns the path to a dat as found in db.
+  clearCollections(datKey, collection) {if (datKey) {if (collection) {return this.db('collections').where({ dat: datKey, collection }).del();}return this.db('collections').where('dat', datKey).del();}return this.db('collections').del();} // Returns the path to a dat as found in db.
   pathToDat(datKey) {return this.db.select('dir').from('dats').where('dat', datKey).first();}lastImportedVersion(datKey) {return this.db('texts').max('version as version').where('dat', datKey).whereNotNull('version').first();}addTextFromMetadata(opts) {return this.db('texts').where({ dat: opts.dat, author: opts.author, title: opts.title, file: opts.file }).first().then(row => {let promise = -1; // console.log(opts.version, 'version!');
       if (!row) {// add new text
         promise = this.db('texts').insert({ dat: opts.dat, version: opts.version, state: opts.state, title_hash: opts.title_hash || '', file_hash: opts.file_hash || '', author: opts.author, author_sort: opts.author_sort, title: opts.title, file: opts.file, downloaded: opts.downloaded || 0 });} else if (opts.version > row.version) {// update state and version if this text is newer version
@@ -336,7 +343,7 @@ class Database {
   setDownloaded(dat, author, title, file, downloaded = true) {return this.db('texts').where('dat', dat).where('author', author).where('title', title).where('file', file).update({ downloaded });} // Searches for titles with files bundled up in a comma separated column
   search(query, dat) {const s = `%${query}%`;const exp = this.db.select('dat', 'author', 'title', 'title_hash', 'author_sort', this.db.raw('GROUP_CONCAT("file" || ":" || "downloaded") as "files"')).from('texts').where('state', true).andWhere(function () {// a bit inelegant but groups where statements
       this.where('title', 'like', s).orWhere('author', 'like', s);}).groupBy('author', 'title');withinDat(exp, dat);return exp.orderBy('author_sort', 'title');} // Gets a count of authors in the catalog
-  getAuthors(startingWith, opts, dat) {const exp = this.db.select('texts.author').from('texts').countDistinct('texts.title as count');withinDat(exp, dat);if (startingWith) {const s = `${startingWith}%`;exp.where('texts.author_sort', 'like', s);}if (opts.collection) {withinColl(exp, opts.collection);}return exp.where('texts.state', true).groupBy('texts.author').orderBy('texts.author_sort');} // Gets authors within a collection
+  getAuthors(startingWith, opts = {}, dat) {const exp = this.db.select('texts.author').from('texts').countDistinct('texts.title as count');withinDat(exp, dat);if (startingWith) {const s = `${startingWith}%`;exp.where('texts.author_sort', 'like', s);}if (opts.collection) {withinColl(exp, opts.collection);}return exp.where('texts.state', true).groupBy('texts.author').orderBy('texts.author_sort');} // Gets authors within a collection
   getCollectionAuthors(collection, startingWith, dat) {const q = this.getAuthors(startingWith, dat);q.countDistinct('collections.title as count'); // count inside the collection instead
     const s = `${collection}%`;return q.innerJoin('collections', 'texts.author', 'collections.author').where('collections.collection', 'like', s).andWhere('texts.state', true);} // Gets a list of letters of authors, for generating a directory
   getAuthorLetters(opts, dat) {const exp = this.db.column(this.db.raw('lower(substr(author_sort,1,1)) as letter')).select();withinDat(exp, dat);if (opts.collection) {withinColl(exp, opts.collection);}return exp.from('texts').where('texts.state', true).distinct('letter').orderBy('letter');}getTitlesForAuthor(author, opts, dat) {const exp = this.db('texts').distinct('dat', 'title').where('author', author).andWhere('texts.state', true);withinDat(exp, dat);if (opts.collection) {withinColl(exp, opts.collection);}return exp.orderBy('title');} // Like getItemsWith, except some extra work is done to return titles

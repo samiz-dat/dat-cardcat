@@ -2,7 +2,7 @@
 var _path = require('path');var _path2 = _interopRequireDefault(_path);
 var _events = require('events');var _events2 = _interopRequireDefault(_events);
 var _datNode = require('dat-node');var _datNode2 = _interopRequireDefault(_datNode);
-var _datCollections = require('dat-collections');var _datCollections2 = _interopRequireDefault(_datCollections);
+var _datCollections = require('dat-collections');
 
 var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);
 var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);
@@ -39,12 +39,6 @@ function iteratePromised(co, fn) {
 class DatWrapper extends _events2.default {
   constructor(opts) {
     super();this.
-
-
-
-
-
-
 
 
 
@@ -277,10 +271,9 @@ class DatWrapper extends _events2.default {
     this.opts.latest = true; // If we're creating/ hosting a dat, set indexing to true
     // this.opts.indexing = !this.key;
     this.opts.indexing = true;this.importer = false; // Collections
-    this.collections = false;} // Just creates a dat object
+    this.availableCollections = false;} // Just creates a dat object
   create() {return createDatAsync(this.directory, this.opts).then(dat => {this.dat = dat;this.key = dat.key.toString('hex');this.metadataDownloadCount = dat.archive.metadata.downloaded();this.metadataComplete = this.metadataDownloadCount === this.version + 1;console.log('created dat:', this.key);console.log('metadata:', this.metadataDownloadCount, '/', this.version, this.metadataComplete);return this;});} // join network and import files
-  run() {this.importFiles();this.collections = new _datCollections2.default(this.dat.archive);this.collections.on('loaded', () => {console.log(`collections data loaded (${this.name})`); // this.emit('sync collections', this);
-    });const network = this.dat.joinNetwork();this.stats = this.dat.trackStats();network.once('connection', this.connectionEventHandler); // Watch for metadata syncing
+  run() {this.importFiles();const network = this.dat.joinNetwork();this.stats = this.dat.trackStats();network.once('connection', this.connectionEventHandler); // Watch for metadata syncing
     const metadata = this.dat.archive.metadata;metadata.on('download', this.metadataDownloadEventHandler);metadata.on('sync', this.metadataSyncEventHandler);return this;} // call a function on each downloaded chuck of metadata.
   onEachMetadata(fn, startingFrom) {// returns a promise which will succeed if all are successful or fail and stop iterator.
     return iteratePromised(this.metadataIterator(startingFrom), fn);} // this should iterate over only the downloaded metadata,
@@ -301,10 +294,35 @@ class DatWrapper extends _events2.default {
   listContents(below = '/') {return _es2.default.readdir(this.dat.archive, below, { recursive: true });} // Download a file or directory
   downloadContent(fn = '') {const filename = `/${fn}/`;console.log(`Downloading: ${filename}`);console.log(this.stats.peers);return _es2.default.download(this.dat.archive, filename);} // Has the file been downloaded?
   // Rename
-  rename(dir, name) {return renameAsync(this.directory, dir).then(() => {this.directory = dir;this.name = name;});} // Initialize the collections
-  listFlattenedCollections() {if (this.collections) {return this.collections.flatten();}return _bluebird2.default.reject();} // Write a manifest file
+  rename(dir, name) {return renameAsync(this.directory, dir).then(() => {this.directory = dir;this.name = name;});} // Returns a list of the collections available through this dat
+  getAvailableCollections() {if (this.availableCollections) {return this.availableCollections.list().catch(() => []);}return (0, _datCollections.openCollections)(this.dat.archive, 'dat-collections').tap(colls => {this.availableCollections = colls;}).then(colls => colls.list()).catch(() => []);} // Loads a single collection and returns a list of its flattened contents
+  loadCollection(name) {return (0, _datCollections.createCollection)(this.dat.archive, _path2.default.join('dat-collections', name)).then(collection => collection.flatten()).catch(() => []);} // Returns a {title, description} object for information about a collection.
+  // path is an array, potentially describing a subcollection
+  informationAboutCollection(name, subcoll) {
+    const info = { title: '', description: '' };
+    console.log(name, subcoll);
+    return (0, _datCollections.createCollection)(this.dat.archive, _path2.default.join('dat-collections', name)).
+    then(collection =>
+    collection.title(subcoll).then(s => {info.title = s;}).
+    then(collection.description(subcoll).then(s => {info.description = s;}))).
+    then(() => info).
+    catch(() => info);
+  }
+
+  // Write a manifest file
   // @todo: fix me! why do i write empty manifests?
-  writeManifest(opts = {}) {var _this2 = this;return _asyncToGenerator(function* () {const manifest = _extends({ url: `dat://${_this2.key}`, title: _this2.name }, opts);yield _es2.default.writeManifest(_this2.dat.archive, manifest);return _this2;})();}readManifest() {return _es2.default.readManifest(this.dat.archive);
+  writeManifest(opts = {}) {var _this2 = this;return _asyncToGenerator(function* () {
+      const manifest = _extends({
+        url: `dat://${_this2.key}`,
+        title: _this2.name },
+      opts);
+
+      yield _es2.default.writeManifest(_this2.dat.archive, manifest);
+      return _this2;})();
+  }
+
+  readManifest() {
+    return _es2.default.readManifest(this.dat.archive);
   }
 
   updateManifest(manifest) {

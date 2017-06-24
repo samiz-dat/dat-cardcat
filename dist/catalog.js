@@ -425,6 +425,28 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 createCatalog = createCatalog;var _events = require('events');var _events2 = _interopRequireDefault(_events);var _path = require('path');var _path2 = _interopRequireDefault(_path);var _fs = require('fs');var _fs2 = _interopRequireDefault(_fs);var _bluebird = require('bluebird');var _bluebird2 = _interopRequireDefault(_bluebird);var _chalk = require('chalk');var _chalk2 = _interopRequireDefault(_chalk);var _lodash = require('lodash');var _lodash2 = _interopRequireDefault(_lodash);var _rimraf = require('rimraf');var _rimraf2 = _interopRequireDefault(_rimraf);var _config = require('./config');var _config2 = _interopRequireDefault(_config);var _db = require('./db');var _db2 = _interopRequireDefault(_db);var _multidat = require('./multidat');var _multidat2 = _interopRequireDefault(_multidat);var _importers = require('./utils/importers');var _importers2 = _interopRequireDefault(_importers);var _sequentialise = require('./utils/sequentialise');var _sequentialise2 = _interopRequireDefault(_sequentialise);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}function _asyncToGenerator(fn) {return function () {var gen = fn.apply(this, arguments);return new _bluebird2.default(function (resolve, reject) {function step(key, arg) {try {var info = gen[key](arg);var value = info.value;} catch (error) {reject(error);return;}if (info.done) {resolve(value);} else {return _bluebird2.default.resolve(value).then(function (value) {step("next", value);}, function (err) {step("throw", err);});}}return step("next");});};} // This will b removed soon
 // eslint-disable-line
 // @todo: this.db.close(); should be called on shutdown
@@ -432,11 +454,12 @@ const rimrafAsync = _bluebird2.default.promisify(_rimraf2.default); // Ensures t
 function prepareCatalogDir(dataDir) {// Directory to store all the data in
   let dataDirFinal = _path2.default.join(process.cwd(), _config2.default.get('dataDir'));dataDirFinal = dataDir || dataDirFinal; // Create data directory if it doesn't exist yet
   if (!_fs2.default.existsSync(dataDirFinal)) {_fs2.default.mkdirSync(dataDirFinal);}return dataDirFinal;} // Class definition
-class Catalog extends _events2.default {constructor(baseDir) {var _this;_this = super();this.attachEventListenersAndJoinNetwork = dat => {dat.on('import', this.handleDatImportEvent);dat.on('download metadata', this.handleDatDownloadMetadataEvent);dat.on('sync metadata', this.handleDatSyncMetadataEvent); // dat.on('sync collections', this.handleDatSyncCollectionsEvent);
-      return dat.run();};this.ingestDatFile = (() => {var _ref = _asyncToGenerator(function* (data, attempts = 10) {// console.log('trying to import:', data.type, ':', data.file, data.progress);
+class Catalog extends _events2.default {constructor(baseDir) {var _this;_this = super();this.attachEventListenersAndJoinNetwork = dat => {dat.on('import', this.handleDatImportEvent);dat.on('download metadata', this.handleDatDownloadMetadataEvent);dat.on('sync metadata', this.handleDatSyncMetadataEvent);return dat.run();};this.ingestDatFile = (() => {var _ref = _asyncToGenerator(function* (data, attempts = 10) {// console.log('trying to import:', data.type, ':', data.file, data.progress);
         const entry = (0, _importers2.default)(data.file, 'calibre');if (entry) {const downloaded = yield _this.multidat.getDat(data.key).hasFile(data.file);const downloadedStr = downloaded ? '[*]' : '[ ]'; // console.log(chalk.bold('adding:'), downloadedStr, data.file);
-          const text = _extends({ dat: data.key, state: data.type === 'put', version: data.version }, entry, { downloaded });return _this.db.addTextFromMetadata(text).then(function () {return _this.emit('import', _extends({}, text, { progress: data.progress }));}).then(function () {console.log(`${data.progress.toFixed(2)}%`, 'adding:', downloadedStr, data.file);}).catch(function (e) {if (attempts > 0) {console.log('retry', attempts);return _bluebird2.default.delay(1000).then(function () {return _this.ingestDatFile(data, attempts - 1);});}console.error('errrored', e);return null;}); // Special case of the collections file
-        } else if (data.file === '/dat-collections.json' && data.type === 'put') {const dw = yield _this.multidat.getDat(data.key);return _this.ingestDatCollections(dw);}return _bluebird2.default.resolve(false);});return function (_x) {return _ref.apply(this, arguments);};})();this.handleDatImportEvent = data => {console.log(`${data.progress.toFixed(2)}%`, 'import download event.', data.type, ':', data.file);const entry = (0, _importers2.default)(data.file, 'calibre');if (entry) {const text = _extends({ dat: data.key, state: data.type === 'put', version: data.version }, entry, { downloaded: true // downloaed is true as you are importing it, right?
+          const text = _extends({ dat: data.key, state: data.type === 'put', version: data.version }, entry, { downloaded });return _this.db.addTextFromMetadata(text).then(function () {return _this.emit('import', _extends({}, text, { progress: data.progress }));}).then(function () {console.log(`${data.progress.toFixed(2)}%`, 'adding:', downloadedStr, data.file);}).catch(function (e) {if (attempts > 0) {console.log('retry', attempts);return _bluebird2.default.delay(1000).then(function () {return _this.ingestDatFile(data, attempts - 1);});}console.error('errrored', e);return null;}); // Special case of a collections file
+        } else if (data.file.startsWith('/dat-collections/') && data.type === 'put') {// const dw = await this.multidat.getDat(data.key);
+          // return this.ingestDatCollections(dw);
+        }return _bluebird2.default.resolve(false);});return function (_x) {return _ref.apply(this, arguments);};})();this.handleDatImportEvent = data => {console.log(`${data.progress.toFixed(2)}%`, 'import download event.', data.type, ':', data.file);const entry = (0, _importers2.default)(data.file, 'calibre');if (entry) {const text = _extends({ dat: data.key, state: data.type === 'put', version: data.version }, entry, { downloaded: true // downloaed is true as you are importing it, right?
         }); // if this times out we should implement a simple promise queue,
         // so that we just these requests to a list that gets executed when
         // the preceeding functions .then is called.
@@ -486,8 +509,10 @@ class Catalog extends _events2.default {constructor(baseDir) {var _this;_this = 
     // only ingest if dat version is > max db version for key
     // or if metadata is incomplete,
     if (dw.metadataComplete) {return this.db.lastImportedVersion(dw.key).then(data => {console.log(data);if (!data.version || data.version < dw.version) {console.log('importing from version', data.version + 1, 'to version', dw.version);return dw.onEachMetadata(this.ingestDatFile, data.version + 1 || 1);}console.log('not importing. already at version ', data.version);return null;});}return this.db.clearTexts(dw.key).then(() => dw.onEachMetadata(this.ingestDatFile));} // Adds an entry from a Dat
-  // For a Dat, ingest its collections data (if there are any)
-  ingestDatCollections(dw) {this.db.clearCollections(dw.key).then(() => dw.listFlattenedCollections()).each(item => this.ingestDatCollectedFile(dw, item[0], item[1])).catch(() => {}).finally(() => this.emit('collections updated'));}ingestDatCollectedFile(dw, file, collectionArr, format = 'authorTitle') {const importedData = (0, _importers2.default)(file, format);if (importedData) {const collection = collectionArr.join(';;');console.log(_chalk2.default.bold('collecting:'), file, collection);const data = { dat: dw.key, author: importedData.author, title: importedData.title, collection };return this.db.addCollectedText(data);}return _bluebird2.default.resolve(false);} // Downloads files within a dat
+  ingestDatCollectedFile(dw, file, collectionArr, format = 'authorTitle') {const importedData = (0, _importers2.default)(file, format);if (importedData) {const collection = collectionArr.join(';;');console.log(_chalk2.default.bold('collecting:'), file, collection);const data = { dat: dw.key, author: importedData.author, title: importedData.title, collection };return this.db.addCollectedText(data);}return _bluebird2.default.resolve(false);}ingestDatCollection(name, key) {const n = [name];return this.db.clearCollections(key, name).then(() => this.multidat.getDat(key)).then(dw => dw.loadCollection(name) // The collection name needs to be added to the beginning of item[1]
+    .each(item => this.ingestDatCollectedFile(dw, item[0], n.concat(item[1])))).catch(() => {}).finally(() => this.emit('collections updated'));} // Returns { title:, description:} for a collection name (could include subcollection!)
+  informationAboutCollection(name, key) {const subcoll = name.split(';;');const coll = subcoll.shift();const dw = this.multidat.getDat(key);return dw.informationAboutCollection(coll, subcoll);} // Gets a list of all available Collections suggested by the loaded dats
+  getAvailableCollections() {console.log('Building list of available collections');const allCollections = [];const dats = this.multidat.getDats();return _bluebird2.default.map(dats, dw => dw.getAvailableCollections().map(collection => [collection, dw.key])).then(arr => arr[0]).then(items => allCollections.push(...items)).then(() => allCollections);} // Downloads files within a dat
   download(key, opts) {let resource = '';if (opts.author && opts.title && opts.file) {console.log(`checking out ${opts.author}/${opts.title}/${opts.file} from ${key}`);resource = _path2.default.join(opts.author, opts.title, opts.file);} else if (opts.author && opts.title) {console.log(`checking out ${opts.author}/${opts.title} from ${key}`);resource = _path2.default.join(opts.author, opts.title);} else if (opts.author) {console.log(`checking out ${opts.author} from ${key}`);resource = _path2.default.join(opts.author);} else {console.log(`checking out everything from ${opts.dat}`);}return this.multidat.downloadFromDat(key, resource);} // Checks whether a group of catalogue items have been downloaded
   // and if so, then updates the downloaded column in the texts table
   scanForDownloads(opts, dat) {return this.db.getItemsWith(opts, dat).then(rows => rows.filter(doc => this.itemIsDownloaded(doc))).each(row => this.setDownloaded(row.dat, row.author, row.title, row.file));} // Given a row from the texts table, check if it has been downloaded

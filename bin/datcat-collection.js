@@ -3,6 +3,41 @@
 const cmd = require('commander');
 const catalog = require('../dist/catalog');
 
+// List the available collections, as provided by the dats
+cmd
+  .command('available')
+  .action(() => {
+    catalog.createCatalog()
+      .then(c => c.getAvailableCollections())
+      .then((collections) => {
+        for (const c of collections) {
+          console.log(`${c[1]} - ${c[0]}`);
+        }
+      });
+  });
+
+// Import one of the available collections
+cmd
+  .command('load [name] [dat]')
+  .action((name, dat) => {
+    catalog.createCatalog()
+      .then(c => c.ingestDatCollection(name, dat))
+      .then(() => {
+        console.log(`${name} is loaded`);
+      });
+  });
+
+// Information about one of the available collections
+cmd
+  .command('info [name] [dat]')
+  .action((name, dat) => {
+    catalog.createCatalog()
+      .then(c => c.informationAboutCollection(name, dat))
+      .then((info) => {
+        console.log(`${info.title}\n${info.description}`);
+      });
+  });
+
 // List the authors, by letter, include counts
 cmd
   .option('-c, --counts', 'include counts')

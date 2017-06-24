@@ -226,7 +226,6 @@ export class Catalog extends EventEmitter {
     dat.on('import', this.handleDatImportEvent);
     dat.on('download metadata', this.handleDatDownloadMetadataEvent);
     dat.on('sync metadata', this.handleDatSyncMetadataEvent);
-    // dat.on('sync collections', this.handleDatSyncCollectionsEvent);
     return dat.run();
   }
 
@@ -291,21 +290,12 @@ export class Catalog extends EventEmitter {
           console.error('errrored', e);
           return null;
         });
-    // Special case of the collections file
-    } else if (data.file === '/dat-collections.json' && data.type === 'put') {
-      const dw = await this.multidat.getDat(data.key);
-      return this.ingestDatCollections(dw);
+    // Special case of a collections file
+    } else if (data.file.startsWith('/dat-collections/') && data.type === 'put') {
+      // const dw = await this.multidat.getDat(data.key);
+      // return this.ingestDatCollections(dw);
     }
     return Promise.resolve(false);
-  }
-
-  // For a Dat, ingest its collections data (if there are any)
-  ingestDatCollections(dw) {
-    this.db.clearCollections(dw.key)
-      .then(() => dw.listFlattenedCollections())
-      .each(item => this.ingestDatCollectedFile(dw, item[0], item[1]))
-      .catch(() => {})
-      .finally(() => this.emit('collections updated'));
   }
 
   ingestDatCollectedFile(dw, file, collectionArr, format = 'authorTitle') {
@@ -322,6 +312,38 @@ export class Catalog extends EventEmitter {
       return this.db.addCollectedText(data);
     }
     return Promise.resolve(false);
+  }
+
+  ingestDatCollection(name, key) {
+    const n = [name];
+    return this.db.clearCollections(key, name)
+    .then(() => this.multidat.getDat(key))
+    .then(dw => dw.loadCollection(name)
+      // The collection name needs to be added to the beginning of item[1]
+      .each(item => this.ingestDatCollectedFile(dw, item[0], n.concat(item[1]))))
+    .catch(() => {})
+    .finally(() => this.emit('collections updated'));
+  }
+
+  // Returns { title:, description:} for a collection name (could include subcollection!)
+  informationAboutCollection(name, key) {
+    const subcoll = name.split(';;');
+    const coll = subcoll.shift();
+    const dw = this.multidat.getDat(key);
+    return dw.informationAboutCollection(coll, subcoll);
+  }
+
+  // Gets a list of all available Collections suggested by the loaded dats
+  getAvailableCollections() {
+    console.log('Building list of available collections');
+    const allCollections = [];
+    const dats = this.multidat.getDats();
+    return Promise.map(dats, dw =>
+      dw.getAvailableCollections()
+      .map(collection => [collection, dw.key]))
+    .then(arr => arr[0])
+    .then(items => allCollections.push(...items))
+    .then(() => allCollections);
   }
 
   // Downloads files within a dat
