@@ -5,3 +5,4 @@ test-dir/
 *.log
 catalog.db
 .dat
+.dist

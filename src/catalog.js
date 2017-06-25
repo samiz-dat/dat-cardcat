@@ -11,7 +11,7 @@ import Database from './db'; // eslint-disable-line
 import Multidat from './multidat';
 
 import parseEntry from './utils/importers';
-import sequentialise from './utils/sequentialise';
+import sequentialise from 'sequentialise';
 // @todo: this.db.close(); should be called on shutdown
 
 const rimrafAsync = Promise.promisify(rimraf);
