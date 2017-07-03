@@ -300,7 +300,6 @@ class DatWrapper extends _events2.default {
   // path is an array, potentially describing a subcollection
   informationAboutCollection(name, subcoll) {
     const info = { title: '', description: '' };
-    console.log(name, subcoll);
     return (0, _datCollections.createCollection)(this.dat.archive, _path2.default.join('dat-collections', name)).
     then(collection =>
     collection.title(subcoll).then(s => {info.title = s;}).
