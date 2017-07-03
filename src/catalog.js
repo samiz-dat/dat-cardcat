@@ -4,6 +4,8 @@ import fs from 'fs';
 import Promise from 'bluebird';
 import chalk from 'chalk';
 import _ from 'lodash';
+import sequentialise from 'sequentialise';
+
 import rimraf from 'rimraf'; // This will b removed soon
 import config from './config';
 
@@ -11,7 +13,6 @@ import Database from './db'; // eslint-disable-line
 import Multidat from './multidat';
 
 import parseEntry from './utils/importers';
-import sequentialise from './utils/sequentialise';
 // @todo: this.db.close(); should be called on shutdown
 
 const rimrafAsync = Promise.promisify(rimraf);
