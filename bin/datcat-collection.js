@@ -105,10 +105,10 @@ cmd
 // Checkout a collection
 cmd
   .option('-d, --dats', 'show dat keys')
-  .command('checkout <name>')
-  .action((name) => {
+  .command('checkout <name> [author]')
+  .action((name, author) => {
     catalog.createCatalog()
-      .then(c => c.checkout({ collection: name }))
+      .then(c => c.checkout({ collection: name, author }))
       .finally(() => console.log('Finished downloading...'));
   });
 
