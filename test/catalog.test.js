@@ -1,6 +1,8 @@
 import chai from 'chai';
 import temp from 'temp';
+import path from 'path';
 import Promise from 'bluebird';
+import mirror from 'mirror-folder';
 import { shareLibraryDat } from './helpers/shareDats';
 
 import { Catalog, createCatalog } from '../src/catalog';
@@ -38,7 +40,7 @@ describe('catalog class', function () {
     done();
   });
 
-  describe('createCatalog()', () => {
+  describe('createCatalog() and .init()', () => {
     it('takes directory as primary arg and returns a promise which resolved to a new Catalog instance', () => {
       const promise = createCatalog(libraryHome);
       expect(promise).to.be.instanceOf(Promise);
@@ -47,11 +49,38 @@ describe('catalog class', function () {
         return catalog.close();
       });
     });
+
+    it('imports dats within its home directory on startup', () => {
+      return createCatalog(libraryHome)
+        .then((catalog) => {
+          return catalog.importDat(externalLibraryKey, 'external library')
+            .delay(500)
+            .then(() => catalog.close());
+        })
+        .tap(() => { console.log('TEARING DOWN DB AND STARTING AGAIN'); })
+        .then(() => createCatalog(libraryHome))
+        .then((catalog) => {
+          // some text to ensure that data is present
+          return catalog.close();
+        });
+    });
+
+    it.only('it attempts to make roots folders that are not dats into dats', (done) => {
+      mirror(path.join(__dirname, 'fixtures', 'calibre-library'), path.join(libraryHome, 'not-a-dat'), (err) => {
+        if (err) return done(err);
+        return createCatalog(libraryHome)
+          .then((catalog) => {
+            // some text to ensure that data is present
+            catalog.close()
+              .then(done);
+          });
+      });
+    });
   });
 
 
-  describe.only('catalog.importDat(key)', () => {
-    it.only('connects to and imports external dat libary via key', (done) => {
+  describe('catalog.importDat(key)', () => {
+    it('connects to and imports external dat libary via key', (done) => {
       createCatalog(libraryHome)
         .then((catalog) => {
           expect(externalLibraryKey).to.be.a('string');
@@ -72,21 +101,6 @@ describe('catalog class', function () {
           return catalog.importDat(externalLibraryKey, 'external library');
         });
     });
-  });
-
-  it('imports dats within its home directory on startup', () => {
-    return createCatalog(libraryHome)
-      .then((catalog) => {
-        return catalog.importDat(externalLibraryKey, 'external library')
-          .delay(500)
-          .then(() => catalog.close());
-      })
-      .tap(() => { console.log('TEARING DOWN DB AND STARTING AGAIN'); })
-      .then(() => createCatalog(libraryHome))
-      .then((catalog) => {
-        // some text to ensure that data is present
-        return catalog.close();
-      });
   });
 });
 
