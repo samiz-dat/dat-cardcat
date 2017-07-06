@@ -299,7 +299,7 @@ export class Catalog extends EventEmitter {
     return Promise.resolve(false);
   }
 
-  ingestDatCollectedFile(dw, file, collectionArr, format = 'authorTitle') {
+  ingestDatCollectedFile(dw, file, collectionArr, weight, format = 'authorTitle') {
     const importedData = parseEntry(file, format);
     if (importedData) {
       const collection = collectionArr.join(';;');
@@ -309,6 +309,7 @@ export class Catalog extends EventEmitter {
         author: importedData.author,
         title: importedData.title,
         collection,
+        weight,
       };
       return this.db.addCollectedText(data);
     }
@@ -321,7 +322,7 @@ export class Catalog extends EventEmitter {
     .then(() => this.multidat.getDat(key))
     .then(dw => dw.loadCollection(name)
       // The collection name needs to be added to the beginning of item[1]
-      .each(item => this.ingestDatCollectedFile(dw, item[0], n.concat(item[1]))))
+      .each((item, index) => this.ingestDatCollectedFile(dw, item[0], n.concat(item[1]), index)))
     .catch(() => {})
     .finally(() => this.emit('collections updated'));
   }

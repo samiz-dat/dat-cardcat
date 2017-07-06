@@ -1,5 +1,6 @@
 #!/usr/bin/env node --harmony
 
+const _ = require('lodash');
 const cmd = require('commander');
 const catalog = require('../dist/catalog');
 
@@ -76,7 +77,7 @@ cmd
   .command('authors <name>')
   .action((name) => {
     catalog.createCatalog(false, true)
-      .then(c => c.getCollectionAuthors(name))
+      .then(c => c.getAuthors(null, { collection: name, sort: ['author_sort', 'asc'] }))
       .then((rows) => {
         for (const doc of rows) {
           if (cmd.counts) {
@@ -94,10 +95,11 @@ cmd
   .command('titles <name> [author]')
   .action((collection, author) => {
     catalog.createCatalog(false, true)
-      .then(c => c.getTitlesWith({ collection, author }))
+      .then(c => c.getTitlesWith({ collection, author, sort: ['weight', 'asc'] }))
       .then((rows) => {
+        // const sorted = _.sortBy(rows, 'weight');
         for (const doc of rows) {
-          console.log(`${doc.author}: ${doc.title})`);
+          console.log(`${doc.author}: ${doc.title} (${doc.weight})`);
         }
       });
   });

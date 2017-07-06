@@ -31,6 +31,7 @@ function withinColl(query, coll) {
       .on('texts.author', 'collections.author')
       .on('texts.title', 'collections.title');
   });
+  query.column('collections.weight');
   if (typeof collCond === 'string') {
     const s = `${collCond}%`;
     query.where('collections.collection', 'like', s);
@@ -44,6 +45,15 @@ function withinColl(query, coll) {
 function applyRange(query, opts, defaults = { limit: 99999, offset: 0 }) {
   const optsNow = Object.assign(defaults, opts);
   query.limit(optsNow.limit).offset(optsNow.offset);
+  return query;
+}
+
+// Applies sorting to queries through options object
+function applySort(query, opts, ...defaults) {
+  const optsNow = Object.assign({ sort: defaults }, opts);
+  if (optsNow.sort) {
+    query.orderBy(...optsNow.sort);
+  }
   return query;
 }
 
@@ -162,6 +172,7 @@ export class Database {
       author: opts.author,
       title: opts.title,
       collection: opts.collection,
+      weight: opts.weight || 0,
     }).into('collections');
   }
 
@@ -196,7 +207,8 @@ export class Database {
       .groupBy('author', 'title');
     withinDat(exp, dat);
     applyRange(exp, opts);
-    return exp.orderBy('author_sort', 'title');
+    applySort(exp, opts, 'author_sort', 'asc');
+    return exp;
   }
 
   // Gets a count of authors in the catalog
@@ -213,21 +225,10 @@ export class Database {
       withinColl(exp, newOpts.collection);
     }
     applyRange(exp, newOpts);
+    applySort(exp, newOpts, 'author_sort', 'asc');
     return exp
       .where('texts.state', true)
-      .groupBy('texts.author')
-      .orderBy('texts.author_sort');
-  }
-
-  // Gets authors within a collection
-  getCollectionAuthors(collection, startingWith, dat, opts) {
-    const q = this.getAuthors(startingWith, dat);
-    q.countDistinct('collections.title as count'); // count inside the collection instead
-    const s = `${collection}%`;
-    applyRange(q, opts);
-    return q.innerJoin('collections', 'texts.author', 'collections.author')
-      .where('collections.collection', 'like', s)
-      .andWhere('texts.state', true);
+      .groupBy('texts.author');
   }
 
   // Gets a list of letters of authors, for generating a directory
@@ -254,7 +255,8 @@ export class Database {
       withinColl(exp, opts.collection);
     }
     applyRange(exp, opts);
-    return exp.orderBy('title');
+    applySort(exp, opts, 'title', 'asc');
+    return exp;
   }
 
   // Like getItemsWith, except some extra work is done to return titles
@@ -280,6 +282,7 @@ export class Database {
     }
     withinDat(exp, dat);
     applyRange(exp, opts);
+    applySort(exp, opts);
     return exp
       .groupBy('texts.author', 'texts.title')
       .orderBy('texts.author_sort', 'texts.title');
@@ -306,9 +309,9 @@ export class Database {
     }
     withinDat(exp, dat || opts.dat);
     applyRange(exp, opts);
+    applySort(exp, opts, 'dat', 'asc');
     return exp
-      .where('texts.state', true)
-      .orderBy('texts.dat', 'texts.author', 'texts.title');
+      .where('texts.state', true);
   }
 
   // Gets a list of collections in the catalog
@@ -321,9 +324,9 @@ export class Database {
       exp.where('collection', 'like', s);
     }
     applyRange(exp, opts);
+    applySort(exp, opts, 'collection', 'asc');
     return exp
-      .groupBy('collection')
-      .orderBy('collection');
+      .groupBy('collection');
   }
 
   // Optionally only include files from a particular dat.
@@ -363,7 +366,8 @@ export class Database {
     // but for now lets just drop tables before remaking tables.
     const tablesDropped = this.db.schema.dropTableIfExists('datsX')
       .dropTableIfExists('textsX')
-      .dropTableIfExists('more_authorsX');
+      .dropTableIfExists('more_authorsX')
+      .dropTableIfExists('collections');
     return tablesDropped.createTableIfNotExists('dats', (table) => {
       table.string('dat');
       table.string('name');
@@ -389,6 +393,7 @@ export class Database {
       table.string('author');
       table.string('title');
       table.string('collection');
+      table.integer('weight');
     })
     .createTableIfNotExists('more_authors', (table) => {
       table.string('title_hash');
