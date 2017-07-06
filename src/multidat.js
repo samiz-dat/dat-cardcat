@@ -52,7 +52,7 @@ export default class Multidat {
         console.log(`Attempting to load dir: ${chalk.bold(name)} as a dat`);
         const opts = {
           name,
-          createIfMissing: false, // This will throw errors for folders that are not dats.
+          createIfMissing: true, // false will cause this to throw errors for folders that are not dats.
           sparse: true,
         };
         return this.importDat(opts);
@@ -133,8 +133,6 @@ export default class Multidat {
       })
       .catch((err) => {
         console.log(`* Something went wrong when importing ${opts.directory}`);
-        console.log(err);
-        throw err;
       });
   }
 

@@ -75,6 +75,7 @@ describe('catalog class', function () {
             if (data.dat === externalLibraryKey) {
               importCount++;
               if (previousProgress) expect(data.progress).to.be.above(previousProgress);
+              previousProgress = data.progress;
               if (data.progress === 100) catalog.close();
             }
           });
@@ -92,9 +93,21 @@ describe('catalog class', function () {
         if (err) return done(err);
         return createCatalog(libraryHome)
           .then((catalog) => {
-            catalog.close()
-              .then(done);
-          });
+            let previousProgress = 0;
+            let importCount = 0;
+            catalog.on('import', (data) => {
+              importCount++;
+              if (previousProgress) expect(data.progress).to.be.least(previousProgress);
+              previousProgress = data.progress;
+              if (data.progress === 100) catalog.close();
+            });
+            catalog.on('closed', () => {
+              expect(importCount).to.eql(10);
+              done();
+            });
+            catalog.on('error', done);
+          })
+          .catch(done);
       });
     });
   });
@@ -111,6 +124,7 @@ describe('catalog class', function () {
             if (data.dat === externalLibraryKey) {
               importCount++;
               if (previousProgress) expect(data.progress).to.be.above(previousProgress);
+              previousProgress = data.progress;
               if (data.progress === 100) catalog.close();
             }
           });
