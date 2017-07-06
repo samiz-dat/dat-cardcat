@@ -124,7 +124,7 @@ export default class Multidat {
         base: (opts.name) ? opts.name : opts.key,
       });
     }
-    const newDat = new DatWrapper(opts, this);
+    const newDat = new DatWrapper(opts);
     // dw.on('download', (...args) => this.handleDatDownloadEvent(...args));
     return newDat.create()
       .then(() => {
@@ -134,6 +134,7 @@ export default class Multidat {
       .catch((err) => {
         console.log(`* Something went wrong when importing ${opts.directory}`);
         console.log(err);
+        throw err;
       });
   }
 

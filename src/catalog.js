@@ -20,8 +20,7 @@ const rimrafAsync = Promise.promisify(rimraf);
 // Ensures that the catalog directory will be available
 function prepareCatalogDir(dataDir) {
   // Directory to store all the data in
-  let dataDirFinal = path.join(process.cwd(), config.get('dataDir'));
-  dataDirFinal = dataDir || dataDirFinal;
+  const dataDirFinal = dataDir || path.join(process.cwd(), config.get('dataDir'));
   // Create data directory if it doesn't exist yet
   if (!fs.existsSync(dataDirFinal)) {
     fs.mkdirSync(dataDirFinal);
@@ -44,11 +43,6 @@ export class Catalog extends EventEmitter {
     });
     this.multidat = new Multidat(this.baseDir);
     this.isReady = false;
-
-    // For bulk imports we'll use queue
-    this.importQueue = [];
-    this.queuing = [];
-    this.queueBatchSize = parseInt(config.get('queueBatchSize'), 10);
 
     // Now, database functions are passed on from this.db
     // explicitly declare publicly accessible database functions
