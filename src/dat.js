@@ -139,7 +139,7 @@ export default class DatWrapper extends EventEmitter {
   // fetch the rest via the 'metadata' downloaded events.
   * metadataIterator(start = 1) {
     const metadata = this.dat.archive.metadata;
-    let imported = start - 1;
+    let imported = start;
     const total = metadata.downloaded();
     // this can be improved by using the bitfield in hypercore to find next non 0 block, but will do for now.
     for (let i = start; i <= this.version; i++) {

@@ -1,6 +1,7 @@
 import chai from 'chai';
 import temp from 'temp';
 import path from 'path';
+import fs from 'fs';
 import Promise from 'bluebird';
 import mirror from 'mirror-folder';
 import { shareLibraryDat } from './helpers/shareDats';
@@ -50,22 +51,43 @@ describe('catalog class', function () {
       });
     });
 
-    it('imports dats within its home directory on startup', () => {
-      return createCatalog(libraryHome)
+    it('imports dats within its home directory on startup', (done) => {
+      createCatalog(libraryHome)
         .then((catalog) => {
-          return catalog.importDat(externalLibraryKey, 'external library')
-            .delay(500)
-            .then(() => catalog.close());
+          return new Promise((resolve, reject) => {
+            catalog.importDat(externalLibraryKey, 'external library');
+            catalog.on('import', (data) => {
+              if (data.dat === externalLibraryKey && data.progress === 100) {
+                catalog.close();
+              }
+            });
+            catalog.on('closed', resolve);
+            catalog.on('error', reject);
+          });
         })
-        .tap(() => { console.log('TEARING DOWN LIBRARY AND STARTING AGAIN'); })
-        .then(() => createCatalog(libraryHome))
-        .then((catalog) => {
-          // some test to ensure that data is present
-          return catalog.close();
-        });
+        .then(() => {
+          console.log('TEARING DOWN LIBRARY AND STARTING AGAIN');
+          fs.unlinkSync(path.join(libraryHome, 'catalog.db'));
+          const catalog = new Catalog(libraryHome);
+          let importCount = 0;
+          let previousProgress;
+          catalog.on('import', (data) => {
+            if (data.dat === externalLibraryKey) {
+              importCount++;
+              if (previousProgress) expect(data.progress).to.be.above(previousProgress);
+              if (data.progress === 100) catalog.close();
+            }
+          });
+          catalog.on('closed', () => {
+            expect(importCount).to.eql(10);
+            done();
+          });
+          catalog.on('error', done);
+          return catalog.init();
+        }).catch(done);
     });
 
-    it.only('it attempts to make roots folders in the library dir that are not dats into dats', (done) => {
+    it('it attempts to make roots folders in the library dir that are not dats into dats', (done) => {
       mirror(path.join(__dirname, 'fixtures', 'calibre-library'), path.join(libraryHome, 'not-a-dat'), (err) => {
         if (err) return done(err);
         return createCatalog(libraryHome)
