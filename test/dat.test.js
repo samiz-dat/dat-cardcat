@@ -104,7 +104,6 @@ describe('DatWrapper class', () => {
       // create temporary directory for created dat
       temp.track();
       const tmpPath = temp.mkdirSync(temporaryDir);
-      console.log(tmpPath);
       makeLibraryDat(tmpPath, (err, dat) => {
         if (err) done(err);
         else {
@@ -153,12 +152,10 @@ describe('DatWrapper class', () => {
             expect(data.path).to.be.a('String');
             expect(imported).to.eql(10);
             expect(ownedDat.version).to.eql(imported);
-            // ownedDat.onEachMetadata(v => console.log('meta:', v))
-              // .then(() => done());
-            // done();
+            done();
           });
-          done();
-        });
+        })
+        .catch(done);
     });
   });
 });

@@ -186,7 +186,7 @@ export default class DatWrapper extends EventEmitter {
         let putTotal = 0;
         let putCount = 0;
         const opts = {
-          watch: true,
+          watch: false, // if watch is true imported is never fired
           count: true,
           dereference: true,
           indexing: true,
