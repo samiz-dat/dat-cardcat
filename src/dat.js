@@ -213,7 +213,7 @@ export default class DatWrapper extends EventEmitter {
             key: this.key,
             file: src.name.replace(this.directory, ''),
             stat: src.stat,
-            progress: putTotal > 0 ? (putCount / putTotal) * 100 : 100,
+            progress: putTotal > 0 ? (putCount / putTotal) * 100 : 0,
             version: this.version, // I am not sure if this works as version is not set by mirror-folder
           };
           this.emit('import', data);
