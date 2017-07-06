@@ -85,7 +85,10 @@ export class Catalog extends EventEmitter {
 
   close() {
     // close all dats
-    return this.multidat.close()
+    const flushed = this.db.queue && this.db.queue.flush();
+    this.multidat.getDats().forEach(this.removeEventListeners);
+    return Promise.resolve(flushed)
+      .then(() => this.multidat.close())
       .then(() => this.emit('closed'))
       .catch(err => this.emit('error', err));
   }
@@ -221,6 +224,12 @@ export class Catalog extends EventEmitter {
     dat.on('download metadata', this.handleDatDownloadMetadataEvent);
     dat.on('sync metadata', this.handleDatSyncMetadataEvent);
     return dat.run();
+  }
+
+  removeEventListeners = (dat) => {
+    dat.removeListener('import', this.handleDatImportEvent);
+    dat.removeListener('download metadata', this.handleDatDownloadMetadataEvent);
+    dat.removeListener('sync metadata', this.handleDatSyncMetadataEvent);
   }
 
   // Registers dat the DB
