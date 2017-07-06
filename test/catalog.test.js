@@ -40,8 +40,8 @@ describe('catalog class', function () {
     done();
   });
 
-  describe('createCatalog() and .init()', () => {
-    it('takes directory as primary arg and returns a promise which resolved to a new Catalog instance', () => {
+  describe('constructor functions createCatalog() and .init()', () => {
+    it('createCatalog() takes directory as primary arg and returns a promise which resolved to a new Catalog instance', () => {
       const promise = createCatalog(libraryHome);
       expect(promise).to.be.instanceOf(Promise);
       return promise.then((catalog) => {
@@ -57,20 +57,19 @@ describe('catalog class', function () {
             .delay(500)
             .then(() => catalog.close());
         })
-        .tap(() => { console.log('TEARING DOWN DB AND STARTING AGAIN'); })
+        .tap(() => { console.log('TEARING DOWN LIBRARY AND STARTING AGAIN'); })
         .then(() => createCatalog(libraryHome))
         .then((catalog) => {
-          // some text to ensure that data is present
+          // some test to ensure that data is present
           return catalog.close();
         });
     });
 
-    it.only('it attempts to make roots folders that are not dats into dats', (done) => {
+    it.only('it attempts to make roots folders in the library dir that are not dats into dats', (done) => {
       mirror(path.join(__dirname, 'fixtures', 'calibre-library'), path.join(libraryHome, 'not-a-dat'), (err) => {
         if (err) return done(err);
         return createCatalog(libraryHome)
           .then((catalog) => {
-            // some text to ensure that data is present
             catalog.close()
               .then(done);
           });
