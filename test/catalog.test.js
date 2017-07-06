@@ -38,24 +38,46 @@ describe('catalog class', function () {
     done();
   });
 
-  it('connects to an import external dat libary', () => {
-    return createCatalog(libraryHome)
-      .then((catalog) => {
+  describe('createCatalog()', () => {
+    it('takes directory as primary arg and returns a promise which resolved to a new Catalog instance', () => {
+      const promise = createCatalog(libraryHome);
+      expect(promise).to.be.instanceOf(Promise);
+      return promise.then((catalog) => {
         expect(catalog).to.be.instanceOf(Catalog);
-        expect(externalLibraryKey).to.be.a('string');
-        return catalog.importDat(externalLibraryKey, 'external library')
-          .delay(500)
-          .then(() => catalog.close());
+        return catalog.close();
       });
+    });
+  });
+
+
+  describe.only('catalog.importDat(key)', () => {
+    it.only('connects to and imports external dat libary via key', (done) => {
+      createCatalog(libraryHome)
+        .then((catalog) => {
+          expect(externalLibraryKey).to.be.a('string');
+          let importCount = 0;
+          let previousProgress;
+          catalog.on('import', (data) => {
+            if (data.dat === externalLibraryKey) {
+              importCount++;
+              if (previousProgress) expect(data.progress).to.be.above(previousProgress);
+              if (data.progress === 100) catalog.close();
+            }
+          });
+          catalog.on('closed', () => {
+            expect(importCount).to.eql(10);
+            done();
+          });
+          catalog.on('error', done);
+          return catalog.importDat(externalLibraryKey, 'external library');
+        });
+    });
   });
 
   it('imports dats within its home directory on startup', () => {
     return createCatalog(libraryHome)
       .then((catalog) => {
-        expect(catalog).to.be.instanceOf(Catalog);
-        expect(externalLibraryKey).to.be.a('string');
         return catalog.importDat(externalLibraryKey, 'external library')
-          .then(() => console.log('waiting(*'))
           .delay(500)
           .then(() => catalog.close());
       })
