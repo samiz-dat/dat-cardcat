@@ -40,6 +40,13 @@ function withinColl(query, coll) {
   return query;
 }
 
+// Applies limit and offset to queries through options object
+function applyRange(query, opts, defaults = { limit: 99999, offset: 0 }) {
+  const optsNow = Object.assign(defaults, opts);
+  query.limit(optsNow.limit).offset(optsNow.offset);
+  return query;
+}
+
 //
 export class Database {
   // Constructor
@@ -171,7 +178,7 @@ export class Database {
   }
 
   // Searches for titles with files bundled up in a comma separated column
-  search(query, dat) {
+  search(query, dat, opts) {
     const s = `%${query}%`;
     const exp = this.db
       .select('dat',
@@ -188,11 +195,13 @@ export class Database {
       })
       .groupBy('author', 'title');
     withinDat(exp, dat);
+    applyRange(exp, opts);
     return exp.orderBy('author_sort', 'title');
   }
 
   // Gets a count of authors in the catalog
-  getAuthors(startingWith, opts = {}, dat) {
+  getAuthors(startingWith, opts, dat) {
+    const newOpts = Object.assign({}, opts);
     const exp = this.db.select('texts.author').from('texts')
       .countDistinct('texts.title as count');
     withinDat(exp, dat);
@@ -200,9 +209,10 @@ export class Database {
       const s = `${startingWith}%`;
       exp.where('texts.author_sort', 'like', s);
     }
-    if (opts.collection) {
-      withinColl(exp, opts.collection);
+    if (newOpts.collection) {
+      withinColl(exp, newOpts.collection);
     }
+    applyRange(exp, newOpts);
     return exp
       .where('texts.state', true)
       .groupBy('texts.author')
@@ -210,10 +220,11 @@ export class Database {
   }
 
   // Gets authors within a collection
-  getCollectionAuthors(collection, startingWith, dat) {
+  getCollectionAuthors(collection, startingWith, dat, opts) {
     const q = this.getAuthors(startingWith, dat);
     q.countDistinct('collections.title as count'); // count inside the collection instead
     const s = `${collection}%`;
+    applyRange(q, opts);
     return q.innerJoin('collections', 'texts.author', 'collections.author')
       .where('collections.collection', 'like', s)
       .andWhere('texts.state', true);
@@ -242,6 +253,7 @@ export class Database {
     if (opts.collection) {
       withinColl(exp, opts.collection);
     }
+    applyRange(exp, opts);
     return exp.orderBy('title');
   }
 
@@ -267,6 +279,7 @@ export class Database {
       withinColl(exp, opts.collection);
     }
     withinDat(exp, dat);
+    applyRange(exp, opts);
     return exp
       .groupBy('texts.author', 'texts.title')
       .orderBy('texts.author_sort', 'texts.title');
@@ -292,13 +305,14 @@ export class Database {
       withinColl(exp, opts.collection);
     }
     withinDat(exp, dat || opts.dat);
+    applyRange(exp, opts);
     return exp
       .where('texts.state', true)
       .orderBy('texts.dat', 'texts.author', 'texts.title');
   }
 
   // Gets a list of collections in the catalog
-  getCollections(startingWith, dat) {
+  getCollections(startingWith, dat, opts) {
     const exp = this.db.select('collection').from('collections')
       .count('* as count');
     withinDat(exp, dat);
@@ -306,6 +320,7 @@ export class Database {
       const s = `${startingWith}%`;
       exp.where('collection', 'like', s);
     }
+    applyRange(exp, opts);
     return exp
       .groupBy('collection')
       .orderBy('collection');

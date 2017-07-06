@@ -34,7 +34,7 @@ cmd
     catalog.createCatalog()
       .then(c => c.informationAboutCollection(name, dat))
       .then((info) => {
-        console.log(`${info.title}\n${info.description}`);
+        console.log(`Title: ${info.title}\nDescription: ${info.description}`);
       });
   });
 
