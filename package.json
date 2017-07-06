@@ -16,6 +16,10 @@
     "datcat": "./bin/index.js"
   },
   "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sdockray/dat-cardcat"
+  },
   "license": "ISC",
   "devDependencies": {
     "babel-cli": "^6.23.0",
