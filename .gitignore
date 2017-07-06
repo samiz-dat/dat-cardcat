@@ -1,5 +1,5 @@
 _data/
-_data_1/
+_data*/
 node_modules/
 test-dir/
 *.log
