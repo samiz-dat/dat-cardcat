@@ -9,7 +9,7 @@ import sequentialise from 'sequentialise';
 import rimraf from 'rimraf'; // This will b removed soon
 import config from './config';
 
-import Database from './db'; // eslint-disable-line
+import Database from './db';
 import Multidat from './multidat';
 
 import parseEntry from './utils/importers';
@@ -33,7 +33,6 @@ export class Catalog extends EventEmitter {
   constructor(baseDir) {
     super();
     this.baseDir = prepareCatalogDir(baseDir);
-    this.dats = [];
     this.db = sequentialise(new Database(path.format({
       dir: this.baseDir,
       base: 'catalog.db',
@@ -259,12 +258,10 @@ export class Catalog extends EventEmitter {
 
   // Adds an entry from a Dat
   ingestDatFile = async (data, attempts = 10) => {
-    // console.log('trying to import:', data.type, ':', data.file, data.progress);
     const entry = parseEntry(data.file, 'calibre');
     if (entry) {
       const downloaded = await this.multidat.getDat(data.key).hasFile(data.file);
       const downloadedStr = (downloaded) ? '[*]' : '[ ]';
-      // console.log(chalk.bold('adding:'), downloadedStr, data.file);
       const text = {
         dat: data.key,
         state: data.type === 'put',
@@ -278,10 +275,10 @@ export class Catalog extends EventEmitter {
           console.log(`${data.progress.toFixed(2)}%`, 'adding:', downloadedStr, data.file);
         })
         .catch((e) => {
-          if (attempts > 0) {
-            console.log('retry', attempts);
-            return Promise.delay(1000).then(() => this.ingestDatFile(data, attempts - 1));
-          }
+          // if (attempts > 0) {
+          //   console.log('retry', attempts);
+          //   return Promise.delay(1000).then(() => this.ingestDatFile(data, attempts - 1));
+          // }
           console.error('errrored', e);
           return null;
         });
@@ -423,18 +420,19 @@ export class Catalog extends EventEmitter {
   }
 
   handleDatSyncMetadataEvent = (dat) => {
-    console.log('Metadata sync event. Ingesting contents for:', dat);
+    console.log('Metadata sync event for:', dat);
+    this.emit('sync metadata', dat);
   }
 
-  // When a dat import process is finished
-  handleDatListingEvent = (data) => {
-    console.log('Importing: ', data);
-  }
+  // // When a dat import process is finished
+  // handleDatListingEvent = (data) => {
+  //   console.log('Importing: ', data);
+  // }
 
-  // When a dat import process is finished
-  handleDatListingEndEvent = (data) => {
-    console.log(data);
-  }
+  // // When a dat import process is finished
+  // handleDatListingEndEvent = (data) => {
+  //   console.log(data);
+  // }
 
   handleDatSyncCollectionsEvent = (dw) => {
     console.log('Collections sync event. Ingesting collections for:', dw.name);
