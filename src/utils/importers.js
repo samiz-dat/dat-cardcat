@@ -8,7 +8,12 @@ that just aren't in the right format. We'll define acceptable formats here
  */
 
 // Files to ignore, even if they are in the right place
-const ignore = ['.DS_Store', '.dat', '.git'];
+const ignore = ['.DS_Store', '.dat', '.git', 'nohup.out'];
+
+const formatters = {
+  calibre: (author, title, file) => path.join(author, title, file),
+  authorTitle: (author, title, file) => path.join(author, title, file),
+};
 
 const parsers = {
   // Calibre parser is the default one
@@ -34,6 +39,10 @@ const parsers = {
     return false;
   },
 };
+
+export function formatPath(author, title, file, format = 'calibre') {
+  return formatters[format](author, title, file);
+}
 
 // Does the given candidate pass the formatting tests? (should it be added?)
 // If so, return { author, author_sort, title, file }

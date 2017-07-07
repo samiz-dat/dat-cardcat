@@ -12,7 +12,7 @@ import config from './config';
 import Database from './db';
 import Multidat from './multidat';
 
-import parseEntry from './utils/importers';
+import parseEntry, { formatPath } from './utils/importers';
 // @todo: this.db.close(); should be called on shutdown
 
 const rimrafAsync = Promise.promisify(rimraf);
@@ -48,7 +48,6 @@ export class Catalog extends EventEmitter {
     const publicDatabaseFuncs = [
       'getDats',
       'getAuthors',
-      'getCollectionAuthors',
       'getAuthorLetters',
       'getCollections',
       'getTitlesWith',
@@ -123,6 +122,14 @@ export class Catalog extends EventEmitter {
       // .catch(Error, () => console.log(`Dat ${key} failed to import.`));
   }
 
+  // Create a brand new dat
+  createDat(dir, name = '') {
+    if (fs.existsSync(dir)) {
+      fs.mkdirSync(dir);
+    }
+    return this.importDir(dir, name);
+  }
+
   // Forks a dat (by its key) into a new, writable dat
   forkDat(key, name = '') {
     this.multidat.forkDat(key, name)
@@ -131,6 +138,12 @@ export class Catalog extends EventEmitter {
   }
 
   // See db functions in constructor for browsing and searching the catalog.
+
+  // Copying a file to a writeable Dat
+  addFileToDat(filepath, key, author, title) {
+    const pathInDat = formatPath(author, title, path.basename(filepath));
+    return this.multidat.addFileToDat(key, filepath, pathInDat);
+  }
 
   // Public call for syncing files within a dat
   // opts can include {dat:, author: , title:, file: }

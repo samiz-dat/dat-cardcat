@@ -1,5 +1,5 @@
 import path from 'path';
-import fs from 'fs';
+import fs from 'fs-extra';
 import Promise from 'bluebird';
 import chalk from 'chalk';
 import rimraf from 'rimraf';
@@ -182,6 +182,25 @@ export default class Multidat {
   datHasFile(key, file) {
     const dat = this.getDat(key);
     return dat.hasFile(file);
+  }
+
+  // Simply copies a file into a dat directory provided it is writeable
+  addFileToDat(key, filepath, pathInDat) {
+    const dat = this.getDat(key);
+    if (!dat.isYours()) {
+      return Promise.reject();
+    }
+    const destPath = path.format({
+      dir: dat.directory,
+      base: pathInDat,
+    });
+    fs.copy(filepath, destPath)
+    .then(() => {
+      dat.importFiles(); // @TODO: Check if this is overkill and we should specifically import this one file
+    })
+    .catch((err) => {
+      console.error(err);
+    });
   }
 
   // Copy a file or directory from one dat to another

@@ -7,12 +7,12 @@ cmd.parse(process.argv);
 
 const args = cmd.args;
 
-if (args.length !== 2) {
-  console.error('A valid "dir" is required, along with a short "name".');
+if (args.length !== 4) {
+  console.error('A valid "file" is required, along with a dat "key" and an "author" and "title".');
   process.exit(1);
 }
 
 catalog.createCatalog()
   // .then(c => c.importDir(args[0], args[1]))
-  .then(c => c.createDat(args[0], args[1]))
+  .then(c => c.addFileToDat(args[0], args[1], args[2], args[3]))
   .catch(e => console.log(e));
