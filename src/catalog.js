@@ -124,7 +124,7 @@ export class Catalog extends EventEmitter {
 
   // Create a brand new dat
   createDat(dir, name = '') {
-    if (fs.existsSync(dir)) {
+    if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir);
     }
     return this.importDir(dir, name);
