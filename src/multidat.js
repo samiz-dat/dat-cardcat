@@ -194,7 +194,7 @@ export default class Multidat {
       dir: dat.directory,
       base: pathInDat,
     });
-    fs.copy(filepath, destPath)
+    return fs.copy(filepath, destPath)
     .then(() => {
       dat.importFiles(); // @TODO: Check if this is overkill and we should specifically import this one file
     })
