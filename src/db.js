@@ -42,15 +42,19 @@ function withinColl(query, coll) {
 }
 
 // Applies limit and offset to queries through options object
-function applyRange(query, opts, defaults = { limit: 99999, offset: 0 }) {
-  const optsNow = Object.assign(defaults, opts);
+function applyRange(query, opts) {
+  const optsNow = {
+    limit: 99999,
+    offset: 0,
+    ...opts,
+  };
   query.limit(optsNow.limit).offset(optsNow.offset);
   return query;
 }
 
 // Applies sorting to queries through options object
 function applySort(query, opts, ...defaults) {
-  const optsNow = Object.assign({ sort: defaults }, opts);
+  const optsNow = { sort: defaults, ...opts };
   if (optsNow.sort) {
     query.orderBy(...optsNow.sort);
   }
@@ -189,7 +193,7 @@ export class Database {
   }
 
   // Searches for titles with files bundled up in a comma separated column
-  search(query, dat, opts) {
+  search(query, opts) {
     const s = `%${query}%`;
     const exp = this.db
       .select('dat',
@@ -205,39 +209,44 @@ export class Database {
           .orWhere('author', 'like', s);
       })
       .groupBy('author', 'title');
-    withinDat(exp, dat);
-    applyRange(exp, opts);
-    applySort(exp, opts, 'author_sort', 'asc');
+    if (opts) {
+      withinDat(exp, opts.dat);
+      applyRange(exp, opts);
+      applySort(exp, opts, 'author_sort', 'asc');
+    }
     return exp;
   }
 
   // Gets a count of authors in the catalog
-  getAuthors(startingWith, opts, dat) {
-    const newOpts = Object.assign({}, opts);
+  getAuthors(startingWith, opts) {
     const exp = this.db.select('texts.author').from('texts')
       .countDistinct('texts.title as count');
-    withinDat(exp, dat);
+    if (opts) withinDat(exp, opts.dat);
     if (startingWith) {
       const s = `${startingWith}%`;
       exp.where('texts.author_sort', 'like', s);
     }
-    if (newOpts.collection) {
-      withinColl(exp, newOpts.collection);
+    if (opts) {
+      if (opts.collection) {
+        withinColl(exp, opts.collection);
+      }
+      applyRange(exp, opts);
+      applySort(exp, opts, 'author_sort', 'asc');
     }
-    applyRange(exp, newOpts);
-    applySort(exp, newOpts, 'author_sort', 'asc');
     return exp
       .where('texts.state', true)
       .groupBy('texts.author');
   }
 
   // Gets a list of letters of authors, for generating a directory
-  getAuthorLetters(opts, dat) {
+  getAuthorLetters(opts) {
     const exp = this.db.column(this.db.raw('lower(substr(author_sort,1,1)) as letter'))
       .select();
-    withinDat(exp, dat);
-    if (opts.collection) {
-      withinColl(exp, opts.collection);
+    if (opts) {
+      withinDat(exp, opts.dat);
+      if (opts.collection) {
+        withinColl(exp, opts.collection);
+      }
     }
     return exp.from('texts')
       .where('texts.state', true)
@@ -245,23 +254,25 @@ export class Database {
       .orderBy('letter');
   }
 
-  getTitlesForAuthor(author, opts, dat) {
+  getTitlesForAuthor(author, opts) {
     const exp = this.db('texts')
       .distinct('dat', 'title')
       .where('author', author)
       .andWhere('texts.state', true);
-    withinDat(exp, dat);
-    if (opts.collection) {
-      withinColl(exp, opts.collection);
+    if (opts) {
+      withinDat(exp, opts.dat);
+      if (opts.collection) {
+        withinColl(exp, opts.collection);
+      }
+      applyRange(exp, opts);
+      applySort(exp, opts, 'title', 'asc');
     }
-    applyRange(exp, opts);
-    applySort(exp, opts, 'title', 'asc');
     return exp;
   }
 
   // Like getItemsWith, except some extra work is done to return titles
   // along with a comma-separated list of files:downloaded for each title.
-  getTitlesWith(opts, dat) {
+  getTitlesWith(opts) {
     const exp = this.db
       .select('texts.dat',
         'texts.author',
@@ -280,7 +291,7 @@ export class Database {
     if (opts.collection) {
       withinColl(exp, opts.collection);
     }
-    withinDat(exp, dat);
+    if (opts) withinDat(exp, opts.dat);
     applyRange(exp, opts);
     applySort(exp, opts);
     return exp
@@ -290,7 +301,7 @@ export class Database {
 
   // Gets entire entries for catalog items matching author/title/file.
   // Can specify a dat or a list of dats to get within.
-  getItemsWith(opts, dat, distinct) {
+  getItemsWith(opts, distinct) {
     const exp = this.db('texts');
     if (distinct) {
       exp.distinct(distinct);
@@ -307,7 +318,7 @@ export class Database {
     if (opts.collection) {
       withinColl(exp, opts.collection);
     }
-    withinDat(exp, dat || opts.dat);
+    withinDat(exp, opts.dat);
     applyRange(exp, opts);
     applySort(exp, opts, 'dat', 'asc');
     return exp
@@ -315,10 +326,10 @@ export class Database {
   }
 
   // Gets a list of collections in the catalog
-  getCollections(startingWith, dat, opts) {
+  getCollections(startingWith, opts) {
     const exp = this.db.select('collection').from('collections')
       .count('* as count');
-    withinDat(exp, dat);
+    if (opts) withinDat(exp, opts.dat);
     if (startingWith) {
       const s = `${startingWith}%`;
       exp.where('collection', 'like', s);
@@ -331,14 +342,14 @@ export class Database {
 
   // Optionally only include files from a particular dat.
   // Optionally specify a filename to find.
-  getFiles(author, title, dat, file) {
+  getFiles(author, title, opts) {
     const exp = this.db('texts')
       .where('author', author)
       .andWhere('title', title)
       .andWhere('texts.state', true);
-    withinDat(exp, dat);
-    if (file) {
-      exp.where('file', file);
+    if (opts) {
+      withinDat(exp, opts.dat);
+      exp.where('file', opts.file);
     }
     return exp.orderBy('dat', 'file');
   }
@@ -348,14 +359,15 @@ export class Database {
 
   // Gets dats containing items described in opts (author/title/file)
   // Optionally provide one or more dats to look within.
-  getDatsWith(opts, dat) {
-    return this.getItemsWith(opts, dat, 'dat');
+  getDatsWith(opts) {
+    return this.getItemsWith(opts, 'dat');
   }
 
   // Returns opf metadata object for an item, optionally preferring a specific library.
-  getOpf(author, title, dat = false) {
+  getOpf(author, title, dat) {
+    // @ todo - this is currently broken because of sequentialise - remove this.fn() calls
     const mfn = 'metadata.opf'; // metadata file name
-    return this.getFiles(author, title, dat, mfn).first()
+    return this.getFiles(author, title, { dat, file: mfn }).first()
       .then(row => this.pathToDat(row.dat))
       .then(fp => readOPF(path.join(fp.dir, author, title, mfn)));
   }
