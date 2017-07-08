@@ -109,7 +109,7 @@ export class Catalog extends EventEmitter {
   // Two functions for adding things into the catalog
   // Imports a local directory as a dat into the catalog
   importDir(dir, name = '') {
-    this.multidat.importDir(dir, name)
+    return this.multidat.importDir(dir, name)
       .then(dw => this.registerDat(dw))
       .then(dw => this.attachEventListenersAndJoinNetwork(dw));
   }
