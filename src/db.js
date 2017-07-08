@@ -54,7 +54,7 @@ function applyRange(query, opts) {
 
 // Applies sorting to queries through options object
 function applySort(query, opts, ...defaults) {
-  const optsNow = { sort: defaults, ...opts };
+  const optsNow = defaults ? { sort: defaults, ...opts } : opts;
   if (optsNow.sort) {
     query.orderBy(...optsNow.sort);
   }
@@ -293,10 +293,9 @@ export class Database {
     }
     if (opts) withinDat(exp, opts.dat);
     applyRange(exp, opts);
-    applySort(exp, opts);
+    applySort(exp, opts, 'author_sort', 'asc');
     return exp
-      .groupBy('texts.author', 'texts.title')
-      .orderBy('texts.author_sort', 'texts.title');
+      .groupBy('texts.author', 'texts.title');
   }
 
   // Gets entire entries for catalog items matching author/title/file.
