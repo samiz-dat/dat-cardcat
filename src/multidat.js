@@ -184,6 +184,12 @@ export default class Multidat {
     return dat.hasFile(file);
   }
 
+  // Does a dat have a file?
+  datIsYours(key) {
+    const dat = this.getDat(key);
+    return (dat) ? dat.isYours() : false;
+  }
+
   // Simply copies a file into a dat directory provided it is writeable
   addFileToDat(key, filepath, pathInDat) {
     const dat = this.getDat(key);

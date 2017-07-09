@@ -46,7 +46,7 @@ export class Catalog extends EventEmitter {
     // Now, database functions are passed on from this.db
     // explicitly declare publicly accessible database functions
     const publicDatabaseFuncs = [
-      'getDats',
+      // 'getDats',
       'getAuthors',
       'getAuthorLetters',
       'getCollections',
@@ -138,6 +138,13 @@ export class Catalog extends EventEmitter {
   }
 
   // See db functions in constructor for browsing and searching the catalog.
+  getDats() {
+    return this.db.getDats()
+      .map((dat) => {
+        dat.writeable = this.multidat.datIsYours(dat.dat);
+        return dat;
+      });
+  }
 
   // Copying a file to a writeable Dat
   addFileToDat(filepath, key, author, title) {
