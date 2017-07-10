@@ -164,13 +164,11 @@ export class Catalog extends EventEmitter {
     if (opts.collection) {
       return this.db.getTitlesWith(opts)
         .then(rows => rows)
-        .each(row => this.download(row.dat, row))
-        .then(() => this.scanForDownloads(opts));
+        .each(row => this.download(row.dat, row));
     }
     if (opts.dat) {
       if (typeof opts.dat === 'string') {
-        return this.download(opts.dat, opts)
-          .then(() => this.scanForDownloads(opts, opts.dat));
+        return this.download(opts.dat, opts);
       } else if (Array.isArray(opts.dat)) {
         return Promise.map(opts.dat, dat => this.checkout({ ...opts, dat }));
       }
@@ -180,8 +178,7 @@ export class Catalog extends EventEmitter {
     // With no dat provided, we must query for it
     return this.db.getDatsWith(opts)
       .map(row => row.dat)
-      .each(dat => this.download(dat, opts)) // .each() passes through the original array
-      .then(dats => this.scanForDownloads(opts, _.uniq(dats)));
+      .each(dat => this.download(dat, opts)); // .each() passes through the original array
   }
 
   // ## Dat Management, public functions
@@ -243,6 +240,7 @@ export class Catalog extends EventEmitter {
     dat.on('import', this.handleDatImportEvent);
     dat.on('download metadata', this.handleDatDownloadMetadataEvent);
     dat.on('sync metadata', this.handleDatSyncMetadataEvent);
+    dat.on('download content', this.handleDatDownloadContentEvent);
     return dat.run();
   }
 
@@ -250,6 +248,7 @@ export class Catalog extends EventEmitter {
     dat.removeListener('import', this.handleDatImportEvent);
     dat.removeListener('download metadata', this.handleDatDownloadMetadataEvent);
     dat.removeListener('sync metadata', this.handleDatSyncMetadataEvent);
+    dat.removeListener('download content', this.handleDatDownloadContentEvent);
   }
 
   // Registers dat the DB
@@ -386,14 +385,6 @@ export class Catalog extends EventEmitter {
     return this.multidat.downloadFromDat(key, resource);
   }
 
-  // Checks whether a group of catalogue items have been downloaded
-  // and if so, then updates the downloaded column in the texts table
-  scanForDownloads(opts, dat) {
-    return this.db.getItemsWith(opts, dat)
-      .then(rows => rows.filter(doc => this.itemIsDownloaded(doc)))
-      .each(row => this.setDownloaded(row.dat, row.author, row.title, row.file));
-  }
-
   // Given a row from the texts table, check if it has been downloaded
   itemIsDownloaded(dbRow) {
     return this.multidat.datHasFile(dbRow.dat, path.join(dbRow.author, dbRow.title, dbRow.file));
@@ -452,6 +443,17 @@ export class Catalog extends EventEmitter {
   handleDatSyncMetadataEvent = (dat) => {
     console.log('Metadata sync event for:', dat);
     this.emit('sync metadata', dat);
+  }
+
+  handleDatDownloadContentEvent = (data) => {
+    const entry = parseEntry(data.file, 'calibre');
+    if (entry) {
+      // console.log(`${data.progress.toFixed(2)}%`, 'Downloading:', data.file);
+      if (data.progress === 100) {
+        // console.log('Downloaded!', data.file);
+        this.setDownloaded(data.key, entry.author, entry.title, entry.file);
+      }
+    }
   }
 
   // // When a dat import process is finished

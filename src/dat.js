@@ -41,6 +41,7 @@ export default class DatWrapper extends EventEmitter {
     super();
     this.directory = opts.directory;
     this.metadataDownloadCount = 0;
+    this.contentDownloadCount = 0;
     this.metadataComplete = false;
     // create if it doesn't exist
     if (!fs.existsSync(opts.directory)) {
@@ -70,6 +71,10 @@ export default class DatWrapper extends EventEmitter {
         this.metadataComplete = this.metadataDownloadCount === (this.version + 1);
         console.log('created dat:', this.key);
         console.log('metadata:', this.metadataDownloadCount, '/', this.version, this.metadataComplete);
+        if (dat.archive.content) {
+          this.contentDownloadCount = dat.archive.content.downloaded();
+          console.log('content:', this.contentDownloadCount, '/', dat.archive.content.length);
+        }
         return this;
       });
   }
@@ -86,12 +91,32 @@ export default class DatWrapper extends EventEmitter {
     const metadata = this.dat.archive.metadata;
     metadata.on('download', this.metadataDownloadEventHandler);
     metadata.on('sync', this.metadataSyncEventHandler);
+
+    // Watch for content downloading
+    const content = this.dat.archive.content;
+    content.on('download', this.contentDownloadEventHandler);
     return this;
   }
 
   connectionEventHandler = () => {
     console.log('connects via network');
     console.log(chalk.gray(chalk.bold('peers:')), this.stats.peers);
+  }
+
+  // @TODO: This will be an inefficient thing to do in large archives. Rethink!
+  contentDownloadEventHandler = (index) => {
+    this.contentDownloadCount++;
+    pda.findEntryByContentBlock(this.dat.archive, index)
+      .then((data) => {
+        const got = this.dat.archive.content.downloaded(data.start, data.end) + 1;
+        const tot = (data.end - data.start) + 1;
+        const progress = (got / tot) * 100;
+        this.emit('download content', {
+          key: this.key,
+          file: data.name,
+          progress,
+        });
+      });
   }
 
   metadataDownloadEventHandler = (index, data) => {
@@ -259,10 +284,12 @@ export default class DatWrapper extends EventEmitter {
 
   // Download a file or directory
   downloadContent(fn = '') {
-    const filename = `/${fn}/`;
+    const filename = (fn === '') ? '/' : `/${fn}/`;
     console.log(`Downloading: ${filename}`);
     console.log(this.stats.peers);
-    return pda.download(this.dat.archive, filename);
+    // Start download process
+    this.dat.archive.content.download();
+    return Promise.resolve(true);
   }
 
   // Has the file been downloaded?

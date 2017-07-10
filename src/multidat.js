@@ -155,7 +155,7 @@ export default class Multidat {
   // Remove a dat from the multidat
   removeDat(key) {
     const dat = this.dats[key];
-    if (dat !== undefined) {
+    if (dat === undefined) {
       return Promise.resolve(false);
     }
     return dat.close()
