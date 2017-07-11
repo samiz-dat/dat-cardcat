@@ -93,8 +93,12 @@ export default class DatWrapper extends EventEmitter {
     metadata.on('sync', this.metadataSyncEventHandler);
 
     // Watch for content downloading
-    const content = this.dat.archive.content;
-    content.on('download', this.contentDownloadEventHandler);
+    this.dat.archive.on('content', () => {
+      const content = this.dat.archive.content;
+      this.contentDownloadCount = content.downloaded();
+      content.on('download', this.contentDownloadEventHandler);
+    });
+
     return this;
   }
 
@@ -147,9 +151,6 @@ export default class DatWrapper extends EventEmitter {
     console.log('metadata synced');
     this.metadataComplete = true;
     this.emit('sync metadata', this.key);
-    // @todo: remove this next hack line.
-    // But for now we need it because on first load of dat we aren't getting the "loaded" event above
-    // this.emit('sync collections', this.key);
   };
 
   // call a function on each downloaded chuck of metadata.
@@ -198,7 +199,9 @@ export default class DatWrapper extends EventEmitter {
   get moreStats() {
     return {
       ...this.peers,
-      downloaded: (this.contentDownloadCount / this.dat.archive.content.length) * 100,
+      downloaded: (this.dat.archive.content)
+        ? (this.contentDownloadCount / this.dat.archive.content.length) * 100
+        : 0,
       downloadSpeed: this.stats.network.downloadSpeed,
       uploadSpeed: this.stats.network.uploadSpeed,
     };
