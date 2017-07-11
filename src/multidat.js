@@ -146,6 +146,11 @@ export default class Multidat {
     return (dat !== undefined) ? dat : null;
   }
 
+  getDatStats(key) {
+    const dat = this.getDat(key);
+    return (dat !== undefined) ? dat.moreStats : {};
+  }
+
   // Get a path to a dat
   pathToDat(key) {
     const dat = this.getDat(key);

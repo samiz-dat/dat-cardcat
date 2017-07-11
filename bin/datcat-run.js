@@ -175,6 +175,7 @@ function cardcatTasks(key) {
     switch (answers.choice) {
       case 'Get info': {
         console.log(`Share this key to share it's catalogue: ${key}`);
+        console.log(cardcat.getDatStats(key));
         break;
       }
       case 'Checkout everything': {

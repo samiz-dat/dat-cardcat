@@ -61,7 +61,7 @@ export class Catalog extends EventEmitter {
       else console.warn(`Database function "${fn}" does not exist and has not been attached to Catalog object.`);
     });
 
-    const publicMultidatFuncs = ['copyFromDatToDat'];
+    const publicMultidatFuncs = ['copyFromDatToDat', 'getDatStats'];
 
     publicMultidatFuncs.forEach((fn) => {
       if (typeof this.multidat[fn] === 'function') this[fn] = (...args) => this.multidat[fn](...args);
@@ -448,6 +448,7 @@ export class Catalog extends EventEmitter {
   handleDatDownloadContentEvent = (data) => {
     const entry = parseEntry(data.file, 'calibre');
     if (entry) {
+      this.emit('download', data);
       // console.log(`${data.progress.toFixed(2)}%`, 'Downloading:', data.file);
       if (data.progress === 100) {
         // console.log('Downloaded!', data.file);

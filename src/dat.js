@@ -195,6 +195,15 @@ export default class DatWrapper extends EventEmitter {
     return this.dat.writable;
   }
 
+  get moreStats() {
+    return {
+      ...this.peers,
+      downloaded: (this.contentDownloadCount / this.dat.archive.content.length) * 100,
+      downloadSpeed: this.stats.network.downloadSpeed,
+      uploadSpeed: this.stats.network.uploadSpeed,
+    };
+  }
+
   // How many peers for this dat
   get peers() {
     return this.stats.peers || { total: 0, complete: 0 };
