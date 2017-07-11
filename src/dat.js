@@ -41,7 +41,7 @@ export default class DatWrapper extends EventEmitter {
     super();
     this.directory = opts.directory;
     this.metadataDownloadCount = 0;
-    this.contentDownloadCount = 0;
+    this.filesCount = false;
     this.metadataComplete = false;
     // create if it doesn't exist
     if (!fs.existsSync(opts.directory)) {
@@ -71,10 +71,6 @@ export default class DatWrapper extends EventEmitter {
         this.metadataComplete = this.metadataDownloadCount === (this.version + 1);
         console.log('created dat:', this.key);
         console.log('metadata:', this.metadataDownloadCount, '/', this.version, this.metadataComplete);
-        if (dat.archive.content) {
-          this.contentDownloadCount = dat.archive.content.downloaded();
-          console.log('content:', this.contentDownloadCount, '/', dat.archive.content.length);
-        }
         return this;
       });
   }
@@ -95,7 +91,6 @@ export default class DatWrapper extends EventEmitter {
     // Watch for content downloading
     this.dat.archive.on('content', () => {
       const content = this.dat.archive.content;
-      this.contentDownloadCount = content.downloaded();
       content.on('download', this.contentDownloadEventHandler);
     });
 
@@ -199,8 +194,8 @@ export default class DatWrapper extends EventEmitter {
   get moreStats() {
     return {
       ...this.peers,
-      downloaded: (this.dat.archive.content)
-        ? (this.contentDownloadCount / this.dat.archive.content.length) * 100
+      downloaded: (this.filesCount && this.filesCount.total)
+        ? (this.filesCount.have / this.filesCount.total) * 100
         : 0,
       downloadSpeed: this.stats.network.downloadSpeed,
       uploadSpeed: this.stats.network.uploadSpeed,
@@ -214,6 +209,18 @@ export default class DatWrapper extends EventEmitter {
 
   get version() {
     return this.dat.archive.version;
+  }
+
+  incrementFilesCount(incrementTotal) {
+    if (incrementTotal) {
+      this.filesCount.total += 1;
+    } else {
+      this.filesCount.have += 1;
+    }
+  }
+
+  setFilesCount(have, total) {
+    this.filesCount = { have, total };
   }
 
   importFiles(importPath = this.directory) {

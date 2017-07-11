@@ -353,6 +353,16 @@ export class Database {
     return exp.orderBy('dat', 'file');
   }
 
+  getDownloadCounts(dat) {
+    const exp = this.db.select('texts.downloaded').from('texts')
+      .count('texts.file as count');
+    withinDat(exp, dat);
+    return exp
+      .where('texts.state', true)
+      .groupBy('texts.downloaded')
+      .orderBy('texts.downloaded', 'desc');
+  }
+
   getDats = () => this.db('dats').select();
   getDat = key => this.db('dats').select().where('dat', key);
 

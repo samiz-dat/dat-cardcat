@@ -54,6 +54,7 @@ export class Catalog extends EventEmitter {
       'search',
       'getTitlesForAuthor',
       'setDownloaded',
+      'getDownloadCounts',
     ];
 
     publicDatabaseFuncs.forEach((fn) => {
@@ -390,6 +391,23 @@ export class Catalog extends EventEmitter {
     return this.multidat.datHasFile(dbRow.dat, path.join(dbRow.author, dbRow.title, dbRow.file));
   }
 
+  // Refreshes the download counts, or simply performs an increment
+  updateDatDownloadCounts(key, doIncrement) {
+    const dw = this.multidat.getDat(key);
+    if (dw.filesCount && doIncrement) {
+      dw.incrementFilesCount();
+      return Promise.resolve(dw.filesCount);
+    }
+    return this.getDownloadCounts()
+      .then((counts) => {
+        const o = _.find(counts, 'downloaded');
+        dw.setFilesCount(
+          (o) ? o.count : 0,
+          _.sumBy(counts, 'count'));
+        return Promise.resolve(dw.filesCount);
+      });
+  }
+
   // Event listening
   //
 
@@ -452,7 +470,8 @@ export class Catalog extends EventEmitter {
       // console.log(`${data.progress.toFixed(2)}%`, 'Downloading:', data.file);
       if (data.progress === 100) {
         // console.log('Downloaded!', data.file);
-        this.setDownloaded(data.key, entry.author, entry.title, entry.file);
+        this.setDownloaded(data.key, entry.author, entry.title, entry.file)
+          .then(() => this.updateDatDownloadCounts(data.key, true));
       }
     }
   }
