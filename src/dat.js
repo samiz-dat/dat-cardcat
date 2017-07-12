@@ -193,7 +193,8 @@ export default class DatWrapper extends EventEmitter {
 
   get moreStats() {
     return {
-      ...this.peers,
+      peers: this.peers,
+      filesCount: this.filesCount,
       downloaded: (this.filesCount && this.filesCount.total)
         ? (this.filesCount.have / this.filesCount.total) * 100
         : 0,

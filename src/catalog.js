@@ -258,6 +258,7 @@ export class Catalog extends EventEmitter {
     return this.db.removeDat(dw.key)
       .then(() => this.db.addDat(dw.key, dw.name, dw.directory, dw.version))
       .then(() => this.ingestDatContents(dw))
+      .then(() => this.updateDatDownloadCounts(dw.key))
       .catch((err) => {
         console.log(err);
         this.emit('error', err);
@@ -286,6 +287,7 @@ export class Catalog extends EventEmitter {
   }
 
   // Adds an entry from a Dat
+  // @TODO: We should call updateDatDownloadCounts() on new imports, but not on the initial bulk load. Howto?
   ingestDatFile = async (data, attempts = 10) => {
     const entry = parseEntry(data.file, 'calibre');
     if (entry) {
