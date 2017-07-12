@@ -400,7 +400,7 @@ export class Catalog extends EventEmitter {
       dw.incrementFilesCount();
       return Promise.resolve(dw.filesCount);
     }
-    return this.getDownloadCounts()
+    return this.getDownloadCounts(key)
       .then((counts) => {
         const o = _.find(counts, 'downloaded');
         dw.setFilesCount(
