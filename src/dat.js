@@ -196,6 +196,7 @@ export default class DatWrapper extends EventEmitter {
     return {
       peers: this.peers,
       filesCount: this.filesCount,
+      metadata: this.version > 0 ? (this.metadataDownloadCount / (this.version + 1)) * 100 : 0,
       downloaded: (this.filesCount && this.filesCount.total)
         ? (this.filesCount.have / this.filesCount.total) * 100
         : 0,
