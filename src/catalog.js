@@ -463,6 +463,7 @@ export class Catalog extends EventEmitter {
   handleDatSyncMetadataEvent = (dat) => {
     console.log('Metadata sync event for:', dat);
     this.emit('sync metadata', dat);
+    this.updateDatDownloadCounts(dat);
   }
 
   handleDatDownloadContentEvent = (data) => {
