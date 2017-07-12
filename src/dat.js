@@ -192,14 +192,15 @@ export default class DatWrapper extends EventEmitter {
   }
 
   get moreStats() {
+    const network = this.stats && this.stats.network;
     return {
       peers: this.peers,
       filesCount: this.filesCount,
       downloaded: (this.filesCount && this.filesCount.total)
         ? (this.filesCount.have / this.filesCount.total) * 100
         : 0,
-      downloadSpeed: this.stats.network.downloadSpeed,
-      uploadSpeed: this.stats.network.uploadSpeed,
+      downloadSpeed: network ? network.downloadSpeed : 0,
+      uploadSpeed: network ? network.uploadSpeed : 0,
     };
   }
 
