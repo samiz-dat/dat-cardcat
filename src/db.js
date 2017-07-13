@@ -279,7 +279,7 @@ export class Database {
         'texts.title',
         'texts.title_hash',
         'texts.author_sort',
-      this.db.raw('GROUP_CONCAT(texts.file || ":" || texts.downloaded) as "files"'))
+      this.db.raw('GROUP_CONCAT(texts.file || ":" || texts.downloaded, ";;") as "files"'))
       .from('texts')
       .where('texts.state', true);
     if (opts.author) {
