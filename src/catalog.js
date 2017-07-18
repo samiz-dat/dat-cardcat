@@ -77,6 +77,7 @@ export class Catalog extends EventEmitter {
     return this.initDatabase()
       .then(() => this.initMultidat())
       .then(() => {
+        this.isReady = true;
         this.emit('ready');
       })
       .catch(err => this.emit('error', err))
