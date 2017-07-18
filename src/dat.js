@@ -43,6 +43,7 @@ export default class DatWrapper extends EventEmitter {
     this.metadataDownloadCount = 0;
     this.filesCount = false;
     this.metadataComplete = false;
+    this.listeningToDownloads = false;
     // create if it doesn't exist
     if (!fs.existsSync(opts.directory)) {
       fs.mkdirSync(opts.directory);
@@ -92,6 +93,7 @@ export default class DatWrapper extends EventEmitter {
     this.dat.archive.on('content', () => {
       const content = this.dat.archive.content;
       content.on('download', this.contentDownloadEventHandler);
+      this.listeningToDownloads = true;
     });
 
     return this;
@@ -312,6 +314,10 @@ export default class DatWrapper extends EventEmitter {
     console.log(this.stats.peers);
     // Start download process
     this.dat.archive.content.download();
+    if (!this.listeningToDownloads) {
+      this.dat.archive.content.on('download', this.contentDownloadEventHandler);
+      this.listeningToDownloads = true;
+    }
     return Promise.resolve(true);
   }
 
