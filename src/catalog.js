@@ -151,7 +151,8 @@ export class Catalog extends EventEmitter {
   // Copying a file to a writeable Dat
   addFileToDat(filepath, key, author, title) {
     const pathInDat = formatPath(author, title, path.basename(filepath));
-    return this.multidat.addFileToDat(key, filepath, pathInDat);
+    return this.multidat.addFileToDat(key, filepath, pathInDat)
+      .then(() => this.updateDatDownloadCounts(key));
   }
 
   // Public call for syncing files within a dat
