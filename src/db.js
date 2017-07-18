@@ -3,6 +3,8 @@ import db from 'knex';
 import Promise from 'bluebird';
 import { readOPF } from 'open-packaging-format';
 
+const GROUP_CONCAT_FILES = 'GROUP_CONCAT(texts.file || ":" || texts.downloaded, ";;") as "files"';
+
 // Narrows query to within a dat/ list of dats
 function withinDat(query, dat, table = 'texts') {
   if (dat) {
@@ -198,7 +200,7 @@ export class Database {
     const exp = this.db
       .count('titles as num')
       .from(function() {
-        this.distinct('dat', 'author', 'title', 'state').from('texts').as('texts')
+        this.distinct('dat', 'author', 'title', 'state').from('texts').as('texts');
       })
       .where('state', true)
       .andWhere(function () { // a bit inelegant but groups where statements
@@ -222,7 +224,7 @@ export class Database {
         'title',
         'title_hash',
         'author_sort',
-      this.db.raw('GROUP_CONCAT("file" || ":" || "downloaded") as "files"'))
+      this.db.raw(GROUP_CONCAT_FILES))
       .from('texts')
       .where('state', true)
       .andWhere(function () { // a bit inelegant but groups where statements
@@ -315,7 +317,7 @@ export class Database {
     const exp = this.db
       .count('titles as num')
       .from(function() {
-        this.distinct('dat', 'author', 'title', 'state').from('texts').as('texts')
+        this.distinct('dat', 'author', 'title', 'state').from('texts').as('texts');
       })
       .where('texts.state', true);
     if (opts.author) {
@@ -342,7 +344,7 @@ export class Database {
         'texts.title',
         'texts.title_hash',
         'texts.author_sort',
-      this.db.raw('GROUP_CONCAT(texts.file || ":" || texts.downloaded, ";;") as "files"'))
+      this.db.raw(GROUP_CONCAT_FILES))
       .from('texts')
       .where('texts.state', true);
     if (opts.author) {
