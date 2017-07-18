@@ -47,10 +47,13 @@ export class Catalog extends EventEmitter {
     // explicitly declare publicly accessible database functions
     const publicDatabaseFuncs = [
       // 'getDats',
+      'countAuthors',
       'getAuthors',
       'getAuthorLetters',
       'getCollections',
+      'countTitlesWith',
       'getTitlesWith',
+      'countSearch',
       'search',
       'getTitlesForAuthor',
       'setDownloaded',

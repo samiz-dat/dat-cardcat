@@ -192,6 +192,27 @@ export class Database {
       });
   }
 
+  // Gives a count of search results
+  countSearch(query, opts) {
+    const s = `%${query}%`;
+    const exp = this.db
+      .count('titles as num')
+      .from(function() {
+        this.distinct('dat', 'author', 'title', 'state').from('texts').as('texts')
+      })
+      .where('state', true)
+      .andWhere(function () { // a bit inelegant but groups where statements
+        this.where('title', 'like', s)
+          .orWhere('author', 'like', s);
+      });
+    if (opts) {
+      withinDat(exp, opts.dat);
+    }
+    return exp
+      .first()
+      .then(rows => rows.num);
+  }
+
   // Searches for titles with files bundled up in a comma separated column
   search(query, opts) {
     const s = `%${query}%`;
@@ -218,6 +239,25 @@ export class Database {
   }
 
   // Gets a count of authors in the catalog
+  countAuthors(startingWith, opts) {
+    const exp = this.db.count('texts.author as num').from('texts');
+    if (opts) withinDat(exp, opts.dat);
+    if (startingWith) {
+      const s = `${startingWith}%`;
+      exp.where('texts.author_sort', 'like', s);
+    }
+    if (opts) {
+      if (opts.collection) {
+        withinColl(exp, opts.collection);
+      }
+    }
+    return exp
+      .where('texts.state', true)
+      .first()
+      .then(rows => rows.num);
+  }
+
+  // Gets authors in the catalog
   getAuthors(startingWith, opts) {
     const exp = this.db.select('texts.author').from('texts')
       .countDistinct('texts.title as count');
@@ -268,6 +308,29 @@ export class Database {
       applySort(exp, opts, 'title', 'asc');
     }
     return exp;
+  }
+
+  // Counting total results for getTitlesWith query
+  countTitlesWith(opts) {
+    const exp = this.db
+      .count('titles as num')
+      .from(function() {
+        this.distinct('dat', 'author', 'title', 'state').from('texts').as('texts')
+      })
+      .where('texts.state', true);
+    if (opts.author) {
+      exp.where('texts.author', opts.author);
+    }
+    if (opts.title) {
+      exp.where('texts.title', opts.title);
+    }
+    if (opts.collection) {
+      withinColl(exp, opts.collection);
+    }
+    if (opts) withinDat(exp, opts.dat);
+    return exp
+      .first()
+      .then(rows => rows.num);
   }
 
   // Like getItemsWith, except some extra work is done to return titles

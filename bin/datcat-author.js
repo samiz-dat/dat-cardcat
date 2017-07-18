@@ -27,7 +27,7 @@ cmd
   .command('titles <name>')
   .action((name) => {
     catalog.createCatalog(false, true)
-      .then(c => c.getTitlesForAuthor(name))
+      .then(c => c.getTitlesWith({ author: name }))
       .then((rows) => {
         for (const doc of rows) {
           console.log(`${doc.title}\t${doc.dat}`);

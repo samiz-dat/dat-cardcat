@@ -13,7 +13,7 @@ if (args.length < 1) {
 }
 
 catalog.createCatalog(false, true)
-  .then(c => c.search(args[0]))
+  .then(c => c.countSearch(args[0]))
   .then((rows) => {
     for (const doc of rows) {
       console.log(`${doc.author}, "${doc.title}", "${doc.files}"`);
