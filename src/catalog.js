@@ -241,6 +241,7 @@ export class Catalog extends EventEmitter {
 
   attachEventListenersAndJoinNetwork = (dat) => {
     dat.on('import', this.handleDatImportEvent);
+    dat.on('imported', this.handleDatImportedEvent);
     dat.on('download metadata', this.handleDatDownloadMetadataEvent);
     dat.on('sync metadata', this.handleDatSyncMetadataEvent);
     dat.on('download content', this.handleDatDownloadContentEvent);
@@ -249,6 +250,7 @@ export class Catalog extends EventEmitter {
 
   removeEventListeners = (dat) => {
     dat.removeListener('import', this.handleDatImportEvent);
+    dat.removeListener('imported', this.handleDatImportedEvent);
     dat.removeListener('download metadata', this.handleDatDownloadMetadataEvent);
     dat.removeListener('sync metadata', this.handleDatSyncMetadataEvent);
     dat.removeListener('download content', this.handleDatDownloadContentEvent);
@@ -436,6 +438,12 @@ export class Catalog extends EventEmitter {
     } else {
       console.log(`cannot import ${data.file}: maybe not calibre formated?`);
     }
+  }
+
+  // When a dat files have been fully imported
+  handleDatImportedEvent = (data) => {
+    this.emit('imported', data);
+    this.updateDatDownloadCounts(data.key);
   }
 
   // When a dat's metadata is synced
