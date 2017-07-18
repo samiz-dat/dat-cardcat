@@ -244,6 +244,7 @@ export default class DatWrapper extends EventEmitter {
             key: this.key,
             path: importPath,
           });
+          this.metadataDownloadCount = this.dat.archive.metadata.downloaded();
           resolve(true);
         });
         this.importer.on('count', (count) => {

@@ -442,8 +442,8 @@ export class Catalog extends EventEmitter {
 
   // When a dat files have been fully imported
   handleDatImportedEvent = (data) => {
-    this.emit('imported', data);
     this.updateDatDownloadCounts(data.key);
+    this.emit('imported', data);
   }
 
   // When a dat's metadata is synced
@@ -472,8 +472,8 @@ export class Catalog extends EventEmitter {
 
   handleDatSyncMetadataEvent = (dat) => {
     console.log('Metadata sync event for:', dat);
-    this.emit('sync metadata', dat);
     this.updateDatDownloadCounts(dat);
+    this.emit('sync metadata', dat);
   }
 
   handleDatDownloadContentEvent = (data) => {
