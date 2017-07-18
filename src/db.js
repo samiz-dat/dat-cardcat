@@ -240,7 +240,7 @@ export class Database {
 
   // Gets a count of authors in the catalog
   countAuthors(startingWith, opts) {
-    const exp = this.db.count('texts.author as num').from('texts');
+    const exp = this.db.countDistinct('texts.author as num').from('texts');
     if (opts) withinDat(exp, opts.dat);
     if (startingWith) {
       const s = `${startingWith}%`;

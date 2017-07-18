@@ -9,8 +9,9 @@ cmd
   .command('list [letter]')
   .action((filter) => {
     catalog.createCatalog(false, true)
-      .then(c => c.getAuthors(filter))
+      .then(c => c.countAuthors(filter))
       .then((rows) => {
+        console.log(rows);
         for (const doc of rows) {
           if (cmd.counts) {
             console.log(`${doc.author} (${doc.count})`);
