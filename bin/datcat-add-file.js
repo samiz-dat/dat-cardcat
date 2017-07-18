@@ -14,5 +14,5 @@ if (args.length !== 4) {
 
 catalog.createCatalog()
   // .then(c => c.importDir(args[0], args[1]))
-  .then(c => c.addFileToDat(args[0], args[1], args[2], args[3]))
+  .then(c => c.addFileToDat(args[0], args[1], args[2], args[3]).catch(e => console.log(e)).finally(() => console.log('finally')))
   .catch(e => console.log(e));
