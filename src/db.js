@@ -200,7 +200,7 @@ export class Database {
     const exp = this.db
       .count('titles as num')
       .from(function() {
-        this.distinct('dat', 'author', 'title', 'state').from('texts').as('texts')
+        this.distinct('dat', 'author', 'title', 'state').from('texts').as('texts');
       })
       .where('state', true)
       .andWhere(function () { // a bit inelegant but groups where statements
@@ -317,7 +317,7 @@ export class Database {
     const exp = this.db
       .count('titles as num')
       .from(function() {
-        this.distinct('dat', 'author', 'title', 'state').from('texts').as('texts')
+        this.distinct('dat', 'author', 'title', 'state').from('texts').as('texts');
       })
       .where('texts.state', true);
     if (opts.author) {
