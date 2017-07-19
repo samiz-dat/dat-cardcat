@@ -3,7 +3,6 @@ import fs from 'fs-extra';
 import Promise from 'bluebird';
 import chalk from 'chalk';
 import rimraf from 'rimraf';
-import pda from 'pauls-dat-api/es5';
 import _ from 'lodash';
 import DatWrapper from './dat'; // this function can be made a method of dat class too.
 import Database from './db'; // eslint-disable-line
@@ -84,6 +83,8 @@ export default class Multidat {
 
   // Create a new dat by forking an existing Dat
   forkDat(key, name = false, dir = false) {
+    return Promise.reject();
+    /*
     const deleteAfterFork = !this.dats[key];
     const forkDir = (!dir)
       ? path.format({
@@ -109,6 +110,7 @@ export default class Multidat {
     })
     .then(() => this.importDir(forkDir, name))
     .then(d => d.writeManifest({ forkOf: key }));
+    */
   }
 
   // Does the work of importing a functional dat into the catalog
