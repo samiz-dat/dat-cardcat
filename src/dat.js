@@ -6,8 +6,7 @@ import { openCollections, createCollection } from 'dat-collections';
 // import _ from 'lodash';
 import Promise from 'bluebird';
 import chalk from 'chalk';
-import pda from 'pauls-dat-api/es5';
-import { download } from './utils/hyper';
+import { download, readdir, findEntryByContentBlock } from './utils/hyper';
 import messages from 'dat-protocol-buffers';
 // import prettysize from 'prettysize';
 
@@ -108,7 +107,7 @@ export default class DatWrapper extends EventEmitter {
   // @TODO: This will be an inefficient thing to do in large archives. Rethink!
   contentDownloadEventHandler = (index) => {
     this.contentDownloadCount++;
-    pda.findEntryByContentBlock(this.dat.archive, index)
+    findEntryByContentBlock(this.dat.archive, index)
       .then((data) => {
         const got = this.dat.archive.content.downloaded(data.start, data.end) + 1;
         const tot = (data.end - data.start) + 1;
@@ -288,6 +287,7 @@ export default class DatWrapper extends EventEmitter {
 
   // Import a file or directory from another archive
   async importFromDat(srcDatWrapper, fileOrDir, overwriteExisting = true) {
+    /*
     if (this.isYours()) {
       const dstPath = path.join(this.directory, fileOrDir);
       return pda.exportArchiveToFilesystem({
@@ -300,12 +300,14 @@ export default class DatWrapper extends EventEmitter {
     }
     console.log('Warning: You tried to write to a Dat that is not yours. Nothing has been written.');
     // Fallback
+    */
+    // @TODO: Move our own implementation to hyper.js
     return Promise.resolve(false);
   }
 
   // Lists the contents of the dat
   listContents(below = '/') {
-    return pda.readdir(this.dat.archive, below, { recursive: true });
+    return readdir(this.dat.archive, below, { recursive: true });
   }
 
   // Download a file or directory
@@ -314,8 +316,12 @@ export default class DatWrapper extends EventEmitter {
     console.log(`Downloading: ${filename}`);
     console.log(this.stats.peers);
     // Start download process
-    // this.dat.archive.content.download();
-    download(this.dat.archive, filename);
+    // Don't use recursion if we don't have to (i.e. if we're getting everything)
+    if (fn === '') {
+      this.dat.archive.content.download();
+    } else {
+      download(this.dat.archive, filename);
+    }
     if (!this.listeningToDownloads) {
       this.dat.archive.content.on('download', this.contentDownloadEventHandler);
       this.listeningToDownloads = true;
@@ -369,6 +375,7 @@ export default class DatWrapper extends EventEmitter {
   // Write a manifest file
   // @todo: fix me! why do i write empty manifests?
   async writeManifest(opts = {}) {
+    /*
     const manifest = {
       url: `dat://${this.key}`,
       title: this.name,
@@ -376,14 +383,25 @@ export default class DatWrapper extends EventEmitter {
     };
     await pda.writeManifest(this.dat.archive, manifest);
     return this;
+    */
+    // @TODO: Move our own implementation to hyper.js
+    return Promise.reject();
   }
 
   readManifest() {
+    /*
     return pda.readManifest(this.dat.archive);
+    */
+    // @TODO: Move our own implementation to hyper.js
+    return Promise.reject();
   }
 
   updateManifest(manifest) {
+    /*
     return pda.updateManifest(this.dat.archive, manifest);
+    */
+    // @TODO: Move our own implementation to hyper.js
+    return Promise.reject();
   }
 
   close() {

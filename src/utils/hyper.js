@@ -100,3 +100,62 @@ export function download(archive, name, cb) {
     }
   }));
 }
+
+export async function findEntryByContentBlock(archive, block) {
+  if (archive.metadata.length <= 0) {
+    return;
+  }
+
+  // do a binary search
+  let lo = 1;
+  let hi = archive.metadata.length;
+  const nextCursor = () => ((hi + lo) / 2) | 0;
+  let cursor = nextCursor();
+  while (lo <= hi) {
+    // find a file entry in the current [lo, hi] range
+    let entry;
+    let st;
+    let origCursor = cursor;
+    while (true) {
+      // fetch the entry
+      entry = await new Promise(resolve =>
+        archive.tree._getAndDecode(cursor, {}, (err, e) => {
+          if (err) console.warn('Failed to fetch block', block, err);
+          resolve(e);
+        }));
+      if (!entry) {
+        return; // read error, abort
+      }
+      if (entry.value) {
+        st = archive.tree._codec.decode(entry.value);
+        if (st.blocks !== 0) {
+          break; // found a file
+        }
+      }
+      cursor++;
+      if (cursor > hi) cursor = lo; // overflow back to lo
+      if (cursor === origCursor) {
+        return; // no files in the current [lo, hi] range, not found
+      }
+    }
+
+    // check the range
+    const range = {
+      name: entry.name,
+      start: st.offset,
+      end: (st.offset + st.blocks) - 1,
+    };
+    if (block >= range.start && block <= range.end) {
+      // found
+      return range;
+    }
+
+    // adjust range and try again
+    if (block > range.end) {
+      lo = cursor + 1;
+    } else {
+      hi = cursor - 1;
+    }
+    cursor = nextCursor();
+  }
+}
