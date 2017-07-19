@@ -7,6 +7,7 @@ import { openCollections, createCollection } from 'dat-collections';
 import Promise from 'bluebird';
 import chalk from 'chalk';
 import pda from 'pauls-dat-api/es5';
+import { download } from './utils/hyper';
 import messages from 'dat-protocol-buffers';
 // import prettysize from 'prettysize';
 
@@ -313,7 +314,8 @@ export default class DatWrapper extends EventEmitter {
     console.log(`Downloading: ${filename}`);
     console.log(this.stats.peers);
     // Start download process
-    this.dat.archive.content.download();
+    // this.dat.archive.content.download();
+    download(this.dat.archive, filename);
     if (!this.listeningToDownloads) {
       this.dat.archive.content.on('download', this.contentDownloadEventHandler);
       this.listeningToDownloads = true;
