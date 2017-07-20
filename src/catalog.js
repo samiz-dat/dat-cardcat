@@ -275,9 +275,13 @@ export class Catalog extends EventEmitter {
 
   // For a Dat, ingest its contents into the catalog
   ingestDatContents(dw) {
+    // @TODO: this happens on start up in a linear fashion,
+    // we can easily setup nice load progress with the info from here.
+    // ----
     // rather than clear texts check if metadata is complete
     // only ingest if dat version is > max db version for key
-    // or if metadata is incomplete,
+    // Note: only if metadata is completely downloaded can we linearly
+    // move through material not in yet added to db
     if (dw.metadataComplete) {
       return this.db.lastImportedVersion(dw.key).then((data) => {
         console.log(data);
@@ -289,6 +293,9 @@ export class Catalog extends EventEmitter {
         return null;
       });
     }
+    // If metadata is incomplete, there is not telling what order the
+    // texts were downloaded in, so we much reiterate over the metadata
+    // that we do have downloaded.
     return this.db.clearTexts(dw.key)
       .then(() => dw.onEachMetadata(this.ingestDatFile));
   }
