@@ -61,7 +61,7 @@ export class Catalog extends EventEmitter {
     ];
 
     publicDatabaseFuncs.forEach((fn) => {
-      if (typeof this.db[fn] === 'function') this[fn] = (...args) => this.db[fn](...args);
+      if (typeof this.db[fn] === 'function') this[fn] = (...args) => this.db[fn](...args, { priority: 2 });
       else console.warn(`Database function "${fn}" does not exist and has not been attached to Catalog object.`);
     });
 
