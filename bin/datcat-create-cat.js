@@ -14,5 +14,5 @@ if (args.length !== 2) {
 
 catalog.createCatalog()
   // .then(c => c.importDir(args[0], args[1]))
-  .then(c => c.createDat(args[0], args[1]))
+  .then(c => c.importDir(args[0], args[1]))
   .catch(e => console.log(e));
