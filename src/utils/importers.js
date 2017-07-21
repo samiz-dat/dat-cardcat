@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'upath';
 import parser from 'another-name-parser';
 
 /*
@@ -48,7 +48,8 @@ export function formatPath(author, title, file, format = 'calibre') {
 // If so, return { author, author_sort, title, file }
 export default function (file, format = 'calibre') {
   // Only files (not directories) are eligible
-  const arr = file.split(path.sep);
+  const pathSep = '/'; // Note: not using path.sep!
+  const arr = path.normalize(file).split(pathSep);
   // Sometimes there is a leading slash which messes things up
   if (arr[0] === '') {
     arr.shift();
