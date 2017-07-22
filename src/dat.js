@@ -44,6 +44,7 @@ export default class DatWrapper extends EventEmitter {
     this.filesCount = false;
     this.metadataComplete = false;
     this.listeningToDownloads = false;
+    this.importingFiles = false;
     // create if it doesn't exist
     if (!fs.existsSync(opts.directory)) {
       fs.mkdirSync(opts.directory);
@@ -193,12 +194,24 @@ export default class DatWrapper extends EventEmitter {
     return this.dat.writable;
   }
 
+  get byteLength() {
+    if (this.dat.archive.content) {
+      if (this.dat.archive.content.byteLength === 0) {
+        this.dat.archive.content.update();
+      }
+      return this.dat.archive.content.byteLength;
+    }
+    return 0;
+  }
+
   get moreStats() {
     const network = this.stats && this.stats.network;
+    const metadataProgress = this.version > 0 ? (this.metadataDownloadCount / (this.version + 1)) * 100 : 0;
     return {
       peers: this.peers,
+      size: this.byteLength,
       filesCount: this.filesCount,
-      metadata: this.version > 0 ? (this.metadataDownloadCount / (this.version + 1)) * 100 : 0,
+      metadata: (this.importingFiles === false) ? metadataProgress : this.importingFiles,
       downloaded: (this.filesCount && this.filesCount.total)
         ? (this.filesCount.have / this.filesCount.total) * 100
         : 0,
@@ -232,6 +245,7 @@ export default class DatWrapper extends EventEmitter {
     return new Promise((resolve, reject) => {
       if (this.isYours()) {
         console.log('Importing files under:', importPath);
+        this.importingFiles = 0;
         let putTotal = 0;
         let putCount = 0;
         const opts = {
@@ -246,6 +260,7 @@ export default class DatWrapper extends EventEmitter {
             key: this.key,
             path: importPath,
           });
+          this.importingFiles = false;
           this.metadataDownloadCount = this.dat.archive.metadata.downloaded();
           resolve(true);
         });
@@ -258,23 +273,25 @@ export default class DatWrapper extends EventEmitter {
         // Emit event that something has been imported into the dat
         this.importer.on('put', (src) => {
           putCount += 1;
+          this.importingFiles = putTotal > 0 ? (putCount / putTotal) * 100 : 0;
           const data = {
             type: 'put',
             key: this.key,
             file: src.name.replace(this.directory, ''),
             stat: src.stat,
-            progress: putTotal > 0 ? (putCount / putTotal) * 100 : 0,
+            progress: this.importingFiles,
             version: this.version, // I am not sure if this works as version is not set by mirror-folder
           };
           this.emit('import', data);
         });
         this.importer.on('del', (src) => {
+          this.importingFiles = putTotal > 0 ? (putCount / putTotal) * 100 : 100;
           const data = {
             type: 'del',
             key: this.key,
             file: src.name.replace(this.directory, ''),
             stat: src.stat,
-            progress: putTotal > 0 ? (putCount / putTotal) * 100 : 100,
+            progress: this.importingFiles,
             version: this.version,
           };
           this.emit('import', data);

@@ -31,7 +31,7 @@ cmd
       .then(c => c.getTitlesWith({ author: name }))
       .then((rows) => {
         for (const doc of rows) {
-          console.log(`${doc.title}\t${doc.dat}`);
+          console.log(`${doc.title}\t${doc.dat}\t${doc.files}`);
         }
       });
   });
