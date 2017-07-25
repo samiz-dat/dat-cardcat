@@ -79,8 +79,8 @@ export class Database {
   }
 
   // Add a dat to the database
-  addDat(dat, name, dir, version) {
-    return this.db.insert({ dat, name, dir, version }).into('dats');
+  addDat(dat, name, dir, version, format) {
+    return this.db.insert({ dat, name, dir, version, format }).into('dats');
   }
 
   // Remove a dat from the database
@@ -89,7 +89,14 @@ export class Database {
   }
 
   // Update a dat's name and directory
-  updateDat(datKey, name, dir) {
+  updateDat(datKey, opts) {
+    return this.db('dats')
+      .where('dat', datKey)
+      .update(opts);
+  }
+
+  // Update a dat's name and directory
+  updateDatFormat(datKey, name, dir) {
     return this.db('dats')
       .where('dat', datKey)
       .update({
@@ -450,11 +457,7 @@ export class Database {
   init() {
     // we should probably setup a simple migration script
     // but for now lets just drop tables before remaking tables.
-    const tablesDropped = this.db.schema.dropTableIfExists('datsX')
-      .dropTableIfExists('textsX')
-      .dropTableIfExists('more_authorsX')
-      .dropTableIfExists('collections');
-    return tablesDropped.createTableIfNotExists('dats', (table) => {
+    const createTables = this.db.schema.createTableIfNotExists('dats', (table) => {
       table.string('dat');
       table.string('name');
       table.string('dir');
@@ -485,7 +488,18 @@ export class Database {
       table.string('title_hash');
       table.string('author');
       // table.unique('title_hash');
-    })
+    });
+    return createTables.then(() =>
+      // Add format column to the dats table
+      this.db.schema.hasColumn('dats', 'format')
+      .then((exists) => {
+        if (!exists) {
+          console.log('Format column created!');
+          return this.db.schema.table('dats', table => table.string('format'));
+        }
+        return true;
+      }),
+    )
     .then(() => { this.isReady = true; })
     .catch(e => console.error(e));
   }

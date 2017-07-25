@@ -153,7 +153,8 @@ export class Catalog extends EventEmitter {
 
   // Copying a file to a writeable Dat
   addFileToDat(filepath, key, author, title) {
-    const pathInDat = formatPath(author, title, path.basename(filepath));
+    const format = this.multidat.getDat(key).bestPathFormat || 'calibre';
+    const pathInDat = formatPath(author, title, path.basename(filepath), format);
     return this.multidat.addFileToDat(key, filepath, pathInDat)
       .then(() => this.updateDatDownloadCounts(key));
   }
@@ -196,7 +197,7 @@ export class Catalog extends EventEmitter {
     });
     return this.multidat.getDat(key)
       .then(dat => dat.rename(newPath, name))
-      .then(() => this.db.updateDat(key, name, newPath));
+      .then(() => this.db.updateDat(key, { name, dir: newPath }));
   }
 
   // Delete a dat from registry.
@@ -234,6 +235,13 @@ export class Catalog extends EventEmitter {
   cleanupDatRegistry() {
     return this.getDats()
       .map(dats => dats)
+      .each((dat) => {
+        // Pass the format from the database to the DatWrapper object
+        const dw = this.multidat.getDat(dat.dat);
+        if (dw) {
+          dw.format = dat.format || 'calibre';
+        }
+      })
       .filter(dat => !(dat.dat in this.multidat.dats))
       .each((dat) => {
         console.log(`Removing: ${chalk.bold(dat.dir)} from catalog (directory does not exist)`);
@@ -263,7 +271,7 @@ export class Catalog extends EventEmitter {
   registerDat(dw) {
     console.log(`Adding dat (${dw.key}) to the catalog.`);
     return this.db.removeDat(dw.key)
-      .then(() => this.db.addDat(dw.key, dw.name, dw.directory, dw.version))
+      .then(() => this.db.addDat(dw.key, dw.name, dw.directory, dw.version, dw.format))
       .then(() => this.ingestDatContents(dw))
       .then(() => this.updateDatDownloadCounts(dw.key))
       .catch((err) => {
@@ -303,7 +311,7 @@ export class Catalog extends EventEmitter {
   // Adds an entry from a Dat
   // @TODO: We should call updateDatDownloadCounts() on new imports, but not on the initial bulk load. Howto?
   ingestDatFile = async (data, attempts = 10) => {
-    const entry = parseEntry(data.file, 'calibre');
+    const entry = parseEntry(data.file);
     if (entry) {
       const downloaded = await this.multidat.getDat(data.key).hasFile(data.file);
       const downloadedStr = (downloaded) ? '[*]' : '[ ]';
@@ -317,6 +325,7 @@ export class Catalog extends EventEmitter {
       return this.db.addTextFromMetadata(text)
         .then(() => this.emit('import', { ...text, progress: data.progress }))
         .then(() => {
+          this.multidat.getDat(data.key).incrementPathFormat(entry.format);
           console.log(`${data.progress.toFixed(2)}%`, 'adding:', downloadedStr, data.file);
         })
         .catch((e) => {
@@ -336,6 +345,7 @@ export class Catalog extends EventEmitter {
   }
 
   ingestDatCollectedFile(dw, file, collectionArr, weight, format = 'authorTitle') {
+    // @TODO: Revisit collections given arbitrary path formats
     const importedData = parseEntry(file, format);
     if (importedData) {
       const collection = collectionArr.join(';;');
@@ -385,6 +395,12 @@ export class Catalog extends EventEmitter {
   }
 
   // Downloads files within a dat
+  /*
+  The problem here is that some formats allow for conveniently downloading 
+  an entire author by downloading a directory, other formats don't. To download
+  an author one would need to loop through a result set from the database.
+  How to handle two such un-alike cases in the most simple way?
+  */
   download(key, opts) {
     let resource = '';
     if (opts.author && opts.title && opts.file) {
@@ -430,7 +446,7 @@ export class Catalog extends EventEmitter {
   // When a dat imports a file
   handleDatImportEvent = (data) => {
     console.log(`${data.progress.toFixed(2)}%`, 'import download event.', data.type, ':', data.file);
-    const entry = parseEntry(data.file, 'calibre');
+    const entry = parseEntry(data.file);
     if (entry) {
       const text = {
         dat: data.key,
@@ -443,7 +459,10 @@ export class Catalog extends EventEmitter {
       // so that we just these requests to a list that gets executed when
       // the preceeding functions .then is called.
       this.db.addTextFromMetadata(text)
-        .then(() => this.emit('import', { ...text, progress: data.progress }))
+        .then(() => {
+          this.emit('import', { ...text, progress: data.progress });
+          this.multidat.getDat(data.key).incrementPathFormat(entry.format);
+        })
         .catch(console.error);
     } else {
       console.log(`cannot import ${data.file}: maybe not calibre formated?`);
@@ -453,6 +472,9 @@ export class Catalog extends EventEmitter {
   // When a dat files have been fully imported
   handleDatImportedEvent = (data) => {
     this.updateDatDownloadCounts(data.key);
+    this.db.updateDat(data.key, {
+      format: this.multidat.getDat(data.key).format,
+    });
     this.emit('imported', data);
   }
 
@@ -460,7 +482,7 @@ export class Catalog extends EventEmitter {
   handleDatDownloadMetadataEvent = (data) => {
     // this is almost identical to import MetadataEvent except for download flag - TODO: refactor to reduce duplication.
     console.log(`${data.progress.toFixed(2)}%`, 'Metadata download event.', data.type, ':', data.file);
-    const entry = parseEntry(data.file, 'calibre');
+    const entry = parseEntry(data.file);
     if (entry) {
       const text = {
         dat: data.key,
@@ -473,7 +495,10 @@ export class Catalog extends EventEmitter {
       // so that we just these requests to a list that gets executed when
       // the preceeding functions .then is called.
       this.db.addTextFromMetadata(text)
-        .then(() => this.emit('import', { ...text, progress: data.progress }))
+        .then(() => {
+          this.emit('import', { ...text, progress: data.progress });
+          this.multidat.getDat(data.key).incrementPathFormat(entry.format);
+        })
         .catch(console.error);
     } else {
       console.log(`cannot import ${data.file}: maybe not calibre formated?`);
@@ -483,11 +508,14 @@ export class Catalog extends EventEmitter {
   handleDatSyncMetadataEvent = (dat) => {
     console.log('Metadata sync event for:', dat);
     this.updateDatDownloadCounts(dat);
+    this.db.updateDat(dat, {
+      format: this.multidat.getDat(dat).format,
+    });
     this.emit('sync metadata', dat);
   }
 
   handleDatDownloadContentEvent = (data) => {
-    const entry = parseEntry(data.file, 'calibre');
+    const entry = parseEntry(data.file);
     if (entry) {
       this.emit('download', data);
       // console.log(`${data.progress.toFixed(2)}%`, 'Downloading:', data.file);

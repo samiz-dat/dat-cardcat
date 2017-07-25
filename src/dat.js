@@ -6,8 +6,9 @@ import { openCollections, createCollection } from 'dat-collections';
 // import _ from 'lodash';
 import Promise from 'bluebird';
 import chalk from 'chalk';
-import { download, readdir, findEntryByContentBlock } from './utils/hyper';
+import _ from 'lodash';
 import messages from 'dat-protocol-buffers';
+import { download, readdir, findEntryByContentBlock } from './utils/hyper';
 // import prettysize from 'prettysize';
 
 // declare common promisified function here
@@ -45,6 +46,9 @@ export default class DatWrapper extends EventEmitter {
     this.metadataComplete = false;
     this.listeningToDownloads = false;
     this.importingFiles = false;
+    // There might be several path formats within a dat. This keeps track of the numbers.
+    this.format = undefined;
+    this.formatCounts = {};
     // create if it doesn't exist
     if (!fs.existsSync(opts.directory)) {
       fs.mkdirSync(opts.directory);
@@ -227,6 +231,16 @@ export default class DatWrapper extends EventEmitter {
 
   get version() {
     return this.dat.archive.version;
+  }
+
+  // Add some data to the path formats
+  incrementPathFormat(format) {
+    if (_.has(this.formatCounts, format)) {
+      this.formatCounts[format]++;
+    } else {
+      this.formatCounts[format] = 1;
+    }
+    this.format = _.maxBy(_.keys(this.formatCounts), o => this.formatCounts[o]);
   }
 
   incrementFilesCount(incrementTotal) {
