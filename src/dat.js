@@ -343,7 +343,7 @@ export default class DatWrapper extends EventEmitter {
 
   // Download a file or directory
   downloadContent(fn = '') {
-    const filename = (fn === '') ? '/' : `/${fn}/`;
+    const filename = (fn === '') ? '/' : `/${fn}`;
     console.log(`Downloading: ${filename}`);
     console.log(this.stats.peers);
     // Start download process

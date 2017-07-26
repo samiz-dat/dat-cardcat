@@ -12,7 +12,7 @@ import config from './config';
 import Database from './db';
 import Multidat from './multidat';
 
-import parseEntry, { formatPath } from './utils/importers';
+import parseEntry, { formatPath, reformatPath } from './utils/importers';
 // @todo: this.db.close(); should be called on shutdown
 
 const rimrafAsync = Promise.promisify(rimraf);
@@ -53,6 +53,7 @@ export class Catalog extends EventEmitter {
       'getCollections',
       'countTitlesWith',
       'getTitlesWith',
+      'getItemsWith',
       'countSearch',
       'search',
       'getTitlesForAuthor',
@@ -153,8 +154,8 @@ export class Catalog extends EventEmitter {
 
   // Copying a file to a writeable Dat
   addFileToDat(filepath, key, author, title) {
-    const format = this.multidat.getDat(key).bestPathFormat || 'calibre';
-    const pathInDat = formatPath(author, title, path.basename(filepath), format);
+    const format = this.multidat.getDat(key).format || 'calibre';
+    const pathInDat = reformatPath(author, title, path.basename(filepath), format);
     return this.multidat.addFileToDat(key, filepath, pathInDat)
       .then(() => this.updateDatDownloadCounts(key));
   }
@@ -344,9 +345,8 @@ export class Catalog extends EventEmitter {
     return Promise.resolve(false);
   }
 
-  ingestDatCollectedFile(dw, file, collectionArr, weight, format = 'authorTitle') {
-    // @TODO: Revisit collections given arbitrary path formats
-    const importedData = parseEntry(file, format);
+  ingestDatCollectedFile(dw, file, collectionArr, weight) {
+    const importedData = parseEntry(file);
     if (importedData) {
       const collection = collectionArr.join(';;');
       console.log(chalk.bold('collecting:'), file, collection);
@@ -403,19 +403,22 @@ export class Catalog extends EventEmitter {
   */
   download(key, opts) {
     let resource = '';
-    if (opts.author && opts.title && opts.file) {
-      console.log(`checking out ${opts.author}/${opts.title}/${opts.file} from ${key}`);
-      resource = path.join(opts.author, opts.title, opts.file);
-    } else if (opts.author && opts.title) {
-      console.log(`checking out ${opts.author}/${opts.title} from ${key}`);
-      resource = path.join(opts.author, opts.title);
-    } else if (opts.author) {
-      console.log(`checking out ${opts.author} from ${key}`);
-      resource = path.join(opts.author);
-    } else {
+    if (!opts.author && !opts.title && !opts.file) {
       console.log(`checking out everything from ${opts.dat}`);
+      return this.multidat.downloadFromDat(key, resource);
     }
-    return this.multidat.downloadFromDat(key, resource);
+    // To download, we need to know the dat's format
+    opts.format = this.multidat.getDat(key).format || 'calibre';
+    resource = formatPath(opts);
+    console.log(`checking out ${opts} from ${key} as ${resource}`);
+    // Our formatter has returned a path that we can use.
+    if (resource) return this.multidat.downloadFromDat(key, resource);
+    // If the formatter didn't work, then we need to query the database for files to download serially
+    console.log('unable to get a specific resource to download, trying to get a list from the db');
+    opts.dat = key;
+    return this.db.getItemsWith(opts)
+      .then(rows => rows)
+      .each(row => this.download(row.dat, row));
   }
 
   // Given a row from the texts table, check if it has been downloaded
@@ -497,7 +500,13 @@ export class Catalog extends EventEmitter {
       this.db.addTextFromMetadata(text)
         .then(() => {
           this.emit('import', { ...text, progress: data.progress });
+          // update format and write to db if necessary
+          const formatBefore = this.multidat.getDat(data.key).format;
           this.multidat.getDat(data.key).incrementPathFormat(entry.format);
+          const format = this.multidat.getDat(data.key).format;
+          if (format && format !== formatBefore) {
+            this.db.updateDat(data.key, { format });
+          }
         })
         .catch(console.error);
     } else {
@@ -508,9 +517,6 @@ export class Catalog extends EventEmitter {
   handleDatSyncMetadataEvent = (dat) => {
     console.log('Metadata sync event for:', dat);
     this.updateDatDownloadCounts(dat);
-    this.db.updateDat(dat, {
-      format: this.multidat.getDat(dat).format,
-    });
     this.emit('sync metadata', dat);
   }
 
