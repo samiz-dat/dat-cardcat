@@ -12,7 +12,7 @@ import config from './config';
 import Database from './db';
 import Multidat from './multidat';
 
-import parseEntry, { formatPath, reformatPath } from './utils/importers';
+import parseEntry, { formatPath, reformatPath } from 'dat-cardcat-formats';
 // @todo: this.db.close(); should be called on shutdown
 
 const rimrafAsync = Promise.promisify(rimraf);
