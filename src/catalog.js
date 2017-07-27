@@ -505,8 +505,9 @@ export class Catalog extends EventEmitter {
           this.multidat.getDat(data.key).incrementPathFormat(entry.format);
           const format = this.multidat.getDat(data.key).format;
           if (format && format !== formatBefore) {
-            this.db.updateDat(data.key, { format });
+            return this.db.updateDat(data.key, { format });
           }
+          return true;
         })
         .catch(console.error);
     } else {
