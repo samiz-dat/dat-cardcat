@@ -12,7 +12,7 @@ import config from './config';
 import Database from './db';
 import Multidat from './multidat';
 
-import parseEntry, { formatPath } from './utils/importers';
+import parseEntry, { formatPath, reformatPath } from './utils/importers';
 // @todo: this.db.close(); should be called on shutdown
 
 const rimrafAsync = Promise.promisify(rimraf);
@@ -53,6 +53,7 @@ export class Catalog extends EventEmitter {
       'getCollections',
       'countTitlesWith',
       'getTitlesWith',
+      'getItemsWith',
       'countSearch',
       'search',
       'getTitlesForAuthor',
@@ -153,7 +154,8 @@ export class Catalog extends EventEmitter {
 
   // Copying a file to a writeable Dat
   addFileToDat(filepath, key, author, title) {
-    const pathInDat = formatPath(author, title, path.basename(filepath));
+    const format = this.multidat.getDat(key).format || 'calibre';
+    const pathInDat = reformatPath(author, title, path.basename(filepath), format);
     return this.multidat.addFileToDat(key, filepath, pathInDat)
       .then(() => this.updateDatDownloadCounts(key));
   }
@@ -196,7 +198,7 @@ export class Catalog extends EventEmitter {
     });
     return this.multidat.getDat(key)
       .then(dat => dat.rename(newPath, name))
-      .then(() => this.db.updateDat(key, name, newPath));
+      .then(() => this.db.updateDat(key, { name, dir: newPath }));
   }
 
   // Delete a dat from registry.
@@ -234,6 +236,13 @@ export class Catalog extends EventEmitter {
   cleanupDatRegistry() {
     return this.getDats()
       .map(dats => dats)
+      .each((dat) => {
+        // Pass the format from the database to the DatWrapper object
+        const dw = this.multidat.getDat(dat.dat);
+        if (dw) {
+          dw.format = dat.format || 'calibre';
+        }
+      })
       .filter(dat => !(dat.dat in this.multidat.dats))
       .each((dat) => {
         console.log(`Removing: ${chalk.bold(dat.dir)} from catalog (directory does not exist)`);
@@ -263,7 +272,7 @@ export class Catalog extends EventEmitter {
   registerDat(dw) {
     console.log(`Adding dat (${dw.key}) to the catalog.`);
     return this.db.removeDat(dw.key)
-      .then(() => this.db.addDat(dw.key, dw.name, dw.directory, dw.version))
+      .then(() => this.db.addDat(dw.key, dw.name, dw.directory, dw.version, dw.format))
       .then(() => this.ingestDatContents(dw))
       .then(() => this.updateDatDownloadCounts(dw.key))
       .catch((err) => {
@@ -303,7 +312,7 @@ export class Catalog extends EventEmitter {
   // Adds an entry from a Dat
   // @TODO: We should call updateDatDownloadCounts() on new imports, but not on the initial bulk load. Howto?
   ingestDatFile = async (data, attempts = 10) => {
-    const entry = parseEntry(data.file, 'calibre');
+    const entry = parseEntry(data.file);
     if (entry) {
       const downloaded = await this.multidat.getDat(data.key).hasFile(data.file);
       const downloadedStr = (downloaded) ? '[*]' : '[ ]';
@@ -317,6 +326,7 @@ export class Catalog extends EventEmitter {
       return this.db.addTextFromMetadata(text)
         .then(() => this.emit('import', { ...text, progress: data.progress }))
         .then(() => {
+          this.multidat.getDat(data.key).incrementPathFormat(entry.format);
           console.log(`${data.progress.toFixed(2)}%`, 'adding:', downloadedStr, data.file);
         })
         .catch((e) => {
@@ -335,8 +345,8 @@ export class Catalog extends EventEmitter {
     return Promise.resolve(false);
   }
 
-  ingestDatCollectedFile(dw, file, collectionArr, weight, format = 'authorTitle') {
-    const importedData = parseEntry(file, format);
+  ingestDatCollectedFile(dw, file, collectionArr, weight) {
+    const importedData = parseEntry(file);
     if (importedData) {
       const collection = collectionArr.join(';;');
       console.log(chalk.bold('collecting:'), file, collection);
@@ -385,21 +395,30 @@ export class Catalog extends EventEmitter {
   }
 
   // Downloads files within a dat
+  /*
+  The problem here is that some formats allow for conveniently downloading 
+  an entire author by downloading a directory, other formats don't. To download
+  an author one would need to loop through a result set from the database.
+  How to handle two such un-alike cases in the most simple way?
+  */
   download(key, opts) {
     let resource = '';
-    if (opts.author && opts.title && opts.file) {
-      console.log(`checking out ${opts.author}/${opts.title}/${opts.file} from ${key}`);
-      resource = path.join(opts.author, opts.title, opts.file);
-    } else if (opts.author && opts.title) {
-      console.log(`checking out ${opts.author}/${opts.title} from ${key}`);
-      resource = path.join(opts.author, opts.title);
-    } else if (opts.author) {
-      console.log(`checking out ${opts.author} from ${key}`);
-      resource = path.join(opts.author);
-    } else {
+    if (!opts.author && !opts.title && !opts.file) {
       console.log(`checking out everything from ${opts.dat}`);
+      return this.multidat.downloadFromDat(key, resource);
     }
-    return this.multidat.downloadFromDat(key, resource);
+    // To download, we need to know the dat's format
+    opts.format = this.multidat.getDat(key).format || 'calibre';
+    resource = formatPath(opts);
+    console.log(`checking out ${opts} from ${key} as ${resource}`);
+    // Our formatter has returned a path that we can use.
+    if (resource) return this.multidat.downloadFromDat(key, resource);
+    // If the formatter didn't work, then we need to query the database for files to download serially
+    console.log('unable to get a specific resource to download, trying to get a list from the db');
+    opts.dat = key;
+    return this.db.getItemsWith(opts)
+      .then(rows => rows)
+      .each(row => this.download(row.dat, row));
   }
 
   // Given a row from the texts table, check if it has been downloaded
@@ -430,7 +449,7 @@ export class Catalog extends EventEmitter {
   // When a dat imports a file
   handleDatImportEvent = (data) => {
     console.log(`${data.progress.toFixed(2)}%`, 'import download event.', data.type, ':', data.file);
-    const entry = parseEntry(data.file, 'calibre');
+    const entry = parseEntry(data.file);
     if (entry) {
       const text = {
         dat: data.key,
@@ -443,7 +462,10 @@ export class Catalog extends EventEmitter {
       // so that we just these requests to a list that gets executed when
       // the preceeding functions .then is called.
       this.db.addTextFromMetadata(text)
-        .then(() => this.emit('import', { ...text, progress: data.progress }))
+        .then(() => {
+          this.emit('import', { ...text, progress: data.progress });
+          this.multidat.getDat(data.key).incrementPathFormat(entry.format);
+        })
         .catch(console.error);
     } else {
       console.log(`cannot import ${data.file}: maybe not calibre formated?`);
@@ -453,6 +475,9 @@ export class Catalog extends EventEmitter {
   // When a dat files have been fully imported
   handleDatImportedEvent = (data) => {
     this.updateDatDownloadCounts(data.key);
+    this.db.updateDat(data.key, {
+      format: this.multidat.getDat(data.key).format,
+    });
     this.emit('imported', data);
   }
 
@@ -460,7 +485,7 @@ export class Catalog extends EventEmitter {
   handleDatDownloadMetadataEvent = (data) => {
     // this is almost identical to import MetadataEvent except for download flag - TODO: refactor to reduce duplication.
     console.log(`${data.progress.toFixed(2)}%`, 'Metadata download event.', data.type, ':', data.file);
-    const entry = parseEntry(data.file, 'calibre');
+    const entry = parseEntry(data.file);
     if (entry) {
       const text = {
         dat: data.key,
@@ -473,7 +498,16 @@ export class Catalog extends EventEmitter {
       // so that we just these requests to a list that gets executed when
       // the preceeding functions .then is called.
       this.db.addTextFromMetadata(text)
-        .then(() => this.emit('import', { ...text, progress: data.progress }))
+        .then(() => {
+          this.emit('import', { ...text, progress: data.progress });
+          // update format and write to db if necessary
+          const formatBefore = this.multidat.getDat(data.key).format;
+          this.multidat.getDat(data.key).incrementPathFormat(entry.format);
+          const format = this.multidat.getDat(data.key).format;
+          if (format && format !== formatBefore) {
+            this.db.updateDat(data.key, { format });
+          }
+        })
         .catch(console.error);
     } else {
       console.log(`cannot import ${data.file}: maybe not calibre formated?`);
@@ -487,8 +521,9 @@ export class Catalog extends EventEmitter {
   }
 
   handleDatDownloadContentEvent = (data) => {
-    const entry = parseEntry(data.file, 'calibre');
+    const entry = parseEntry(data.file);
     if (entry) {
+      data.parsed = entry;
       this.emit('download', data);
       // console.log(`${data.progress.toFixed(2)}%`, 'Downloading:', data.file);
       if (data.progress === 100) {
