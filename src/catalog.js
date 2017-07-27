@@ -523,6 +523,7 @@ export class Catalog extends EventEmitter {
   handleDatDownloadContentEvent = (data) => {
     const entry = parseEntry(data.file);
     if (entry) {
+      data.parsed = entry;
       this.emit('download', data);
       // console.log(`${data.progress.toFixed(2)}%`, 'Downloading:', data.file);
       if (data.progress === 100) {
