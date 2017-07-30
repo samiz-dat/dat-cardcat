@@ -4,6 +4,8 @@ import Promise from 'bluebird';
 import { readOPF } from 'open-packaging-format';
 
 const GROUP_CONCAT_FILES = 'GROUP_CONCAT(texts.file || ":" || texts.downloaded, ";;") as "files"';
+const theLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
+const otherLetters = 'etc.';
 
 // Narrows query to within a dat/ list of dats
 function withinDat(query, dat, table = 'texts') {
@@ -76,6 +78,7 @@ export class Database {
     });
     // If you ever need to see what queries are being run uncomment the following.
     // this.db.on('query', queryData => console.log(queryData));
+    this.letters = {};
   }
 
   // Add a dat to the database
@@ -142,6 +145,15 @@ export class Database {
   }
 
   addTextFromMetadata(opts) {
+    // Do we need to invalidate any caches?
+    const letter = opts.author_sort.charAt(0).toLowerCase();
+    if (this.letters[opts.dat] && !this.letters[opts.dat].includes(letter)) {
+      this.letters[opts.dat] = undefined;
+    }
+    if (this.letters.all && !this.letters.all.includes(letter)) {
+      this.letters.all = undefined;
+    }
+    // Now do the inserting
     return this.db('texts')
       .where({
         dat: opts.dat,
@@ -251,7 +263,11 @@ export class Database {
   countAuthors(startingWith, opts) {
     const exp = this.db.countDistinct('texts.author as num').from('texts');
     if (opts) withinDat(exp, opts.dat);
-    if (startingWith) {
+    if (startingWith && startingWith === otherLetters) {
+      for (const letter of theLetters) {
+        exp.whereNot('texts.author_sort', 'like', `${letter}%`);
+      }
+    } else if (startingWith) {
       const s = `${startingWith}%`;
       exp.where('texts.author_sort', 'like', s);
     }
@@ -271,7 +287,11 @@ export class Database {
     const exp = this.db.select('texts.author').from('texts')
       .countDistinct('texts.title as count');
     if (opts) withinDat(exp, opts.dat);
-    if (startingWith) {
+    if (startingWith && startingWith === otherLetters) {
+      for (const letter of theLetters) {
+        exp.whereNot('texts.author_sort', 'like', `${letter}%`);
+      }
+    } else if (startingWith) {
       const s = `${startingWith}%`;
       exp.where('texts.author_sort', 'like', s);
     }
@@ -289,6 +309,11 @@ export class Database {
 
   // Gets a list of letters of authors, for generating a directory
   getAuthorLetters(opts) {
+    const cacheKey = (opts.dat) ? opts.dat : 'all';
+    // return from cache
+    if (this.letters[cacheKey]) {
+      return this.letters[cacheKey];
+    }
     const exp = this.db.column(this.db.raw('lower(substr(author_sort,1,1)) as letter'))
       .select();
     if (opts) {
@@ -300,7 +325,16 @@ export class Database {
     return exp.from('texts')
       .where('texts.state', true)
       .distinct('letter')
-      .orderBy('letter');
+      .orderBy('letter')
+      .then((rows) => {
+        // Put into cache & reduce non-characters to "etc."
+        this.letters[cacheKey] = rows.map(doc => doc.letter).reduce((compressed, letter) => {
+          if (theLetters.includes(letter)) return compressed.concat(letter);
+          else if (!compressed.includes(otherLetters)) return compressed.concat(otherLetters);
+          return compressed;
+        }, []);
+        return this.letters[cacheKey];
+      });
   }
 
   getTitlesForAuthor(author, opts) {

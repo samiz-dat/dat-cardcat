@@ -256,7 +256,7 @@ function browseTask() {
   textChoices[0].choices = [];
   return cardcat.getAuthorLetters()
     .then((rows) => {
-      textChoices[0].choices = rows.map(doc => doc.letter);
+      textChoices[0].choices = rows; // rows.map(doc => doc.letter);
       return inquirer.prompt(textChoices)
         .then(answers => cardcat.getAuthors(answers.choice))
         .then(browseAuthorsTask);
