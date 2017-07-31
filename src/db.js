@@ -2,6 +2,8 @@ import path from 'path';
 import db from 'knex';
 import Promise from 'bluebird';
 import { readOPF } from 'open-packaging-format';
+import config from './knexfile.js';
+
 
 const GROUP_CONCAT_FILES = 'GROUP_CONCAT(texts.file || ":" || texts.downloaded, ";;") as "files"';
 const theLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
@@ -70,15 +72,21 @@ export class Database {
   // Constructor
   constructor(filename) {
     this.db = db({
-      client: 'sqlite3',
+      ...config.development,
       connection: {
         filename,
       },
-      useNullAsDefault: true,
     });
     // If you ever need to see what queries are being run uncomment the following.
     // this.db.on('query', queryData => console.log(queryData));
     this.letters = {};
+  }
+
+  // Initializes tables
+  init() {
+    return this.db.migrate.latest(config.development.migration)
+      .then(() => { this.isReady = true; })
+      .catch(e => console.error(e));
   }
 
   // Add a dat to the database
@@ -485,57 +493,6 @@ export class Database {
     return this.getFiles(author, title, { dat, file: mfn }).first()
       .then(row => this.pathToDat(row.dat))
       .then(fp => readOPF(path.join(fp.dir, author, title, mfn)));
-  }
-
-  // Initializes tables
-  init() {
-    // we should probably setup a simple migration script
-    // but for now lets just drop tables before remaking tables.
-    const createTables = this.db.schema.createTableIfNotExists('dats', (table) => {
-      table.string('dat');
-      table.string('name');
-      table.string('dir');
-      table.integer('version'); // this will need to be updated whenever files are imported
-      // table.unique('dat');
-    })
-    .createTableIfNotExists('texts', (table) => {
-      table.increments('text_id');
-      table.string('dat');
-      table.integer('version');
-      table.boolean('state'); // is valid
-      table.string('title_hash');
-      table.string('file_hash');
-      table.string('author');
-      table.string('author_sort');
-      table.string('title');
-      table.string('file');
-      table.boolean('downloaded');
-    })
-    .createTableIfNotExists('collections', (table) => {
-      table.string('dat');
-      table.string('author');
-      table.string('title');
-      table.string('collection');
-      table.integer('weight');
-    })
-    .createTableIfNotExists('more_authors', (table) => {
-      table.string('title_hash');
-      table.string('author');
-      // table.unique('title_hash');
-    });
-    return createTables.then(() =>
-      // Add format column to the dats table
-      this.db.schema.hasColumn('dats', 'format')
-      .then((exists) => {
-        if (!exists) {
-          console.log('Format column created!');
-          return this.db.schema.table('dats', table => table.string('format'));
-        }
-        return true;
-      }),
-    )
-    .then(() => { this.isReady = true; })
-    .catch(e => console.error(e));
   }
 }
 

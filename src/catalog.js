@@ -5,6 +5,7 @@ import Promise from 'bluebird';
 import chalk from 'chalk';
 import _ from 'lodash';
 import sequentialise from 'sequentialise';
+import parseEntry, { formatPath, reformatPath } from 'dat-cardcat-formats';
 
 import rimraf from 'rimraf'; // This will b removed soon
 import config from './config';
@@ -12,7 +13,6 @@ import config from './config';
 import Database from './db';
 import Multidat from './multidat';
 
-import parseEntry, { formatPath, reformatPath } from 'dat-cardcat-formats';
 // @todo: this.db.close(); should be called on shutdown
 
 const rimrafAsync = Promise.promisify(rimraf);
@@ -396,7 +396,7 @@ export class Catalog extends EventEmitter {
 
   // Downloads files within a dat
   /*
-  The problem here is that some formats allow for conveniently downloading 
+  The problem here is that some formats allow for conveniently downloading
   an entire author by downloading a directory, other formats don't. To download
   an author one would need to loop through a result set from the database.
   How to handle two such un-alike cases in the most simple way?
