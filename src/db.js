@@ -106,16 +106,6 @@ export class Database {
       .update(opts);
   }
 
-  // Update a dat's name and directory
-  updateDatFormat(datKey, name, dir) {
-    return this.db('dats')
-      .where('dat', datKey)
-      .update({
-        name,
-        dir,
-      });
-  }
-
   // Remove all entries/ texts for a dat
   clearTexts(datKey) {
     if (datKey) {
@@ -479,12 +469,6 @@ export class Database {
 
   getDats = () => this.db('dats').select();
   getDat = key => this.db('dats').select().where('dat', key);
-
-  // Gets dats containing items described in opts (author/title/file)
-  // Optionally provide one or more dats to look within.
-  getDatsWith(opts) {
-    return this.getItemsWith(opts, 'dat');
-  }
 
   // Returns opf metadata object for an item, optionally preferring a specific library.
   getOpf(author, title, dat) {

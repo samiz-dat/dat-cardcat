@@ -184,7 +184,7 @@ export class Catalog extends EventEmitter {
       return Promise.reject();
     }
     // With no dat provided, we must query for it
-    return this.db.getDatsWith(opts)
+    return this.db.getItemsWith(opts, 'dat')
       .map(row => row.dat)
       .each(dat => this.download(dat, opts)); // .each() passes through the original array
   }
