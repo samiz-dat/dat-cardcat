@@ -1,13 +1,26 @@
 import chai from 'chai';
+import chaiThings from 'chai-things';
+import chaiAsPromised from 'chai-as-promised';
+
 import temp from 'temp';
 import path from 'path';
+
 import Database from '../src/db';
+import config from '../src/knexfile';
+
+chai.use(chaiThings);
+chai.use(chaiAsPromised);
 
 const expect = chai.expect;
 
 const temporaryDir = './temp';
 
-describe('database', () => {
+describe.only('database', () => {
+  const datkeys = [
+    '8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3',
+    '8000000000000080000000000000800000000000008000000000000080000000',
+  ];
+  const datNotInDB = '8000000000000080000000000000800000000000008000000000000080000001';
   let database;
 
   before(() => {
@@ -20,16 +33,103 @@ describe('database', () => {
     temp.cleanupSync();
   });
 
-  context('when data is only derived from file structure parsing', () => {
+  beforeEach(() => {
+    return database.init();
+  });
+  afterEach(() => {
+    return database.db.migrate.rollback(config.development.migration);
+  });
+
+  context('with simple data', () => {
     describe('.addDat(dat, name, dir, version, format)', () => {
       it('adds a dat to the db', () => {
+        return database.addDat('8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3', 'test', '/here', 0, 'calibre')
+          .then((result) => {
+            expect(result).to.all.be.above(0);
+          });
+      });
+      it('can add the same dat twice', () => {
+        return database.addDat('8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3', 'test', '/here', 0)
+          .then((result) => {
+            expect(result).to.all.be.above(0);
+          });
+      });
 
+      it('should not be able to add dat without at least specifing a valid key', () => {
+        return expect(database.addDat()).to.be.rejected;
+      });
+
+      it('should not be able to add dat without at least specifing a valid key', () => {
+        return expect(database.addDat('not a real key')).to.be.rejected;
+      });
+    });
+
+    describe('getDats()', () => {
+      beforeEach(() => {
+        return Promise.all(datkeys.map(key => database.addDat(key)));
+      });
+
+      it('should return all dat’s in the database', () => {
+        return database.getDats().then((result) => {
+          expect(result).to.have.length(2);
+          datkeys.forEach(key => expect(result).to.contain.a.thing.with.property('dat', key));
+        });
+      });
+    });
+
+    describe('getDat(key)', () => {
+      beforeEach(() => {
+        return Promise.all(datkeys.map(key => database.addDat(key)));
+      });
+
+      it('returns the dat with the matching key', () => {
+        return Promise.all(datkeys.map(key => database.getDat(key).then((result) => {
+          expect(result.dat).to.equal(key);
+        })));
+      });
+
+      it('returns nothing if no key is found', () => {
+        return database.getDat(datNotInDB)
+          .then(r => expect(r).to.be.undefined);
+      });
+
+      it('does not care if the dat key is valid', () => {
+        return database.getDat('not a valid key')
+          .then(r => expect(r).to.be.undefined);
       });
     });
 
     describe('.removeDat(key)', () => {
-      it('removes a dat with the specified key from the db', () => {
+      beforeEach(() => {
+        return Promise.all(datkeys.map(key => database.addDat(key)));
+      });
 
+      it('removes a dat with the specified key from the db', () => {
+        return database.removeDat(datkeys[0])
+          .then((result) => {
+            expect(result).to.equal(1);
+            return database.getDats();
+          })
+          .then((result) => {
+            expect(result).to.have.length(datkeys.length - 1);
+            expect(result).to.not.contain.a.thing.with.property('dat', datkeys[0]);
+          });
+      });
+
+      it('does not remove anything if provided dat key is not found', () => {
+        return database.removeDat(datNotInDB)
+          .then((result) => {
+            expect(result).to.equal(0);
+            return database.getDats();
+          })
+          .then((result) => {
+            expect(result).to.have.length(datkeys.length);
+            expect(result).to.not.contain.a.thing.with.property('dat', datNotInDB);
+          });
+      });
+
+      it('throws an error if no dat is specified', () => {
+        return expect(database.removeDat()).to.be.rejected;
       });
     });
 
@@ -369,13 +469,9 @@ describe('database', () => {
       //   .groupBy('texts.downloaded')
       //   .orderBy('texts.downloaded', 'desc');
     });
+  });
 
-    describe('getDats()', () => {
-      // this.db('dats').select();
-    });
-
-    describe('getDat(key)', () => {
-      // this.db('dats').select().where('dat', key);
-    });
+  context('when complete metadata has been downloaded for texts', () => {
+    //include tests for what we are expecting
   });
 });
