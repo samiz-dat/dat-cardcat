@@ -10,6 +10,7 @@
     "dev": "rm -rf ./dist && babel --source-maps -w src --out-dir dist --copy-files",
     "cli": "babel-node ./dist/cli.js",
     "test": "mocha --compilers js:babel-core/register ",
+    "test-tdd": "mocha --compilers js:babel-core/register --watch",
     "test-travis": "istanbul cover node_modules/mocha/bin/_mocha -- --compilers js:babel-core/register"
   },
   "bin": {
@@ -30,6 +31,8 @@
     "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-stage-3": "^6.22.0",
     "chai": "^3.5.0",
+    "chai-as-promised": "^7.1.1",
+    "chai-things": "^0.2.0",
     "coveralls": "^2.13.1",
     "eslint": "^3.15.0",
     "eslint-config-airbnb": "^14.1.0",
