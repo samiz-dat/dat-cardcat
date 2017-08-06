@@ -36,7 +36,7 @@ exports.up = (knex, Promise) => { // eslint-disable-line
 
 exports.down = (knex, Promise) => { // eslint-disable-line
   return knex.schema.dropTableIfExists('collections')
-    .then(knex.schema.dropTableIfExists('more_authors'))
-    .then(knex.schema.dropTableIfExists('texts'))
-    .then(knex.schema.dropTableIfExists('dats'));
+    .then(() => knex.schema.dropTableIfExists('more_authors'))
+    .then(() => knex.schema.dropTableIfExists('texts'))
+    .then(() => knex.schema.dropTableIfExists('dats'));
 };
