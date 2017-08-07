@@ -2,7 +2,7 @@ import path from 'path';
 import db from 'knex';
 import Promise from 'bluebird';
 import { readOPF } from 'open-packaging-format';
-import config from './knexfile.js';
+import config from './knexfile';
 
 
 const GROUP_CONCAT_FILES = 'GROUP_CONCAT(texts.file || ":" || texts.downloaded, ";;") as "files"';
@@ -101,6 +101,7 @@ export class Database {
 
   // Update a dat's name and directory
   updateDat(datKey, opts) {
+    if (!datKey) return Promise.reject('no dat key provided');
     return this.db('dats')
       .where('dat', datKey)
       .update(opts);
