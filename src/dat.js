@@ -75,8 +75,8 @@ export default class DatWrapper extends EventEmitter {
         this.key = dat.key.toString('hex');
         this.metadataDownloadCount = dat.archive.metadata.downloaded();
         this.metadataComplete = this.metadataDownloadCount === (this.version + 1);
-        console.log('created dat:', this.key);
-        console.log('metadata:', this.metadataDownloadCount, '/', this.version, this.metadataComplete);
+        // console.log('created dat:', this.key);
+        // console.log('metadata:', this.metadataDownloadCount, '/', this.version, this.metadataComplete);
         return this;
       });
   }
@@ -105,7 +105,7 @@ export default class DatWrapper extends EventEmitter {
   }
 
   connectionEventHandler = () => {
-    console.log('connects via network');
+    // console.log('connects via network');
     console.log(chalk.gray(chalk.bold('peers:')), this.stats.peers);
   }
 

@@ -270,7 +270,7 @@ export class Catalog extends EventEmitter {
 
   // Registers dat the DB
   registerDat(dw) {
-    console.log(`Adding dat (${dw.key}) to the catalog.`);
+    console.log(`Adding dat ${chalk.bold(dw.name)} (${dw.key}) to the catalog.`);
     return this.db.removeDat(dw.key)
       .then(() => this.db.addDat(dw.key, dw.name, dw.directory, dw.version, dw.format))
       .then(() => this.ingestDatContents(dw))
@@ -293,12 +293,12 @@ export class Catalog extends EventEmitter {
     // move through material not in yet added to db
     if (dw.metadataComplete) {
       return this.db.lastImportedVersion(dw.key).then((data) => {
-        console.log(data);
+        // console.log(data);
         if (!data.version || data.version < dw.version) {
-          console.log('importing from version', data.version + 1, 'to version', dw.version);
+          console.log(chalk.gray(`* importing from version ${data.version + 1} to version ${dw.version}`));
           return dw.onEachMetadata(this.ingestDatFile, data.version + 1 || 1);
         }
-        console.log('not importing. already at version ', data.version);
+        console.log(chalk.gray(`* not importing anything: already at version ${data.version}`));
         return null;
       });
     }
