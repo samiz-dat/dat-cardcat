@@ -15,13 +15,90 @@ const expect = chai.expect;
 
 const temporaryDir = './temp';
 
+// commonOptions = {
+//   dat: // limit by dat,
+//   limit: // for pagination
+//   offset:
+//   sort: [], // args for ordering
+// }
+
 describe.only('database', () => {
   const datkeys = [
     '8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3',
     '8000000000000080000000000000800000000000008000000000000080000000',
   ];
+  const texts = [{
+    dat: '8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3',
+    version: 1,
+    state: false,
+    title_hash: '?',
+    file_hash: '?',
+    author: 'Judith Butler',
+    author_sort: 'Butler, Judith',
+    title: 'Gender Trouble',
+    file: 'gendertrouble.pdf',
+    downloaded: false,
+  }, {
+    dat: '8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3',
+    version: 2,
+    state: false,
+    title_hash: '?',
+    file_hash: '?',
+    author: 'Judith Butler',
+    author_sort: 'Butler, Judith',
+    title: 'Gender Trouble',
+    file: 'gendertrouble.opf',
+    downloaded: false,
+  }, {
+    dat: '8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3',
+    version: 3,
+    state: false,
+    title_hash: '?',
+    file_hash: '?',
+    author: 'Judith Butler',
+    author_sort: 'Butler, Judith',
+    title: 'Gender Trouble',
+    file: 'cover.jpg',
+    downloaded: false,
+  }, {
+    dat: '8000000000000080000000000000800000000000008000000000000080000000',
+    version: 1,
+    state: false,
+    title_hash: 'Democratic Paradox, The',
+    file_hash: '?',
+    author: 'Chantal Mouffe',
+    author_sort: 'Mouffe, Chantal',
+    title: 'The Democratic Paradox',
+    file: 'democraticparadox.pdf',
+    downloaded: false,
+  }, {
+    dat: '8000000000000080000000000000800000000000008000000000000080000000',
+    version: 2,
+    state: false,
+    title_hash: 'Democratic Paradox, The',
+    file_hash: '?',
+    author: 'Chantal Mouffe',
+    author_sort: 'Mouffe, Chantal',
+    title: 'The Democratic Paradox',
+    file: 'democraticparadox.opf',
+    downloaded: false,
+  }, {
+    dat: '8000000000000080000000000000800000000000008000000000000080000000',
+    version: 3,
+    state: false,
+    title_hash: 'Democratic Paradox, The',
+    file_hash: '?',
+    author: 'Chantal Mouffe',
+    author_sort: 'Mouffe, Chantal',
+    title: 'The Democratic Paradox',
+    file: 'cover.jpg',
+    downloaded: false,
+  }];
   const datNotInDB = '8000000000000080000000000000800000000000008000000000000080000001';
   let database;
+
+  const addDefaultDats = () => Promise.all(datkeys.map(key => database.addDat(key)));
+  const addDefaultTexts = () => Promise.all(texts.map(text => database.db('texts').insert(text)));
 
   before(() => {
     temp.track();
@@ -65,9 +142,7 @@ describe.only('database', () => {
     });
 
     describe('getDats()', () => {
-      beforeEach(() => {
-        return Promise.all(datkeys.map(key => database.addDat(key)));
-      });
+      beforeEach(addDefaultDats);
 
       it('should return all dat’s in the database', () => {
         return database.getDats().then((result) => {
@@ -78,9 +153,7 @@ describe.only('database', () => {
     });
 
     describe('getDat(key)', () => {
-      beforeEach(() => {
-        return Promise.all(datkeys.map(key => database.addDat(key)));
-      });
+      beforeEach(addDefaultDats);
 
       it('returns the dat with the matching key', () => {
         return Promise.all(datkeys.map(key => database.getDat(key).then((result) => {
@@ -100,9 +173,7 @@ describe.only('database', () => {
     });
 
     describe('.removeDat(key)', () => {
-      beforeEach(() => {
-        return Promise.all(datkeys.map(key => database.addDat(key)));
-      });
+      beforeEach(addDefaultDats);
 
       it('removes a dat with the specified key from the db', () => {
         return database.removeDat(datkeys[0])
@@ -134,17 +205,60 @@ describe.only('database', () => {
     });
 
     describe('.updateDat(datKey, opts)', () => {
-      it('updates dat in db with specific key', () => {
+      beforeEach(addDefaultDats);
 
+      it('updates dat in db with specific key and with options passed', () => {
+        const newValues = {
+          name: 'newName',
+          version: 1,
+          format: 'mono',
+          dir: '/some/path',
+        };
+        return database.updateDat(datkeys[0], newValues)
+          .then((result) => {
+            expect(result).to.equal(1);
+            return database.getDat(datkeys[0]);
+          })
+          .then((result) => {
+            expect(result).to.have.include(newValues);
+          });
+      });
+      it('is rejected if no key is provided', () => {
+        return expect(database.updateDat()).be.rejected;
+      });
+      it('is rejected if no dat is found for that key', () => {
+        return expect(database.updateDat(datNotInDB, {})).be.rejected;
+      });
+      it('is rejected if no options are passed', () => {
+        return Promise.all([
+          expect(database.updateDat(datkeys[0], {})).be.rejected,
+          expect(database.updateDat(datkeys[0], { noInTable: 'this' })).be.rejected,
+          expect(database.updateDat(datkeys[0], { noInTable: 'this', name: 'ok' })).be.rejected,
+        ]);
       });
     });
 
     describe('clearTexts(datKey)', () => {
+      beforeEach(addDefaultTexts);
       it('clears all texts from db', () => {
-
+        return database.clearTexts()
+          .then((result) => {
+            expect(result).to.equal(6);
+            return database.db('texts').select();
+          })
+          .then((result) => {
+            expect(result).to.have.length(0);
+          });
       });
       it('clears all texts from only specified dat', () => {
-
+        return database.clearTexts(datkeys[0])
+          .then((result) => {
+            expect(result).to.equal(3);
+            return database.db('texts').select();
+          })
+          .then((result) => {
+            expect(result).to.have.length(3);
+          });
       });
     });
 
