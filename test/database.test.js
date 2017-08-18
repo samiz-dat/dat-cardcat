@@ -30,75 +30,88 @@ describe.only('database', () => {
   const texts = [{
     dat: '8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3',
     version: 1,
-    state: false,
-    title_hash: '?',
-    file_hash: '?',
+    status: -1,
     author: 'Judith Butler',
     author_sort: 'Butler, Judith',
     title: 'Gender Trouble',
-    file: 'gendertrouble.pdf',
-    downloaded: false,
+    path: 'Judith Butler/Gender Trouble/gendertrouble.pdf',
   }, {
     dat: '8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3',
     version: 2,
-    state: false,
-    title_hash: '?',
-    file_hash: '?',
+    status: -1,
     author: 'Judith Butler',
     author_sort: 'Butler, Judith',
     title: 'Gender Trouble',
-    file: 'gendertrouble.opf',
-    downloaded: false,
+    path: 'Judith Butler/Gender Trouble/gendertrouble.pdf',
   }, {
     dat: '8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3',
     version: 3,
-    state: false,
-    title_hash: '?',
-    file_hash: '?',
+    status: 1,
     author: 'Judith Butler',
     author_sort: 'Butler, Judith',
     title: 'Gender Trouble',
-    file: 'cover.jpg',
-    downloaded: false,
+    path: 'Judith Butler/Gender Trouble/cover.jpg',
   }, {
     dat: '8000000000000080000000000000800000000000008000000000000080000000',
     version: 1,
-    state: false,
-    title_hash: 'Democratic Paradox, The',
-    file_hash: '?',
+    status: -1,
+    title_sort: 'Democratic Paradox, The',
     author: 'Chantal Mouffe',
     author_sort: 'Mouffe, Chantal',
     title: 'The Democratic Paradox',
-    file: 'democraticparadox.pdf',
-    downloaded: false,
+    path: 'Chantal Mouffe/The Democratic Paradox/democraticparadox.pdf',
   }, {
     dat: '8000000000000080000000000000800000000000008000000000000080000000',
     version: 2,
-    state: false,
-    title_hash: 'Democratic Paradox, The',
-    file_hash: '?',
+    status: -1,
+    title_sort: 'Democratic Paradox, The',
     author: 'Chantal Mouffe',
     author_sort: 'Mouffe, Chantal',
     title: 'The Democratic Paradox',
-    file: 'democraticparadox.opf',
-    downloaded: false,
+    path: 'Chantal Mouffe/The Democratic Paradox/democraticparadox.pdf',
   }, {
     dat: '8000000000000080000000000000800000000000008000000000000080000000',
     version: 3,
-    state: false,
-    title_hash: 'Democratic Paradox, The',
-    file_hash: '?',
+    status: 0,
+    title_sort: 'Democratic Paradox, The',
     author: 'Chantal Mouffe',
     author_sort: 'Mouffe, Chantal',
     title: 'The Democratic Paradox',
-    file: 'cover.jpg',
-    downloaded: false,
+    path: 'Chantal Mouffe/The Democratic Paradox/cover.jpg',
+  }, {
+    dat: '8000000000000080000000000000800000000000008000000000000080000000',
+    version: 4,
+    status: 1,
+    title_sort: 'Hegemony and Socialist Strategy',
+    authors: [
+      { author: 'Ernesto Laclau', author_sort: 'Laclau, Ernesto' },
+      { author: 'Chantal Mouffe', author_sort: 'Mouffe, Chantal' },
+    ],
+    author_sort: 'Laclau, Ernesto',
+    title: 'Hegemony and Socialist Strategy',
+    path: 'Ernesto Laclau and Chantal Mouffe/Hegemony and Socialist Strategy/Hegemony and Socialist Strategy.pdf',
+  }, {
+    dat: '8000000000000080000000000000800000000000008000000000000080000000',
+    version: 4,
+    status: 1,
+    title_sort: 'Hegemony and Socialist Strategy',
+    authors: [
+      { author: 'Ernesto Laclau', author_sort: 'Laclau, Ernesto' },
+      { author: 'Chantal Mouffe', author_sort: 'Mouffe, Chantal' },
+    ],
+    author_sort: 'Laclau, Ernesto',
+    title: 'Hegemony and Socialist Strategy',
+    path: 'Ernesto Laclau and Chantal Mouffe/Hegemony and Socialist Strategy/cover.jpg',
   }];
   const datNotInDB = '8000000000000080000000000000800000000000008000000000000080000001';
   let database;
 
   const addDefaultDats = () => Promise.all(datkeys.map(key => database.addDat(key)));
-  const addDefaultTexts = () => Promise.all(texts.map(text => database.db('texts').insert(text)));
+  async function addDefaultTexts() {
+    for (const text of texts) {
+      await database.addTextFromMetadata(text);
+    }
+  } //Promise.all(texts.map(text => database.addTextFromMetadata(text)));
 
   before(() => {
     temp.track();
@@ -118,6 +131,7 @@ describe.only('database', () => {
   });
 
   context('with simple data', () => {
+
     describe('.addDat(dat, name, dir, version, format)', () => {
       it('adds a dat to the db', () => {
         return database.addDat('8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3', 'test', '/here', 0, 'calibre')
@@ -144,7 +158,7 @@ describe.only('database', () => {
     describe('getDats()', () => {
       beforeEach(addDefaultDats);
 
-      it('should return all dat’s in the database', () => {
+      it('should return all dats in the database', () => {
         return database.getDats().then((result) => {
           expect(result).to.have.length(2);
           datkeys.forEach(key => expect(result).to.contain.a.thing.with.property('dat', key));
@@ -239,12 +253,13 @@ describe.only('database', () => {
     });
 
     describe('clearTexts(datKey)', () => {
+      beforeEach(addDefaultDats);
       beforeEach(addDefaultTexts);
       it('clears all texts from db', () => {
         return database.clearTexts()
           .then((result) => {
             expect(result).to.equal(6);
-            return database.db('texts').select();
+            return database.db('files').select();
           })
           .then((result) => {
             expect(result).to.have.length(0);
@@ -253,336 +268,457 @@ describe.only('database', () => {
       it('clears all texts from only specified dat', () => {
         return database.clearTexts(datkeys[0])
           .then((result) => {
-            expect(result).to.equal(3);
-            return database.db('texts').select();
+            expect(result).to.equal(2);
+            return database.db('files').select();
           })
           .then((result) => {
-            expect(result).to.have.length(3);
+            expect(result).to.have.length(4);
+            return database.db('titles').select();
+          });
+      });
+      it('clears all titles from only specified dat', () => {
+        return database.clearTexts(datkeys[0])
+          .then(() => {
+            return database.db('titles').select();
+          })
+          .then((result) => {
+            expect(result).to.have.length(2);
+          });
+      });
+      it('clears all authors from only specified dat', () => {
+        return database.clearTexts(datkeys[0])
+          .then(() => {
+            return database.db('authors').select();
+          })
+          .then((result) => {
+            expect(result).to.have.length(2);
           });
       });
     });
 
     describe('lastImportedVersion(datKey)', () => {
+      beforeEach(addDefaultDats);
+      beforeEach(addDefaultTexts);
       it('returns the maximium version of a file imported from a specific dat', () => {
-
+        return database.lastImportedVersion(datkeys[0])
+          .then((result) => {
+            expect(result).to.equal(3);
+          });
       });
       it('throws an error if no dat key is provided', () => {
-
+        return expect(database.lastImportedVersion()).be.rejected;
       });
     });
 
     describe('addTextFromMetadata(opts)', () => {
-      // Do we need to invalidate any caches?
-      // const letter = opts.author_sort.charAt(0).toLowerCase();
-      // if (this.letters[opts.dat] && !this.letters[opts.dat].includes(letter)) {
-      //   this.letters[opts.dat] = undefined;
-      // }
-      // if (this.letters.all && !this.letters.all.includes(letter)) {
-      //   this.letters.all = undefined;
-      // }
-      // // Now do the inserting
-      // return this.db('texts')
-      //   .where({
-      //     dat: opts.dat,
-      //     author: opts.author,
-      //     title: opts.title,
-      //     file: opts.file,
-      //   })
-      //   .first()
-      //   .then((row) => {
-      //     let promise = -1;
-      //     // console.log(opts.version, 'version!');
-      //     if (!row) {
-      //       // add new text
-      //       promise = this.db('texts').insert({
-      //         dat: opts.dat,
-      //         version: opts.version,
-      //         state: opts.state,
-      //         title_hash: opts.title_hash || '',
-      //         file_hash: opts.file_hash || '',
-      //         author: opts.author,
-      //         author_sort: opts.author_sort,
-      //         title: opts.title,
-      //         file: opts.file,
-      //         downloaded: opts.downloaded || 0,
-      //       });
-      //     } else if (opts.version > row.version) {
-      //       // update state and version if this text is newer version
-      //       promise = this.db('texts').update({
-      //         version: opts.version,
-      //         state: opts.state, // state stored del or pul status as a bool
-      //       }).where('text_id', row.text_id);
-      //     }
-      //     return Promise.resolve(promise);
-      //   });
+      // @TODO: Not sure what to do for these test
+      beforeEach(addDefaultDats);
     });
 
     // Sets download status of a row
-    describe('setDownloaded(dat, author, title, file, downloaded = true)', () => {
+    describe('setDownloaded(dat, file, downloaded = true)', () => {
+      beforeEach(addDefaultDats);
+      beforeEach(addDefaultTexts);
+
       it('sets the download status of a file', () => {
-        // return this.db('texts')
-        // .where('dat', dat)
-        // .where('author', author)
-        // .where('title', title)
-        // .where('file', file)
-        // .update({
-        //   downloaded,
-        // });
+        return database.setDownloaded(datkeys[1], 'Chantal Mouffe/The Democratic Paradox/cover.jpg')
+          .then(() => database.getDownloadCounts())
+          .then((result) => {
+            expect(result).to.have.property('1');
+            expect(result[1]).to.equal(4);
+          });
+      });
+
+      it('unsets the download status of a file', () => {
+        return database.setDownloaded(datkeys[1], 'Ernesto Laclau and Chantal Mouffe/Hegemony and Socialist Strategy/cover.jpg', false)
+          .then(() => database.getDownloadCounts())
+          .then((result) => {
+            expect(result).to.have.property('1');
+            expect(result[1]).to.equal(2);
+          });
       });
     });
 
     describe('countSearch(query, opts)', () => {
-      it('returns the number items for a search', () => {
-        // const s = `%${query}%`;
-        // const exp = this.db
-        //   .count('titles as num')
-        //   .from(function() {
-        //     this.distinct('dat', 'author', 'title', 'state').from('texts').as('texts');
-        //   })
-        //   .where('state', true)
-        //   .andWhere(function () { // a bit inelegant but groups where statements
-        //     this.where('title', 'like', s)
-        //       .orWhere('author', 'like', s);
-        //   });
-        // if (opts) {
-        //   withinDat(exp, opts.dat);
-        // }
-        // return exp
-        //   .first()
-        //   .then(rows => rows.num);
+      beforeEach(addDefaultDats);
+      beforeEach(addDefaultTexts);
+
+      it('returns the number of items for a search', () => {
+        return database.countSearch('Gender')
+          .then((result) => {
+            expect(result).to.equal(1);
+          });
+      });
+
+      it('returns the number of items for searching author names', () => {
+        return database.countSearch('mouffe')
+          .then((result) => {
+            expect(result).to.equal(2);
+          });
+      });
+
+      it('returns the number of items for searching in a dat', () => {
+        return database.countSearch('gender', { dat: datkeys[0] })
+          .then((result) => {
+            expect(result).to.equal(1);
+          });
+      });
+
+      it('returns the number of items for searching in the wrong dat', () => {
+        return database.countSearch('mouffe', { dat: datkeys[0] })
+          .then((result) => {
+            expect(result).to.equal(0);
+          });
       });
     });
 
     describe('search(query, opts)', () => {
-      it('returns search results for a query with files in a ;;-separated column', () => {
-        // const s = `%${query}%`;
-        // const exp = this.db
-        //   .select('dat',
-        //     'author',
-        //     'title',
-        //     'title_hash',
-        //     'author_sort',
-        //   this.db.raw(GROUP_CONCAT_FILES))
-        //   .from('texts')
-        //   .where('state', true)
-        //   .andWhere(function () { // a bit inelegant but groups where statements
-        //     this.where('title', 'like', s)
-        //       .orWhere('author', 'like', s);
-        //   })
-        //   .groupBy('author', 'title');
-        // if (opts) {
-        //   withinDat(exp, opts.dat);
-        //   applyRange(exp, opts);
-        //   applySort(exp, opts, 'author_sort', 'asc');
-        // }
-        // return exp;
+      beforeEach(addDefaultDats);
+      beforeEach(addDefaultTexts);
+
+      it('returns search results for a query on titles', () => {
+        return database.search('Gender')
+          .then((result) => {
+            expect(result).to.have.length(1);
+          });
+      });
+
+      it('searching is not case-sensitive', () => {
+        return database.search('gender')
+          .then((result) => {
+            expect(result).to.have.length(1);
+          });
+      });
+
+      it('searching author names also works', () => {
+        return database.search('mouffe')
+          .then((result) => {
+            expect(result).to.have.length(2);
+          });
+      });
+
+      it('searching in a dat', () => {
+        return database.search('gender', { dat: datkeys[0] })
+          .then((result) => {
+            expect(result).to.have.length(1);
+          });
+      });
+
+      it('searching in the wrong dat returns no results', () => {
+        return database.search('mouffe', { dat: datkeys[0] })
+          .then((result) => {
+            expect(result).to.have.length(0);
+          });
       });
     });
 
     // Gets a count of authors in the catalog
     describe('countAuthors(startingWith, opts)', () => {
+      beforeEach(addDefaultDats);
+      beforeEach(addDefaultTexts);
+
       it('returns a count of authors', () => {
-        // const exp = this.db.countDistinct('texts.author as num').from('texts');
-        // if (opts) withinDat(exp, opts.dat);
-        // if (startingWith && startingWith === otherLetters) {
-        //   for (const letter of theLetters) {
-        //     exp.whereNot('texts.author_sort', 'like', `${letter}%`);
-        //   }
-        // } else if (startingWith) {
-        //   const s = `${startingWith}%`;
-        //   exp.where('texts.author_sort', 'like', s);
-        // }
-        // if (opts) {
-        //   if (opts.collection) {
-        //     withinColl(exp, opts.collection);
-        //   }
-        // }
-        // return exp
-        //   .where('texts.state', true)
-        //   .first()
-        //   .then(rows => rows.num);
+        return database.countAuthors()
+          .then((result) => {
+            expect(result).to.equal(3);
+          });
+      });
+      it('counts all authors starting with "L"', () => {
+        return database.countAuthors('l')
+          .then((result) => {
+            expect(result).to.equal(1);
+          });
+      });
+      it('counts all authors in a dat', () => {
+        return database.countAuthors(false, { dat: datkeys[1] })
+          .then((result) => {
+            expect(result).to.equal(2);
+          });
+      });
+      it('counts all authors starting with "L" in a dat with no such authors', () => {
+        return database.countAuthors('l', { dat: datkeys[0] })
+          .then((result) => {
+            expect(result).to.equal(0);
+          });
       });
     });
 
     // Gets authors in the catalog
     describe('getAuthors(startingWith, opts)', () => {
-      it('gets all authors associated with a text', () => {
-        // const exp = this.db.select('texts.author').from('texts')
-        //   .countDistinct('texts.title as count');
-        // if (opts) withinDat(exp, opts.dat);
-        // if (startingWith && startingWith === otherLetters) {
-        //   for (const letter of theLetters) {
-        //     exp.whereNot('texts.author_sort', 'like', `${letter}%`);
-        //   }
-        // } else if (startingWith) {
-        //   const s = `${startingWith}%`;
-        //   exp.where('texts.author_sort', 'like', s);
-        // }
-        // if (opts) {
-        //   if (opts.collection) {
-        //     withinColl(exp, opts.collection);
-        //   }
-        //   applyRange(exp, opts);
-        //   applySort(exp, opts, 'author_sort', 'asc');
-        // }
-        // return exp
-        //   .where('texts.state', true)
-        //   .groupBy('texts.author');
+      beforeEach(addDefaultDats);
+      beforeEach(addDefaultTexts);
+
+      it('gets all authors in catalog', () => {
+        return database.getAuthors()
+          .then((result) => {
+            expect(result).to.have.length(3);
+          });
+      });
+      it('gets all authors starting with "L"', () => {
+        return database.getAuthors('l')
+          .then((result) => {
+            expect(result).to.have.length(1);
+          });
+      });
+      it('gets number of texts for "Mouffe"', () => {
+        return database.getAuthors('mouffe')
+          .first()
+          .then((result) => {
+            expect(result.count).to.equal(2);
+          });
+      });
+      it('gets all authors in a dat', () => {
+        return database.getAuthors(false, { dat: datkeys[0] })
+          .then((result) => {
+            expect(result).to.have.length(1);
+          });
+      });
+      it('gets all authors starting with "L" in a dat with no such authors', () => {
+        return database.getAuthors('l', { dat: datkeys[0] })
+          .then((result) => {
+            expect(result).to.have.length(0);
+          });
       });
     });
 
     // Gets a list of letters of authors, for generating a directory
     describe('getAuthorLetters(opts)', () => {
+      beforeEach(addDefaultDats);
+      beforeEach(addDefaultTexts);
+
+      it('returns all the author letters', () => {
+        return database.getAuthorLetters({})
+          .then((result) => {
+            expect(result).to.have.length(3);
+          });
+      });
       it('returns all the author letters within a dat', () => {
-        // const cacheKey = (opts.dat) ? opts.dat : 'all';
-        // // return from cache
-        // if (this.letters[cacheKey]) {
-        //   return this.letters[cacheKey];
-        // }
-        // const exp = this.db.column(this.db.raw('lower(substr(author_sort,1,1)) as letter'))
-        //   .select();
-        // if (opts) {
-        //   withinDat(exp, opts.dat);
-        //   if (opts.collection) {
-        //     withinColl(exp, opts.collection);
-        //   }
-        // }
-        // return exp.from('texts')
-        //   .where('texts.state', true)
-        //   .distinct('letter')
-        //   .orderBy('letter')
-        //   .then((rows) => {
-        //     // Put into cache & reduce non-characters to "etc."
-        //     this.letters[cacheKey] = rows.map(doc => doc.letter).reduce((compressed, letter) => {
-        //       if (theLetters.includes(letter)) return compressed.concat(letter);
-        //       else if (!compressed.includes(otherLetters)) return compressed.concat(otherLetters);
-        //       return compressed;
-        //     }, []);
-        //     return this.letters[cacheKey];
-        //   });
+        return database.getAuthorLetters({ dat: datkeys[0] })
+          .then((result) => {
+            expect(result).to.have.length(1);
+          });
       });
       it('caches the results', () => {
-
+        return database.getAuthorLetters({ dat: datkeys[0] })
+          .then((result) => {
+            expect(result).to.have.length(1);
+          });
       });
-    });
-
-    describe('getTitlesForAuthor(author, opts)', () => {
-      // it('returns all texts for a given author', () => {
-      //   const exp = this.db('texts')
-      //     .distinct('dat', 'title')
-      //     .where('author', author)
-      //     .andWhere('texts.state', true);
-      //   if (opts) {
-      //     withinDat(exp, opts.dat);
-      //     if (opts.collection) {
-      //       withinColl(exp, opts.collection);
-      //     }
-      //     applyRange(exp, opts);
-      //     applySort(exp, opts, 'title', 'asc');
-      //   }
-      //   return exp;
-      // });
     });
 
     describe('countTitlesWith(opts)', () => {
-      // const exp = this.db
-      //   .count('titles as num')
-      //   .from(function() {
-      //     this.distinct('dat', 'author', 'title', 'state').from('texts').as('texts');
-      //   })
-      //   .where('texts.state', true);
-      // if (opts.author) {
-      //   exp.where('texts.author', opts.author);
-      // }
-      // if (opts.title) {
-      //   exp.where('texts.title', opts.title);
-      // }
-      // if (opts.collection) {
-      //   withinColl(exp, opts.collection);
-      // }
-      // if (opts) withinDat(exp, opts.dat);
-      // return exp
-      //   .first()
-      //   .then(rows => rows.num);
+      beforeEach(addDefaultDats);
+      beforeEach(addDefaultTexts);
+
+      it('counts all the titles', () => {
+        return database.countTitlesWith({})
+          .then((result) => {
+            expect(result).to.equal(3);
+          });
+      });
+
+      it('counts all the titles for an author with multiple titles', () => {
+        return database.countTitlesWith({ author: 'Chantal Mouffe' })
+          .then((result) => {
+            expect(result).to.equal(2);
+          });
+      });
+
+      it('counts 1 for an author with one title', () => {
+        return database.countTitlesWith({ author: 'Judith Butler' })
+          .then((result) => {
+            expect(result).to.equal(1);
+          });
+      });
+
+      it('counts 0 for an author with no titles', () => {
+        return database.countTitlesWith({ author: 'Gilles Deleuze' })
+          .then((result) => {
+            expect(result).to.equal(0);
+          });
+      });
+
+      it('counts a title by name', () => {
+        return database.countTitlesWith({ title: 'Hegemony and Socialist Strategy' })
+          .then((result) => {
+            expect(result).to.equal(1);
+          });
+      });
+
+      it('return 0 for a bad combination', () => {
+        return database.countTitlesWith({ author: 'Gilles Deleuze', title: 'Hegemony and Socialist Strategy' })
+          .then((result) => {
+            expect(result).to.equal(0);
+          });
+      });
+
+      it('counts all the titles in a dat', () => {
+        return database.countTitlesWith({ dat: datkeys[0] })
+          .then((result) => {
+            expect(result).to.equal(1);
+          });
+      });
+
     });
 
     // Like getItemsWith, except some extra work is done to return titles
     // along with a comma-separated list of files:downloaded for each title.
     describe('getTitlesWith(opts)', () => {
-      // const exp = this.db
-      //   .select('texts.dat',
-      //     'texts.author',
-      //     'texts.title',
-      //     'texts.title_hash',
-      //     'texts.author_sort',
-      //   this.db.raw(GROUP_CONCAT_FILES))
-      //   .from('texts')
-      //   .where('texts.state', true);
-      // if (opts.author) {
-      //   exp.where('texts.author', opts.author);
-      // }
-      // if (opts.title) {
-      //   exp.where('texts.title', opts.title);
-      // }
-      // if (opts.collection) {
-      //   withinColl(exp, opts.collection);
-      // }
-      // if (opts) withinDat(exp, opts.dat);
-      // applyRange(exp, opts);
-      // applySort(exp, opts, 'author_sort', 'asc');
-      // return exp
-      //   .groupBy('texts.author', 'texts.title');
+      beforeEach(addDefaultDats);
+      beforeEach(addDefaultTexts);
+
+      it('returns all the titles', () => {
+        return database.getTitlesWith({})
+          .then((result) => {
+            expect(result).to.have.length(3);
+          });
+      });
+
+      it('returns all the titles for an author with multiple titles', () => {
+        return database.getTitlesWith({ author: 'Chantal Mouffe' })
+          .then((result) => {
+            expect(result).to.have.length(2);
+          });
+      });
+
+      it('returns all the titles for an author with one title', () => {
+        return database.getTitlesWith({ author: 'Judith Butler' })
+          .then((result) => {
+            expect(result).to.have.length(1);
+          });
+      });
+
+      it('returns all the titles for an author with no titles', () => {
+        return database.getTitlesWith({ author: 'Gilles Deleuze' })
+          .then((result) => {
+            expect(result).to.have.length(0);
+          });
+      });
+
+      it('returns a title by name', () => {
+        return database.getTitlesWith({ title: 'Hegemony and Socialist Strategy' })
+          .then((result) => {
+            expect(result).to.have.length(1);
+          });
+      });
+
+      it('fails to return any titles for a bad combination', () => {
+        return database.getTitlesWith({ author: 'Gilles Deleuze', title: 'Hegemony and Socialist Strategy' })
+          .then((result) => {
+            expect(result).to.have.length(0);
+          });
+      });
+
+      it('returns all the titles in a dat', () => {
+        return database.getTitlesWith({ dat: datkeys[0] })
+          .then((result) => {
+            expect(result).to.have.length(1);
+          });
+      });
+
+      it('returns the correct number of files', () => {
+        return database.getTitlesWith({ title: 'Hegemony and Socialist Strategy' })
+          .then((result) => {
+            expect(result[0].files).to.have.length(2);
+          });
+      });
+
+      it('returns the correct number of authors', () => {
+        return database.getTitlesWith({ title: 'Hegemony and Socialist Strategy' })
+          .then((result) => {
+            expect(result[0].authors).to.have.length(2);
+          });
+      });
     });
 
     // Gets entire entries for catalog items matching author/title/file.
     // Can specify a dat or a list of dats to get within.
-    describe('getItemsWith(opts, distinct)', () => {
-      // const exp = this.db('texts');
-      // if (distinct) {
-      //   exp.distinct(distinct);
-      // }
-      // if (opts.author) {
-      //   exp.where('texts.author', opts.author);
-      // }
-      // if (opts.title) {
-      //   exp.where('texts.title', opts.title);
-      // }
-      // if (opts.file) {
-      //   exp.where('texts.file', opts.file);
-      // }
-      // if (opts.collection) {
-      //   withinColl(exp, opts.collection);
-      // }
-      // withinDat(exp, opts.dat);
-      // applyRange(exp, opts);
-      // applySort(exp, opts, 'dat', 'asc');
-      // return exp
-      //   .where('texts.state', true);
-    });
+    describe('getFilesWith(opts, distinct)', () => {
+      beforeEach(addDefaultDats);
+      beforeEach(addDefaultTexts);
 
-    // Optionally only include files from a particular dat.
-    // Optionally specify a filename to find.
-    describe('getFiles(author, title, opts)', () => {
-      // const exp = this.db('texts')
-      //   .where('author', author)
-      //   .andWhere('title', title)
-      //   .andWhere('texts.state', true);
-      // if (opts) {
-      //   withinDat(exp, opts.dat);
-      //   exp.where('file', opts.file);
-      // }
-      // return exp.orderBy('dat', 'file');
+      it('returns all the files', () => {
+        return database.getFilesWith({})
+          .then((result) => {
+            expect(result).to.have.length(4);
+          });
+      });
+
+      it('returns all the required fields', () => {
+        return database.getFilesWith({})
+          .then((result) => {
+            expect(result[0]).to.have.property('dat');
+            expect(result[0]).to.have.property('path');
+            expect(result[0]).to.have.property('id');
+          });
+      });
+
+      it('returns all the files for an author with multiple titles', () => {
+        return database.getFilesWith({ author: 'Chantal Mouffe' })
+          .then((result) => {
+            expect(result).to.have.length(3);
+          });
+      });
+
+      it('returns all the files for an author with one title', () => {
+        return database.getFilesWith({ author: 'Judith Butler' })
+          .then((result) => {
+            expect(result).to.have.length(1);
+          });
+      });
+
+      it('returns all the files for an author with no titles', () => {
+        return database.getFilesWith({ author: 'Gilles Deleuze' })
+          .then((result) => {
+            expect(result).to.have.length(0);
+          });
+      });
+
+      it('returns all files for a title name', () => {
+        return database.getFilesWith({ title: 'Hegemony and Socialist Strategy' })
+          .then((result) => {
+            expect(result).to.have.length(2);
+          });
+      });
+
+      it('fails to return any files for a bad combination', () => {
+        return database.getFilesWith({ author: 'Gilles Deleuze', title: 'Hegemony and Socialist Strategy' })
+          .then((result) => {
+            expect(result).to.have.length(0);
+          });
+      });
+
+      it('returns all the files in a dat', () => {
+        return database.getFilesWith({ dat: datkeys[0] })
+          .then((result) => {
+            expect(result).to.have.length(1);
+          });
+      });
     });
 
     describe('getDownloadCounts(dat)', () => {
-      // const exp = this.db.select('texts.downloaded').from('texts')
-      //   .count('texts.file as count');
-      // withinDat(exp, dat);
-      // return exp
-      //   .where('texts.state', true)
-      //   .groupBy('texts.downloaded')
-      //   .orderBy('texts.downloaded', 'desc');
+      beforeEach(addDefaultDats);
+      beforeEach(addDefaultTexts);
+
+      it('gets total download counts', () => {
+        return database.getDownloadCounts()
+          .then((result) => {
+            expect(result).to.have.property('0');
+            expect(result).to.have.property('1');
+            expect(result[0]).to.equal(1);
+            expect(result[1]).to.equal(3);
+          });
+      });
+      it('gets download counts within a dat', () => {
+        return database.getDownloadCounts(datkeys[0])
+          .then((result) => {
+            expect(result).to.not.have.property('0');
+            expect(result).to.have.property('1');
+            expect(result[1]).to.equal(1);
+          });
+      });
     });
+
   });
 
   context('when complete metadata has been downloaded for texts', () => {
