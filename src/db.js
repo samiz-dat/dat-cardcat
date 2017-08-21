@@ -39,7 +39,7 @@ function withinColl(query, coll) {
   if (Array.isArray(coll) && coll.length === 1) {
     collCond = coll[0];
   }
-  query.innerJoin('collections', function() {
+  query.innerJoin('collections', function () {
     this
       .on('texts.dat', 'collections.dat')
       .on('texts.author', 'collections.author')
@@ -75,7 +75,133 @@ function applySort(query, opts, ...defaults) {
   return query;
 }
 
-//
+// functions that are needed recursively in Database are required to be declared outside
+// the class as all methods of Database are sequentialized in Catalog. Meaning they
+// are placed in a queue and are executed in order, but nexting this.method() calls
+// inside Database we create a condition where the method called is waiting for the
+// method that called it to finish before it itself if called - never.
+
+function _pathToDat(database, key) {
+  return database.select('dir').from('cats').where('dat', key).first();
+}
+
+// Clear out all entries in `files` table (optional datKey)
+function _clearFiles(database, catId) {
+  if (catId) {
+    return database('files').where('cat_id', catId).del();
+  }
+  // Truncate the files table
+  return database('files').del();
+}
+
+// Clear out all titles that don't have any files
+function _clearEmptyTitles(database) {
+  return database('titles').whereIn('id', function () {
+    this.select('titles.id')
+    .from('titles')
+    .leftJoin('files', 'titles.id', 'files.title_id')
+    .where('files.id', null);
+  }).del();
+}
+
+// Clear out all authors that don't have any titles
+function _clearEmptyAuthors(database) {
+  return database('authors')
+    .whereIn('id', function () {
+      this.select('authors.id')
+      .from('authors')
+      .leftJoin('authors_titles', 'authors.id', 'authors_titles.author_id')
+      .where('authors_titles.title_id', null);
+    }).del();
+}
+
+// Adds relation
+function _addAuthorTitle(database, authorId, titleId, role, order) {
+  return database('authors_titles')
+    .where({
+      author_id: authorId,
+      title_id: titleId,
+    })
+    .first()
+    .then((row) => {
+      if (!row) {
+        return database('authors_titles').insert({
+          author_id: authorId,
+          title_id: titleId,
+          role: role || '',
+          order: order || 0,
+        });
+      }
+      return Promise.resolve(true);
+    });
+}
+
+// opts must include `author`, `author_sort`, and `titleId`. `role` is optional
+function _addAuthor(database, opts, order) {
+  return database('authors')
+    .where({
+      author_sort: opts.author_sort,
+    })
+    .first()
+    .then((row) => {
+      if (!row) {
+        return database('authors').insert({
+          author: opts.author,
+          author_sort: opts.author_sort,
+        })
+        .then(id => id[0]);
+      }
+      return Promise.resolve(row.id);
+    })
+    .then(id => _addAuthorTitle(database, id, opts.titleId, opts.role, order));
+}
+
+  // Adds authors for a title
+function _addAuthors(database, opts) {
+  // Handle single author case
+  if (opts.author) {
+    return _addAuthor(database, opts);
+  } else if (opts.authors) {
+    return Promise.map(opts.authors, (a) => {
+      a.titleId = opts.titleId;
+      return a;
+    })
+    .each((a, i) => _addAuthor(database, a, i));
+  }
+  return Promise.reject();
+}
+
+// Adds a new file or finds existing one
+function _addFile(database, catId, opts) {
+  return database('files')
+    .where('cat_id', catId)
+    .where('path', opts.path)
+    .first()
+    .then((row) => {
+      let promise = -1;
+      // console.log(opts.version, 'version!');
+      if (!row) {
+        // add new file
+        promise = database('files').insert({
+          cat_id: catId,
+          title_id: opts.titleId,
+          version: opts.version,
+          status: opts.status || 0,
+          path: opts.path,
+          is_metadata: opts.isMetadata || 0,
+          is_cover: opts.isCover || 0,
+        });
+      } else if (opts.version > row.version) {
+        // update state and version if this text is newer version
+        promise = database('files').update({
+          version: opts.version,
+          status: opts.status, // state stored del or pul status as a bool
+        }).where('id', row.id);
+      }
+      return Promise.resolve(promise);
+    });
+}
+
 export class Database {
   // Constructor
   constructor(filename) {
@@ -111,10 +237,13 @@ export class Database {
     return false;
   }
 
+  getCats() {
+    return this.db('cats');
+  }
+
   // Makes sure the catalog id lookup cache is up to date
   refreshCatIdsCache() {
-    console.log('cc');
-    return this.db('cats')
+    return this.getCats()
       .then((cats) => {
         this.catIds = {};
         for (const doc of cats) this.catIds[doc.dat] = doc.id;
@@ -127,11 +256,16 @@ export class Database {
   addDat(dat, name, dir, version, format) {
     // Handle non-hex, non-64 digits
     if (!dat) return Promise.reject();
-    if (dat.length !== 64 || dat.search(/[0-9A-F]/gi) === -1) return Promise.reject();
+    if (dat.length !== 64 || dat.search(/[0-9A-F]{64}/gi) !== 0) return Promise.reject();
     // Otherwise
-    return this.pathToDat(dat)
+    return _pathToDat(this.db, dat)
     .then((p) => {
-      if (!p) return this.db.insert({ dat, name, dir, version, format }).into('cats').tap(() => this.refreshCatIdsCache());
+      if (!p) {
+        return this.db
+          .insert({ dat, name, dir, version, format })
+          .into('cats')
+          .tap(() => this.refreshCatIdsCache());
+      }
       return Promise.reject();
     });
   }
@@ -151,39 +285,10 @@ export class Database {
 
   // Remove all entries/ texts for a dat
   clearTexts(datKey) {
-    return this.clearFiles(datKey)
-      .tap(() => this.clearEmptyTitles())
-      .tap(() => this.clearEmptyAuthors()); // @TODO: this will need to be generalized to all metadata
-  }
-
-  // Clear out all entries in `files` table (optional datKey)
-  clearFiles(datKey) {
     const catId = this.getCatId(datKey);
-    if (catId) {
-      return this.db('files').where('cat_id', catId).del();
-    }
-    // Truncate the files table
-    return this.db('files').del();
-  }
-
-  // Clear out all titles that don't have any files
-  clearEmptyTitles() {
-    return this.db('titles').whereIn('id', function() {
-      this.select('titles.id')
-      .from('titles')
-      .leftJoin('files', 'titles.id', 'files.title_id')
-      .where('files.id', null);
-    }).del();
-  }
-
-  // Clear out all authors that don't have any titles
-  clearEmptyAuthors() {
-    return this.db('authors').whereIn('id', function() {
-      this.select('authors.id')
-      .from('authors')
-      .leftJoin('authors_titles', 'authors.id', 'authors_titles.author_id')
-      .where('authors_titles.title_id', null);
-    }).del();
+    return _clearFiles(this.db, catId)
+      .tap(() => _clearEmptyTitles(this.db))
+      .tap(() => _clearEmptyAuthors(this.db)); // @TODO: this will need to be generalized to all metadata
   }
 
   // Remove all collection entries for a dat
@@ -204,7 +309,7 @@ export class Database {
 
   // Returns the path to a dat as found in db.
   pathToDat(datKey) {
-    return this.db.select('dir').from('cats').where('dat', datKey).first();
+    return _pathToDat(this.db, datKey);
   }
 
   lastImportedVersion(datKey) {
@@ -239,94 +344,6 @@ export class Database {
       });
   }
 
-  // Adds a new file or finds existing one
-  addFile(opts) {
-    const catId = this.getCatId(opts.dat);
-    return this.db('files')
-      .where('cat_id', catId)
-      .where('path', opts.path)
-      .first()
-      .then((row) => {
-        let promise = -1;
-        // console.log(opts.version, 'version!');
-        if (!row) {
-          // add new file
-          promise = this.db('files').insert({
-            cat_id: catId,
-            title_id: opts.titleId,
-            version: opts.version,
-            status: opts.status || 0,
-            path: opts.path,
-            is_metadata: opts.isMetadata || 0,
-            is_cover: opts.isCover || 0,
-          });
-        } else if (opts.version > row.version) {
-          // update state and version if this text is newer version
-          promise = this.db('files').update({
-            version: opts.version,
-            status: opts.status, // state stored del or pul status as a bool
-          }).where('id', row.id);
-        }
-        return Promise.resolve(promise);
-      });
-  }
-
-  // Adds relation
-  addAuthorTitle(authorId, titleId, role, order) {
-    return this.db('authors_titles')
-      .where({
-        author_id: authorId,
-        title_id: titleId,
-      })
-      .first()
-      .then((row) => {
-        if (!row) {
-          return this.db('authors_titles').insert({
-            author_id: authorId,
-            title_id: titleId,
-            role: role || '',
-            order: order || 0,
-          });
-        }
-        return Promise.resolve(true);
-      });
-  }
-
-  // opts must include `author`, `author_sort`, and `titleId`. `role` is optional
-  addAuthor(opts, order) {
-    return this.db('authors')
-      .where({
-        author_sort: opts.author_sort,
-      })
-      .first()
-      .then((row) => {
-        if (!row) {
-          return this.db('authors').insert({
-            author: opts.author,
-            author_sort: opts.author_sort,
-          })
-          .then(id => id[0]);
-        }
-        return Promise.resolve(row.id);
-      })
-      .then(id => this.addAuthorTitle(id, opts.titleId, opts.role, order));
-  }
-
-  // Adds authors for a title
-  addAuthors(opts) {
-    // Handle single author case
-    if (opts.author) {
-      return this.addAuthor(opts);
-    } else if (opts.authors) {
-      return Promise.map(opts.authors, (a) => {
-        a.titleId = opts.titleId;
-        return a;
-      })
-      .each((a, i) => this.addAuthor(a, i));
-    }
-    return Promise.reject();
-  }
-
   addTextFromMetadata(opts) {
     // Do we need to invalidate any caches?
     const letter = opts.author_sort.charAt(0).toLowerCase();
@@ -340,8 +357,9 @@ export class Database {
     return this.addTitle(opts)
       .then((id) => {
         opts.titleId = id;
-        return this.addFile(opts)
-        .then(() => this.addAuthors(opts));
+        const catId = this.getCatId(opts.dat);
+        return _addFile(this.db, catId, opts)
+          .then(() => _addAuthors(this.db, opts));
       });
   }
 
@@ -608,9 +626,10 @@ export class Database {
   // Returns opf metadata object for an item, optionally preferring a specific library.
   getOpf(author, title, dat) {
     // @ todo - this is currently broken because of sequentialise - remove this.fn() calls
+    // plus getFiles is undefined
     const mfn = 'metadata.opf'; // metadata file name
     return this.getFiles(author, title, { dat, file: mfn }).first()
-      .then(row => this.pathToDat(row.dat))
+      .then(row => _pathToDat(this.db, row.dat))
       .then(fp => readOPF(path.join(fp.dir, author, title, mfn)));
   }
 }

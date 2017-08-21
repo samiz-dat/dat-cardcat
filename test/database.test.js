@@ -718,10 +718,9 @@ describe.only('database', () => {
           });
       });
     });
-
   });
 
   context('when complete metadata has been downloaded for texts', () => {
-    //include tests for what we are expecting
+    it('will definitely be tested');
   });
 });

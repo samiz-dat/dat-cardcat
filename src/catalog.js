@@ -37,7 +37,13 @@ export class Catalog extends EventEmitter {
       dir: this.baseDir,
       base: 'catalog.db',
     })), {
-      ignore: ['db'],
+      ignore: [
+        'db',
+        'getCatId',
+        'refreshCatIdsCache',
+        'search',
+        'countSearch',
+      ],
       promise: Promise,
     });
     this.multidat = new Multidat(this.baseDir);
