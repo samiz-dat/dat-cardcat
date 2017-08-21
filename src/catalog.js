@@ -53,10 +53,9 @@ export class Catalog extends EventEmitter {
       'getCollections',
       'countTitlesWith',
       'getTitlesWith',
-      'getItemsWith',
+      'getFilesWith',
       'countSearch',
       'search',
-      'getTitlesForAuthor',
       'setDownloaded',
       'getDownloadCounts',
     ];
@@ -184,7 +183,7 @@ export class Catalog extends EventEmitter {
       return Promise.reject();
     }
     // With no dat provided, we must query for it
-    return this.db.getItemsWith(opts, 'dat')
+    return this.db.getFilesWith(opts)
       .map(row => row.dat)
       .each(dat => this.download(dat, opts)); // .each() passes through the original array
   }
@@ -402,21 +401,19 @@ export class Catalog extends EventEmitter {
   How to handle two such un-alike cases in the most simple way?
   */
   download(key, opts) {
-    let resource = '';
-    if (!opts.author && !opts.title && !opts.file) {
-      console.log(`checking out everything from ${opts.dat}`);
-      return this.multidat.downloadFromDat(key, resource);
+    if (!opts.author && !opts.title && !opts.path) {
+      console.log(`checking out everything from ${key}`);
+      return this.multidat.downloadFromDat(key, '');
     }
-    // To download, we need to know the dat's format
-    opts.format = this.multidat.getDat(key).format || 'calibre';
-    resource = formatPath(opts);
-    console.log(`checking out ${opts} from ${key} as ${resource}`);
     // Our formatter has returned a path that we can use.
-    if (resource) return this.multidat.downloadFromDat(key, resource);
+    if (opts.path) {
+      console.log(`checking out ${opts.path} from ${key}`);
+      return this.multidat.downloadFromDat(key, opts.path);
+    }
     // If the formatter didn't work, then we need to query the database for files to download serially
-    console.log('unable to get a specific resource to download, trying to get a list from the db');
+    console.log('getting a list from the db of files to download');
     opts.dat = key;
-    return this.db.getItemsWith(opts)
+    return this.db.getFilesWith(opts)
       .then(rows => rows)
       .each(row => this.download(row.dat, row));
   }
@@ -435,10 +432,9 @@ export class Catalog extends EventEmitter {
     }
     return this.getDownloadCounts(key)
       .then((counts) => {
-        const o = _.find(counts, 'downloaded');
         dw.setFilesCount(
-          (o) ? o.count : 0,
-          _.sumBy(counts, 'count'));
+          _.get(counts, '1', 0),
+          _.sum(_.values(counts)));
         return Promise.resolve(dw.filesCount);
       });
   }
@@ -529,7 +525,7 @@ export class Catalog extends EventEmitter {
       // console.log(`${data.progress.toFixed(2)}%`, 'Downloading:', data.file);
       if (data.progress === 100) {
         // console.log('Downloaded!', data.file);
-        this.setDownloaded(data.key, entry.author, entry.title, entry.file)
+        this.setDownloaded(data.key, data.file)
           .then(() => this.updateDatDownloadCounts(data.key, true));
       }
     }

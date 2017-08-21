@@ -86,7 +86,7 @@ export class Database {
       },
       pool: {
         afterCreate: (conn, cb) => conn.run('PRAGMA foreign_keys = ON', cb),
-      }
+      },
     });
     // If you ever need to see what queries are being run uncomment the following.
     // this.db.on('query', queryData => console.log(queryData));
@@ -113,12 +113,14 @@ export class Database {
 
   // Makes sure the catalog id lookup cache is up to date
   refreshCatIdsCache() {
-    return this.db.select('id', 'dat')
-      .from('cats')
+    console.log('cc');
+    return this.db('cats')
       .then((cats) => {
         this.catIds = {};
         for (const doc of cats) this.catIds[doc.dat] = doc.id;
-      });
+        return this.catIds;
+      })
+      .catch(e => console.error(e));
   }
 
   // Add a dat to the database
