@@ -260,7 +260,7 @@ function searchTask() {
 function authorTasks(author) {
   // Lists all the titles for an author
   function titlesForAuthor(a) {
-    return cardcat.getTitlesForAuthor(a)
+    return cardcat.getTitlesWith({ author: a })
       .then(titles => titles.map(doc => `${a}\t${doc.title}`))
       .then(textChoiceTask);
   }

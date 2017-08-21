@@ -9,6 +9,9 @@ const GROUP_CONCAT_AUTHORS = 'GROUP_CONCAT(authors.author || ":" || authors_titl
 const theLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
 const otherLetters = 'etc.';
 
+// caching of common queries
+let catIds = {};
+
 // Narrows query to within a dat/ list of dats
 function withinDat(query, catId, joins = []) {
   if (catId) {
@@ -83,6 +86,26 @@ function applySort(query, opts, ...defaults) {
 
 function _pathToDat(database, key) {
   return database.select('dir').from('cats').where('dat', key).first();
+}
+
+// Returns the database id for a dat key. Cached for performance
+function _getCatId(datKey) {
+  // return from cache
+  if (catIds[datKey]) {
+    return catIds[datKey];
+  }
+  return false;
+}
+
+// Makes sure the catalog id lookup cache is up to date
+function _refreshCatIdsCache(database) {
+  return database('cats')
+    .then((cats) => {
+      catIds = {};
+      for (const doc of cats) catIds[doc.dat] = doc.id;
+      return catIds;
+    })
+    .catch(e => console.error(e));
 }
 
 // Clear out all entries in `files` table (optional datKey)
@@ -224,32 +247,12 @@ export class Database {
   init() {
     return this.db.migrate.latest(config.development.migration)
       .then(() => { this.isReady = true; })
-      .then(() => this.refreshCatIdsCache())
+      .then(() => _refreshCatIdsCache(this.db))
       .catch(e => console.error(e));
-  }
-
-  // Returns the database id for a dat key. Cached for performance
-  getCatId(datKey) {
-    // return from cache
-    if (this.catIds[datKey]) {
-      return this.catIds[datKey];
-    }
-    return false;
   }
 
   getCats() {
     return this.db('cats');
-  }
-
-  // Makes sure the catalog id lookup cache is up to date
-  refreshCatIdsCache() {
-    return this.getCats()
-      .then((cats) => {
-        this.catIds = {};
-        for (const doc of cats) this.catIds[doc.dat] = doc.id;
-        return this.catIds;
-      })
-      .catch(e => console.error(e));
   }
 
   // Add a dat to the database
@@ -264,7 +267,7 @@ export class Database {
         return this.db
           .insert({ dat, name, dir, version, format })
           .into('cats')
-          .tap(() => this.refreshCatIdsCache());
+          .tap(() => _refreshCatIdsCache(this.db));
       }
       return Promise.reject();
     });
@@ -285,7 +288,7 @@ export class Database {
 
   // Remove all entries/ texts for a dat
   clearTexts(datKey) {
-    const catId = this.getCatId(datKey);
+    const catId = _getCatId(datKey);
     return _clearFiles(this.db, catId)
       .tap(() => _clearEmptyTitles(this.db))
       .tap(() => _clearEmptyAuthors(this.db)); // @TODO: this will need to be generalized to all metadata
@@ -313,14 +316,14 @@ export class Database {
   }
 
   lastImportedVersion(datKey) {
-    const catId = this.getCatId(datKey);
+    const catId = _getCatId(datKey);
     if (!catId) return Promise.reject();
     return this.db('files')
       .max('version as version')
       .where('cat_id', catId)
       .whereNotNull('version')
       .first()
-      .then(row => row.version);
+      .then(row => row.version || 0);
   }
 
   // Adds a new title or finds the existing one for author/title combo
@@ -357,7 +360,7 @@ export class Database {
     return this.addTitle(opts)
       .then((id) => {
         opts.titleId = id;
-        const catId = this.getCatId(opts.dat);
+        const catId = _getCatId(opts.dat);
         return _addFile(this.db, catId, opts)
           .then(() => _addAuthors(this.db, opts));
       });
@@ -376,7 +379,7 @@ export class Database {
 
   // Sets download status of a row
   setDownloaded(dat, file, downloaded = true) {
-    const catId = this.getCatId(dat);
+    const catId = _getCatId(dat);
     const status = (downloaded) ? 1 : 0;
     return this.db('files')
       .where({
@@ -404,7 +407,7 @@ export class Database {
   countAuthors(startingWith, opts) {
     const exp = this.db.countDistinct('authors.author as num').from('authors');
     if (opts) {
-      withinDat(exp, this.getCatId(opts.dat),
+      withinDat(exp, _getCatId(opts.dat),
         [['authors_titles', 'authors.id', 'authors_titles.author_id'],
         ['titles', 'authors_titles.title_id', 'titles.id']]);
     }
@@ -431,7 +434,7 @@ export class Database {
     const exp = this.db.select('authors.author').from('authors')
       .innerJoin('authors_titles', 'authors.id', 'authors_titles.author_id')
       .countDistinct('authors_titles.title_id as count');
-    if (opts) withinDat(exp, this.getCatId(opts.dat), [['titles', 'authors_titles.title_id', 'titles.id']]);
+    if (opts) withinDat(exp, _getCatId(opts.dat), [['titles', 'authors_titles.title_id', 'titles.id']]);
     if (startingWith && startingWith === otherLetters) {
       for (const letter of theLetters) {
         exp.whereNot('authors.author_sort', 'like', `${letter}%`);
@@ -460,7 +463,7 @@ export class Database {
     const exp = this.db.column(this.db.raw('lower(substr(authors.author_sort,1,1)) as letter'))
       .select();
     if (opts) {
-      withinDat(exp, this.getCatId(opts.dat),
+      withinDat(exp, _getCatId(opts.dat),
         [['authors_titles', 'authors.id', 'authors_titles.author_id'],
         ['titles', 'authors_titles.title_id', 'titles.id']]);
       if (opts.collection) {
@@ -504,7 +507,7 @@ export class Database {
       withinColl(exp, opts.collection);
     }
     if (opts) {
-      withinDat(exp, this.getCatId(opts.dat));
+      withinDat(exp, _getCatId(opts.dat));
     }
     return exp
       .first()
@@ -543,7 +546,7 @@ export class Database {
       withinColl(exp, opts.collection);
     }
     if (opts) {
-      withinDat(exp, this.getCatId(opts.dat), false);
+      withinDat(exp, _getCatId(opts.dat), false);
     }
     applyRange(exp, opts);
     applySort(exp, opts, 'titles.author_sort', 'asc');
@@ -579,7 +582,7 @@ export class Database {
       withinColl(exp, opts.collection);
     }
     if (opts) {
-      withinDat(exp, this.getCatId(opts.dat), false);
+      withinDat(exp, _getCatId(opts.dat), false);
     }
     applyRange(exp, opts);
     applySort(exp, opts, 'cats.dat', 'asc');
@@ -592,7 +595,7 @@ export class Database {
     const exp = this.db.select('collection').from('collections')
       .count('* as count');
     if (opts) {
-      withinDat(exp, this.getCatId(opts.dat));
+      withinDat(exp, _getCatId(opts.dat));
     }
     if (startingWith) {
       const s = `${startingWith}%`;
@@ -608,7 +611,7 @@ export class Database {
     const exp = this.db.select('files.status').from('files')
       .count('files.path as count');
     if (dat) {
-      withinDat(exp, this.getCatId(dat), false);
+      withinDat(exp, _getCatId(dat), false);
     } else {
       exp.where('files.status', '>', -1);
     }
