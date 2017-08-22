@@ -629,6 +629,13 @@ describe.only('database', () => {
             expect(result[0].authors).to.have.length(2);
           });
       });
+
+      it('returns multiple authors in the correct order', () => {
+        return database.getTitlesWith({ title: 'Hegemony and Socialist Strategy' })
+          .then((result) => {
+            expect(result[0].author).to.equal('Ernesto Laclau; Chantal Mouffe');
+          });
+      });
     });
 
     // Gets entire entries for catalog items matching author/title/file.

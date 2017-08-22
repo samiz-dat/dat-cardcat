@@ -276,8 +276,7 @@ export class Catalog extends EventEmitter {
   // Registers dat the DB
   registerDat(dw) {
     console.log(`Adding dat ${chalk.bold(dw.name)} (${dw.key}) to the catalog.`);
-    return this.db.removeDat(dw.key)
-      .then(() => this.db.addDat(dw.key, dw.name, dw.directory, dw.version, dw.format))
+    return this.db.upsertDat(dw.key, dw.name, dw.directory, dw.version, dw.format)
       .then(() => this.ingestDatContents(dw))
       .then(() => this.updateDatDownloadCounts(dw.key))
       .catch((err) => {
@@ -297,13 +296,13 @@ export class Catalog extends EventEmitter {
     // Note: only if metadata is completely downloaded can we linearly
     // move through material not in yet added to db
     if (dw.metadataComplete) {
-      return this.db.lastImportedVersion(dw.key).then((data) => {
+      return this.db.lastImportedVersion(dw.key).then((version) => {
         // console.log(data);
-        if (!data.version || data.version < dw.version) {
-          console.log(chalk.gray(`* importing from version ${data.version + 1} to version ${dw.version}`));
-          return dw.onEachMetadata(this.ingestDatFile, data.version + 1 || 1);
+        if (!version || version < dw.version) {
+          console.log(chalk.gray(`* importing from version ${version + 1} to version ${dw.version}`));
+          return dw.onEachMetadata(this.ingestDatFile, version + 1 || 1);
         }
-        console.log(chalk.gray(`* not importing anything: already at version ${data.version}`));
+        console.log(chalk.gray(`* not importing anything: already at version ${version}`));
         return null;
       });
     }

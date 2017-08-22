@@ -38,7 +38,7 @@ exports.up = (knex, Promise) => { // eslint-disable-line
     table.integer('title_id');
     table.foreign('author_id').references('id').inTable('authors').onDelete('CASCADE');
     table.foreign('title_id').references('id').inTable('titles').onDelete('CASCADE');
-    table.integer('order');
+    table.integer('weight');
     table.string('role');
   })
   // Files

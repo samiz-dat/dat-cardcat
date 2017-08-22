@@ -5,12 +5,24 @@ import { readOPF } from 'open-packaging-format';
 import config from './knexfile';
 
 const GROUP_CONCAT_FILES = 'GROUP_CONCAT(files.path || ":" || files.status || ":" || cats.dat, ";;") as "files"';
-const GROUP_CONCAT_AUTHORS = 'GROUP_CONCAT(authors.author || ":" || authors_titles.role, ";;") as "authors"';
+const GROUP_CONCAT_AUTHORS = 'GROUP_CONCAT(authors.author || ":" || authors_titles.role || ":" || authors_titles.weight, ";;") as "authors"';
 const theLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
 const otherLetters = 'etc.';
 
 // caching of common queries
 let catIds = {};
+
+// Utility for parsing group concatenated authors into an array
+function parseAuthorsStr(s) {
+  return Array.from(new Set(s.split(';;')))
+    .map(a => a.split(':'))
+    .sort((a, b) => { return a[2] > b[2] ? 1 : -1; });
+}
+
+// Utility for parsing group concatenated files into an array
+function parseFilesStr(s) {
+  return Array.from(new Set(s.split(';;'))).map(f => f.split(':'));
+}
 
 // Narrows query to within a dat/ list of dats
 function withinDat(query, catId, joins = []) {
@@ -152,7 +164,7 @@ function _addAuthorTitle(database, authorId, titleId, role, order) {
           author_id: authorId,
           title_id: titleId,
           role: role || '',
-          order: order || 0,
+          weight: order || 0,
         });
       }
       return Promise.resolve(true);
@@ -273,6 +285,26 @@ export class Database {
     });
   }
 
+  // Update (if exists) or insert (if not exists) a catalog
+  upsertDat(dat, name, dir, version, format) {
+    // Handle non-hex, non-64 digits
+    if (!dat) return Promise.reject();
+    if (dat.length !== 64 || dat.search(/[0-9A-F]{64}/gi) !== 0) return Promise.reject();
+    // Otherwise
+    return _pathToDat(this.db, dat)
+    .then((p) => {
+      if (!p) {
+        return this.db
+          .insert({ dat, name, dir, version, format })
+          .into('cats')
+          .tap(() => _refreshCatIdsCache(this.db));
+      }
+      return this.db('cats')
+        .where('dat', dat)
+        .update({ dat, name, dir, version, format });
+    });
+  }
+
   // Remove a dat from the database
   removeDat(datKey) {
     return this.db('cats').where('dat', datKey).del();
@@ -317,6 +349,7 @@ export class Database {
 
   lastImportedVersion(datKey) {
     const catId = _getCatId(datKey);
+    console.log(`Getting version for ${datKey} (${catId})`);
     if (!catId) return Promise.reject();
     return this.db('files')
       .max('version as version')
@@ -554,8 +587,9 @@ export class Database {
       .groupBy('titles.author_sort', 'titles.title')
       // This last step is to de-duplicate the group_concats above
       .map((result) => {
-        result.authors = Array.from(new Set(result.authors.split(';;'))).map(a => a.split(':'));
-        result.files = Array.from(new Set(result.files.split(';;'))).map(f => f.split(':'));
+        result.authors = parseAuthorsStr(result.authors);
+        result.files = parseFilesStr(result.files);
+        result.author = result.authors.map(a => a[0]).join('; ');
         return result;
       });
   }
