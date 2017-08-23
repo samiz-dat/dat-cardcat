@@ -319,13 +319,13 @@ export class Catalog extends EventEmitter {
     const entry = parseEntry(data.file);
     if (entry) {
       const downloaded = await this.multidat.getDat(data.key).hasFile(data.file);
+      const status = (data.type === 'del') ? -1 : downloaded;
       const downloadedStr = (downloaded) ? '[*]' : '[ ]';
       const text = {
         dat: data.key,
-        state: data.type === 'put',
         version: data.version,
         ...entry,
-        downloaded,
+        status,
       };
       return this.db.addTextFromMetadata(text)
         .then(() => this.emit('import', { ...text, progress: data.progress }))
