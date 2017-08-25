@@ -86,7 +86,6 @@ export default class DatWrapper extends EventEmitter {
     this.importFiles();
 
     const network = this.dat.joinNetwork();
-    this.stats = this.dat.trackStats();
     network.once('connection', this.connectionEventHandler);
 
     // Watch for metadata syncing
@@ -100,12 +99,12 @@ export default class DatWrapper extends EventEmitter {
       content.on('download', this.contentDownloadEventHandler);
       this.listeningToDownloads = true;
     });
-
     return this;
   }
 
   connectionEventHandler = () => {
     // console.log('connects via network');
+    this.stats = this.dat.trackStats();
     console.log(chalk.gray(chalk.bold('peers:')), this.stats.peers);
   }
 
@@ -310,6 +309,7 @@ export default class DatWrapper extends EventEmitter {
           };
           this.emit('import', data);
         });
+        resolve(this.importer);
       } else {
         resolve(false);
       }
