@@ -150,6 +150,27 @@ function _clearEmptyAuthors(database) {
     }).del();
 }
 
+// Adds a new title or finds the existing one for author/title combo
+function _addTitle(database, opts) {
+  return database('titles')
+    .where({
+      author_sort: opts.author_sort,
+      title: opts.title,
+    })
+    .first()
+    .then((row) => {
+      if (!row) {
+        return database('titles').insert({
+          author_sort: opts.author_sort,
+          title_sort: opts.title_sort || opts.title,
+          title: opts.title,
+        })
+        .then(id => id[0]);
+      }
+      return Promise.resolve(row.id);
+    });
+}
+
 // Adds relation
 function _addAuthorTitle(database, authorId, titleId, role, order) {
   return database('authors_titles')
@@ -197,11 +218,10 @@ function _addAuthors(database, opts) {
   if (opts.author) {
     return _addAuthor(database, opts);
   } else if (opts.authors) {
-    return Promise.map(opts.authors, (a) => {
+    return Promise.all(opts.authors.map((a, i) => {
       a.titleId = opts.titleId;
-      return a;
-    })
-    .each((a, i) => _addAuthor(database, a, i));
+      return _addAuthor(database, a, i);
+    }));
   }
   return Promise.reject();
 }
@@ -359,27 +379,6 @@ export class Database {
       .then(row => row.version || 0);
   }
 
-  // Adds a new title or finds the existing one for author/title combo
-  addTitle(opts) {
-    return this.db('titles')
-      .where({
-        author_sort: opts.author_sort,
-        title: opts.title,
-      })
-      .first()
-      .then((row) => {
-        if (!row) {
-          return this.db('titles').insert({
-            author_sort: opts.author_sort,
-            title_sort: opts.title_sort || opts.title,
-            title: opts.title,
-          })
-          .then(id => id[0]);
-        }
-        return Promise.resolve(row.id);
-      });
-  }
-
   addTextFromMetadata(opts) {
     // Do we need to invalidate any caches?
     const letter = opts.author_sort.charAt(0).toLowerCase();
@@ -390,7 +389,7 @@ export class Database {
       this.letters.all = undefined;
     }
     // Now do the inserting
-    return this.addTitle(opts)
+    return _addTitle(this.db, opts)
       .then((id) => {
         opts.titleId = id;
         const catId = _getCatId(opts.dat);

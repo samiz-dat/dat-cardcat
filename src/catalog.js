@@ -467,9 +467,6 @@ export class Catalog extends EventEmitter {
         ...entry,
         downloaded: true, // downloaed is true as you are importing it, right?
       };
-      // if this times out we should implement a simple promise queue,
-      // so that we just these requests to a list that gets executed when
-      // the preceeding functions .then is called.
       this.db.addTextFromMetadata(text)
         .then(() => {
           this.emit('import', { ...text, progress: data.progress });
@@ -503,9 +500,6 @@ export class Catalog extends EventEmitter {
         ...entry,
         downloaded: false, // need to check for downloaded - probaby at this point does not makes sense as we have not even downloaded the metadata.
       };
-      // if this times out we should implement a simple promise queue,
-      // so that we just these requests to a list that gets executed when
-      // the preceeding functions .then is called.
       this.db.addTextFromMetadata(text)
         .then(() => {
           this.emit('import', { ...text, progress: data.progress });
