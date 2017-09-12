@@ -218,6 +218,28 @@ export default class Multidat {
     });
   }
 
+  // Writes some content to a file, adding it to the dat
+  writeStringToDat(key, content, pathInDat) {
+    const dat = this.getDat(key);
+    if (!dat.isYours()) {
+      return Promise.reject();
+    }
+    const destPath = path.format({
+      dir: dat.directory,
+      base: pathInDat,
+    });
+    return Promise.resolve()
+    .then(() => fs.ensureDir(path.dirname(destPath)))
+    .then(() => fs.writeFile(destPath, content))
+    .then(() => {
+      dat.importFiles(); // @TODO: Check if this is overkill and we should specifically import this one file
+      return true;
+    })
+    .catch((err) => {
+      console.error(err);
+    });
+  }
+
   // Copy a file or directory from one dat to another
   copyFromDatToDat(keyFrom, keyTo, fileOrDir) {
     const from = this.getDat(keyFrom);

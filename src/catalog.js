@@ -5,7 +5,7 @@ import Promise from 'bluebird';
 import chalk from 'chalk';
 import _ from 'lodash';
 import sequentialise from 'sequentialise';
-import parseEntry, { formatPath, reformatPath } from 'dat-cardcat-formats';
+import parseEntry, { formatPath } from 'dat-cardcat-formats';
 
 import rimraf from 'rimraf'; // This will b removed soon
 import config from './config';
@@ -158,10 +158,18 @@ export class Catalog extends EventEmitter {
   }
 
   // Copying a file to a writeable Dat
-  addFileToDat(filepath, key, author, title) {
+  addFileToDat(filepath, key, authors, title) {
     const format = this.multidat.getDat(key).format || 'calibre';
-    const pathInDat = reformatPath(author, title, path.basename(filepath), format);
+    const pathInDat = formatPath(authors, title, path.basename(filepath), format);
     return this.multidat.addFileToDat(key, filepath, pathInDat)
+      .then(() => this.updateDatDownloadCounts(key));
+  }
+
+
+  writeStringToDat(content, fileext, key, authors, title) {
+    const format = this.multidat.getDat(key).format || 'calibre';
+    const pathInDat = formatPath(authors, title, `${title}${fileext}`, format);
+    return this.multidat.writeStringToDat(key, content, pathInDat)
       .then(() => this.updateDatDownloadCounts(key));
   }
 
