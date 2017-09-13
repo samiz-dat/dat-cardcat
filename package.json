@@ -41,7 +41,7 @@
     "eslint-plugin-react": "^6.9.0",
     "istanbul": "^1.1.0-alpha.1",
     "mirror-folder": "^2.1.1",
-    "mocha": "^3.4.1",
+    "mocha": "^3.4.1"
   },
   "dependencies": {
     "another-name-parser": "0.0.4",
