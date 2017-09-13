@@ -1,6 +1,6 @@
 {
   "name": "dat-cardcat",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -42,7 +42,6 @@
     "istanbul": "^1.1.0-alpha.1",
     "mirror-folder": "^2.1.1",
     "mocha": "^3.4.1",
-    "temp": "^0.8.3"
   },
   "dependencies": {
     "another-name-parser": "0.0.4",
