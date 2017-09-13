@@ -92,6 +92,7 @@ export default class DatWrapper extends EventEmitter {
     const metadata = this.dat.archive.metadata;
     metadata.on('download', this.metadataDownloadEventHandler);
     metadata.on('sync', this.metadataSyncEventHandler);
+    metadata.download(); // always download metadata
 
     // Watch for content downloading
     this.dat.archive.on('content', () => {
