@@ -159,6 +159,12 @@ export default class Multidat {
     return dat ? dat.directory : null;
   }
 
+  // Gets a path to a resource within a dat
+  pathToDatResource(key, base) {
+    const dir = this.pathToDat(key);
+    return dir ? path.format({ dir, base }) : null;
+  }
+
   // Remove a dat from the multidat
   removeDat(key) {
     const dat = this.dats[key];
@@ -203,19 +209,7 @@ export default class Multidat {
     if (!dat.isYours()) {
       return Promise.reject();
     }
-    const destPath = path.format({
-      dir: dat.directory,
-      base: pathInDat,
-    });
-    return Promise.resolve()
-    .then(() => fs.copy(filepath, destPath))
-    .then(() => {
-      dat.importFiles(); // @TODO: Check if this is overkill and we should specifically import this one file
-      return true;
-    })
-    .catch((err) => {
-      console.error(err);
-    });
+    return dat.copyFile(pathInDat, filepath);
   }
 
   // Writes some content to a file, adding it to the dat
@@ -224,20 +218,7 @@ export default class Multidat {
     if (!dat.isYours()) {
       return Promise.reject();
     }
-    const destPath = path.format({
-      dir: dat.directory,
-      base: pathInDat,
-    });
-    return Promise.resolve()
-    .then(() => fs.ensureDir(path.dirname(destPath)))
-    .then(() => fs.writeFile(destPath, content))
-    .then(() => {
-      dat.importFiles(); // @TODO: Check if this is overkill and we should specifically import this one file
-      return true;
-    })
-    .catch((err) => {
-      console.error(err);
-    });
+    return dat.writeFile(pathInDat, content);
   }
 
   // Copy a file or directory from one dat to another

@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import _ from 'lodash';
 import sequentialise from 'sequentialise';
 import parseEntry, { formatPath } from 'dat-cardcat-formats';
+import { OPF, writeOPF } from 'open-packaging-format';
 
 import rimraf from 'rimraf'; // This will b removed soon
 import config from './config';
@@ -162,7 +163,8 @@ export class Catalog extends EventEmitter {
     const format = this.multidat.getDat(key).format || 'calibre';
     const pathInDat = formatPath(authors, title, path.basename(filepath), format);
     return this.multidat.addFileToDat(key, filepath, pathInDat)
-      .then(() => this.updateDatDownloadCounts(key));
+      .then(() => this.updateDatDownloadCounts(key))
+      .then(() => this.writeOpfToDat(key, authors, title));
   }
 
 
@@ -170,7 +172,21 @@ export class Catalog extends EventEmitter {
     const format = this.multidat.getDat(key).format || 'calibre';
     const pathInDat = formatPath(authors, title, `${title}${fileext}`, format);
     return this.multidat.writeStringToDat(key, content, pathInDat)
-      .then(() => this.updateDatDownloadCounts(key));
+      .then(() => this.updateDatDownloadCounts(key))
+      .then(() => this.writeOpfToDat(key, authors, title));
+  }
+
+  writeOpfToDat(key, authors, title) {
+    const format = this.multidat.getDat(key).format || 'calibre';
+    const pathInDat = formatPath(authors, title, 'metadata.opf', format);
+    const fullPath = this.multidat.pathToDatResource(key, pathInDat);
+    const opfData = formatPath(authors, title, null, 'opf');
+    const opf = new OPF();
+    opf.title = opfData.title;
+    opf.authors = opfData.authors;
+    return writeOPF(fullPath, opf)
+      .then(() => this.updateDatDownloadCounts(key))
+      .catch(console.error);
   }
 
   // Public call for syncing files within a dat
