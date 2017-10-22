@@ -351,7 +351,7 @@ export default class DatWrapper extends EventEmitter {
     // Start download process
     // Don't use recursion if we don't have to (i.e. if we're getting everything)
     if (fn === '') {
-      this.dat.archive.content.download();
+      this.dat.archive.download();
     } else {
       download(this.dat.archive, filename);
     }
