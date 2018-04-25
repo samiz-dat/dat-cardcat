@@ -1,6 +1,6 @@
 {
   "name": "dat-cardcat",
-  "version": "0.5.8",
+  "version": "0.6.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -54,7 +54,7 @@
     "commander": "^2.9.0",
     "dat-cardcat-formats": "^0.2.0",
     "dat-collections": "^0.2.0",
-    "dat-node": "^3.3.2",
+    "dat-node": "^3.5.8",
     "dat-protocol-buffers": "^1.0.1",
     "dat-secret-storage": "^2.0.0",
     "dat-storage": "^1.0.2",

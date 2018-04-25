@@ -3,6 +3,8 @@ _data*/
 node_modules/
 test-dir/
 *.log
+npm-debug.log.*
+.DS_Store
 catalog.db
 .dat
 dist/
