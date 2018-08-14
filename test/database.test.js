@@ -22,7 +22,7 @@ const temporaryDir = './temp';
 //   sort: [], // args for ordering
 // }
 
-describe.only('database', () => {
+describe('database', () => {
   const datkeys = [
     '8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3',
     '8000000000000080000000000000800000000000008000000000000080000000',
@@ -111,7 +111,7 @@ describe.only('database', () => {
     for (const text of texts) {
       await database.addTextFromMetadata(text);
     }
-  } //Promise.all(texts.map(text => database.addTextFromMetadata(text)));
+  }
 
   before(() => {
     temp.track();
@@ -131,7 +131,6 @@ describe.only('database', () => {
   });
 
   context('with simple data', () => {
-
     describe('.addDat(dat, name, dir, version, format)', () => {
       it('adds a dat to the db', () => {
         return database.addDat('8008c72d90def12ea0ce908d2e8dd49083858f41f2569bf934b1ae064c7143f3', 'test', '/here', 0, 'calibre')
@@ -313,6 +312,22 @@ describe.only('database', () => {
     describe('addTextFromMetadata(opts)', () => {
       // @TODO: Not sure what to do for these test
       beforeEach(addDefaultDats);
+      it('sanitizes path names that include the separator characters', async () => {
+        const data = {
+          dat: datkeys[0],
+          version: 1,
+          status: 1,
+          author: 'Karl Marx',
+          author_sort: 'Marx, Karl',
+          title: 'Capital',
+          path: 'Karl Marx/Capital/Capital:-Volume I;;-The-Process-of-Production-of-Capital.pdf',
+        };
+        await database.addTextFromMetadata(data);
+        const file = await database.db('files').select().first();
+        expect(file.path).to.equal('Karl Marx/Capital/Capital%3A-Volume I%3B%3B-The-Process-of-Production-of-Capital.pdf');
+        const files = await database.getFilesWith({ author: 'Karl Marx' });
+        expect(files[0].path).to.equal(data.path);
+      });
     });
 
     // Sets download status of a row
@@ -558,7 +573,6 @@ describe.only('database', () => {
             expect(result).to.equal(1);
           });
       });
-
     });
 
     // Like getItemsWith, except some extra work is done to return titles

@@ -4,24 +4,58 @@ import Promise from 'bluebird';
 import { readOPF } from 'open-packaging-format';
 import config from './knexfile';
 
-const GROUP_CONCAT_FILES = 'GROUP_CONCAT(files.path || ":" || files.status || ":" || cats.dat, ";;") as "files"';
-const GROUP_CONCAT_AUTHORS = 'GROUP_CONCAT(authors.author || ":" || authors_titles.role || ":" || authors_titles.weight, ";;") as "authors"';
+const GROUP_CONCAT_SEPARATOR = ';;';
+const GROUP_CONCAT_SUB_SEPARATOR = ':';
+const GROUP_CONCAT_FILES = `GROUP_CONCAT(files.path || "${GROUP_CONCAT_SUB_SEPARATOR}" || files.status || "${GROUP_CONCAT_SUB_SEPARATOR}" || cats.dat, "${GROUP_CONCAT_SEPARATOR}") as "files"`;
+const GROUP_CONCAT_AUTHORS = `GROUP_CONCAT(authors.author || "${GROUP_CONCAT_SUB_SEPARATOR}" || authors_titles.role || "${GROUP_CONCAT_SUB_SEPARATOR}" || authors_titles.weight, "${GROUP_CONCAT_SEPARATOR}") as "authors"`;
 const theLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
 const otherLetters = 'etc.';
 
 // caching of common queries
 let catIds = {};
 
+const matchSeparators = new RegExp(`(${GROUP_CONCAT_SEPARATOR}|${GROUP_CONCAT_SUB_SEPARATOR})`, 'g');
+function seporatorReplacer(match) {
+  return match === GROUP_CONCAT_SEPARATOR ? '%3B%3B' : '%3A';
+}
+
+const matchSanitizedSeparators = new RegExp('(%3B%3B|%3A)', 'g');
+function sanitizedSeporatorReplacer(match) {
+  return match === '%3B%3B' ? GROUP_CONCAT_SEPARATOR : GROUP_CONCAT_SUB_SEPARATOR;
+}
+
+// Sanitize title and author fields so that we can group anything
+function sanitizeForGroupConcat(str) {
+  return str.replace(matchSeparators, seporatorReplacer);
+}
+function unsanitizeForGroupConcat(str) {
+  return str.replace(matchSanitizedSeparators, sanitizedSeporatorReplacer);
+}
+
+function unsanitizeResults(res) {
+  return res.map((data) => {
+    data.path = unsanitizeForGroupConcat(data.path);
+    return data;
+  });
+}
+
 // Utility for parsing group concatenated authors into an array
 function parseAuthorsStr(s) {
-  return Array.from(new Set(s.split(';;')))
-    .map(a => a.split(':'))
+  return Array.from(new Set(s.split(GROUP_CONCAT_SEPARATOR)))
+    .map(a => a.split(GROUP_CONCAT_SUB_SEPARATOR))
     .sort((a, b) => { return a[2] > b[2] ? 1 : -1; });
 }
 
 // Utility for parsing group concatenated files into an array
 function parseFilesStr(s) {
-  return Array.from(new Set(s.split(';;'))).map(f => f.split(':'));
+  return Array.from(new Set(s.split(GROUP_CONCAT_SEPARATOR)))
+    .map((f) => {
+      const fileInfo = f.split(GROUP_CONCAT_SUB_SEPARATOR);
+      if (fileInfo.length) {
+        fileInfo[0] = unsanitizeForGroupConcat(fileInfo[0]);
+      }
+      return fileInfo;
+    });
 }
 
 // Narrows query to within a dat/ list of dats
@@ -228,9 +262,10 @@ function _addAuthors(database, opts) {
 
 // Adds a new file or finds existing one
 function _addFile(database, catId, opts) {
+  const safePath = sanitizeForGroupConcat(opts.path);
   return database('files')
     .where('cat_id', catId)
-    .where('path', opts.path)
+    .where('path', safePath)
     .first()
     .then((row) => {
       let promise = -1;
@@ -242,7 +277,7 @@ function _addFile(database, catId, opts) {
           title_id: opts.titleId,
           version: opts.version,
           status: opts.status || 0,
-          path: opts.path,
+          path: safePath,
           is_metadata: opts.isMetadata || 0,
           is_cover: opts.isCover || 0,
         });
@@ -416,7 +451,7 @@ export class Database {
     return this.db('files')
       .where({
         cat_id: catId,
-        path: file,
+        path: sanitizeForGroupConcat(file),
       })
       .update({
         status,
@@ -620,7 +655,8 @@ export class Database {
     applyRange(exp, opts);
     applySort(exp, opts, 'cats.dat', 'asc');
     return exp
-      .groupBy('files.id');
+      .groupBy('files.id')
+      .then(unsanitizeResults);
   }
 
   // Gets a list of collections in the catalog
