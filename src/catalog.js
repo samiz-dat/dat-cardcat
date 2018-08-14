@@ -5,6 +5,8 @@ import Promise from 'bluebird';
 import chalk from 'chalk';
 import _ from 'lodash';
 import sequentialise from 'sequentialise';
+import parseEntry, { formatPath } from 'dat-cardcat-formats';
+import { OPF, writeOPF } from 'open-packaging-format';
 
 import rimraf from 'rimraf'; // This will b removed soon
 import config from './config';
@@ -12,7 +14,6 @@ import config from './config';
 import Database from './db';
 import Multidat from './multidat';
 
-import parseEntry, { formatPath, reformatPath } from 'dat-cardcat-formats';
 // @todo: this.db.close(); should be called on shutdown
 
 const rimrafAsync = Promise.promisify(rimraf);
@@ -37,7 +38,13 @@ export class Catalog extends EventEmitter {
       dir: this.baseDir,
       base: 'catalog.db',
     })), {
-      ignore: ['db'],
+      ignore: [
+        'db',
+        'getCatId',
+        'refreshCatIdsCache',
+        'search',
+        'countSearch',
+      ],
       promise: Promise,
     });
     this.multidat = new Multidat(this.baseDir);
@@ -53,10 +60,9 @@ export class Catalog extends EventEmitter {
       'getCollections',
       'countTitlesWith',
       'getTitlesWith',
-      'getItemsWith',
+      'getFilesWith',
       'countSearch',
       'search',
-      'getTitlesForAuthor',
       'setDownloaded',
       'getDownloadCounts',
     ];
@@ -153,11 +159,34 @@ export class Catalog extends EventEmitter {
   }
 
   // Copying a file to a writeable Dat
-  addFileToDat(filepath, key, author, title) {
+  addFileToDat(filepath, key, authors, title) {
     const format = this.multidat.getDat(key).format || 'calibre';
-    const pathInDat = reformatPath(author, title, path.basename(filepath), format);
+    const pathInDat = formatPath(authors, title, path.basename(filepath), format);
     return this.multidat.addFileToDat(key, filepath, pathInDat)
-      .then(() => this.updateDatDownloadCounts(key));
+      .then(() => this.updateDatDownloadCounts(key))
+      .then(() => this.writeOpfToDat(key, authors, title));
+  }
+
+
+  writeStringToDat(content, fileext, key, authors, title) {
+    const format = this.multidat.getDat(key).format || 'calibre';
+    const pathInDat = formatPath(authors, title, `${title}${fileext}`, format);
+    return this.multidat.writeStringToDat(key, content, pathInDat)
+      .then(() => this.updateDatDownloadCounts(key))
+      .then(() => this.writeOpfToDat(key, authors, title));
+  }
+
+  writeOpfToDat(key, authors, title) {
+    const format = this.multidat.getDat(key).format || 'calibre';
+    const pathInDat = formatPath(authors, title, 'metadata.opf', format);
+    const fullPath = this.multidat.pathToDatResource(key, pathInDat);
+    const opfData = formatPath(authors, title, null, 'opf');
+    const opf = new OPF();
+    opf.title = opfData.title;
+    opf.authors = opfData.authors;
+    return writeOPF(fullPath, opf)
+      .then(() => this.updateDatDownloadCounts(key))
+      .catch(console.error);
   }
 
   // Public call for syncing files within a dat
@@ -184,7 +213,7 @@ export class Catalog extends EventEmitter {
       return Promise.reject();
     }
     // With no dat provided, we must query for it
-    return this.db.getDatsWith(opts)
+    return this.db.getFilesWith(opts)
       .map(row => row.dat)
       .each(dat => this.download(dat, opts)); // .each() passes through the original array
   }
@@ -270,9 +299,8 @@ export class Catalog extends EventEmitter {
 
   // Registers dat the DB
   registerDat(dw) {
-    console.log(`Adding dat (${dw.key}) to the catalog.`);
-    return this.db.removeDat(dw.key)
-      .then(() => this.db.addDat(dw.key, dw.name, dw.directory, dw.version, dw.format))
+    console.log(`Adding dat ${chalk.bold(dw.name)} (${dw.key}) to the catalog.`);
+    return this.db.upsertDat(dw.key, dw.name, dw.directory, dw.version, dw.format)
       .then(() => this.ingestDatContents(dw))
       .then(() => this.updateDatDownloadCounts(dw.key))
       .catch((err) => {
@@ -292,13 +320,13 @@ export class Catalog extends EventEmitter {
     // Note: only if metadata is completely downloaded can we linearly
     // move through material not in yet added to db
     if (dw.metadataComplete) {
-      return this.db.lastImportedVersion(dw.key).then((data) => {
-        console.log(data);
-        if (!data.version || data.version < dw.version) {
-          console.log('importing from version', data.version + 1, 'to version', dw.version);
-          return dw.onEachMetadata(this.ingestDatFile, data.version + 1 || 1);
+      return this.db.lastImportedVersion(dw.key).then((version) => {
+        // console.log(data);
+        if (!version || version < dw.version) {
+          console.log(chalk.gray(`* importing from version ${version + 1} to version ${dw.version}`));
+          return dw.onEachMetadata(this.ingestDatFile, version + 1 || 1);
         }
-        console.log('not importing. already at version ', data.version);
+        console.log(chalk.gray(`* not importing anything: already at version ${version}`));
         return null;
       });
     }
@@ -315,13 +343,13 @@ export class Catalog extends EventEmitter {
     const entry = parseEntry(data.file);
     if (entry) {
       const downloaded = await this.multidat.getDat(data.key).hasFile(data.file);
+      const status = (data.type === 'del') ? -1 : downloaded;
       const downloadedStr = (downloaded) ? '[*]' : '[ ]';
       const text = {
         dat: data.key,
-        state: data.type === 'put',
         version: data.version,
         ...entry,
-        downloaded,
+        status,
       };
       return this.db.addTextFromMetadata(text)
         .then(() => this.emit('import', { ...text, progress: data.progress }))
@@ -396,27 +424,25 @@ export class Catalog extends EventEmitter {
 
   // Downloads files within a dat
   /*
-  The problem here is that some formats allow for conveniently downloading 
+  The problem here is that some formats allow for conveniently downloading
   an entire author by downloading a directory, other formats don't. To download
   an author one would need to loop through a result set from the database.
   How to handle two such un-alike cases in the most simple way?
   */
   download(key, opts) {
-    let resource = '';
-    if (!opts.author && !opts.title && !opts.file) {
-      console.log(`checking out everything from ${opts.dat}`);
-      return this.multidat.downloadFromDat(key, resource);
+    if (!opts.author && !opts.title && !opts.path) {
+      console.log(`checking out everything from ${key}`);
+      return this.multidat.downloadFromDat(key, '');
     }
-    // To download, we need to know the dat's format
-    opts.format = this.multidat.getDat(key).format || 'calibre';
-    resource = formatPath(opts);
-    console.log(`checking out ${opts} from ${key} as ${resource}`);
     // Our formatter has returned a path that we can use.
-    if (resource) return this.multidat.downloadFromDat(key, resource);
+    if (opts.path) {
+      console.log(`checking out ${opts.path} from ${key}`);
+      return this.multidat.downloadFromDat(key, opts.path);
+    }
     // If the formatter didn't work, then we need to query the database for files to download serially
-    console.log('unable to get a specific resource to download, trying to get a list from the db');
+    console.log('getting a list from the db of files to download');
     opts.dat = key;
-    return this.db.getItemsWith(opts)
+    return this.db.getFilesWith(opts)
       .then(rows => rows)
       .each(row => this.download(row.dat, row));
   }
@@ -435,10 +461,9 @@ export class Catalog extends EventEmitter {
     }
     return this.getDownloadCounts(key)
       .then((counts) => {
-        const o = _.find(counts, 'downloaded');
         dw.setFilesCount(
-          (o) ? o.count : 0,
-          _.sumBy(counts, 'count'));
+          _.get(counts, '1', 0),
+          _.sum(_.values(counts)));
         return Promise.resolve(dw.filesCount);
       });
   }
@@ -458,9 +483,6 @@ export class Catalog extends EventEmitter {
         ...entry,
         downloaded: true, // downloaed is true as you are importing it, right?
       };
-      // if this times out we should implement a simple promise queue,
-      // so that we just these requests to a list that gets executed when
-      // the preceeding functions .then is called.
       this.db.addTextFromMetadata(text)
         .then(() => {
           this.emit('import', { ...text, progress: data.progress });
@@ -494,9 +516,6 @@ export class Catalog extends EventEmitter {
         ...entry,
         downloaded: false, // need to check for downloaded - probaby at this point does not makes sense as we have not even downloaded the metadata.
       };
-      // if this times out we should implement a simple promise queue,
-      // so that we just these requests to a list that gets executed when
-      // the preceeding functions .then is called.
       this.db.addTextFromMetadata(text)
         .then(() => {
           this.emit('import', { ...text, progress: data.progress });
@@ -529,7 +548,7 @@ export class Catalog extends EventEmitter {
       // console.log(`${data.progress.toFixed(2)}%`, 'Downloading:', data.file);
       if (data.progress === 100) {
         // console.log('Downloaded!', data.file);
-        this.setDownloaded(data.key, entry.author, entry.title, entry.file)
+        this.setDownloaded(data.key, data.file)
           .then(() => this.updateDatDownloadCounts(data.key, true));
       }
     }

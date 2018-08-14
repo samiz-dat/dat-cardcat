@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'fs-extra';
 import path from 'path';
 import EventEmitter from 'events';
 import createDat from 'dat-node';
@@ -75,8 +75,8 @@ export default class DatWrapper extends EventEmitter {
         this.key = dat.key.toString('hex');
         this.metadataDownloadCount = dat.archive.metadata.downloaded();
         this.metadataComplete = this.metadataDownloadCount === (this.version + 1);
-        console.log('created dat:', this.key);
-        console.log('metadata:', this.metadataDownloadCount, '/', this.version, this.metadataComplete);
+        // console.log('created dat:', this.key);
+        // console.log('metadata:', this.metadataDownloadCount, '/', this.version, this.metadataComplete);
         return this;
       });
   }
@@ -86,13 +86,13 @@ export default class DatWrapper extends EventEmitter {
     this.importFiles();
 
     const network = this.dat.joinNetwork();
-    this.stats = this.dat.trackStats();
     network.once('connection', this.connectionEventHandler);
 
     // Watch for metadata syncing
     const metadata = this.dat.archive.metadata;
     metadata.on('download', this.metadataDownloadEventHandler);
     metadata.on('sync', this.metadataSyncEventHandler);
+    metadata.download(); // always download metadata
 
     // Watch for content downloading
     this.dat.archive.on('content', () => {
@@ -100,12 +100,12 @@ export default class DatWrapper extends EventEmitter {
       content.on('download', this.contentDownloadEventHandler);
       this.listeningToDownloads = true;
     });
-
     return this;
   }
 
   connectionEventHandler = () => {
-    console.log('connects via network');
+    // console.log('connects via network');
+    this.stats = this.dat.trackStats();
     console.log(chalk.gray(chalk.bold('peers:')), this.stats.peers);
   }
 
@@ -267,6 +267,7 @@ export default class DatWrapper extends EventEmitter {
           count: true,
           dereference: true,
           indexing: true,
+          live: true,
         };
         this.importer = this.dat.importFiles(importPath, opts, () => {
           console.log(`Finished importing files in ${importPath}`);
@@ -310,6 +311,7 @@ export default class DatWrapper extends EventEmitter {
           };
           this.emit('import', data);
         });
+        resolve(this.importer);
       } else {
         resolve(false);
       }
@@ -349,7 +351,7 @@ export default class DatWrapper extends EventEmitter {
     // Start download process
     // Don't use recursion if we don't have to (i.e. if we're getting everything)
     if (fn === '') {
-      this.dat.archive.content.download();
+      this.dat.archive.download();
     } else {
       download(this.dat.archive, filename);
     }
@@ -403,36 +405,72 @@ export default class DatWrapper extends EventEmitter {
     .catch(() => info);
   }
 
+  // Copies a file into a dat
+  copyFile(pathInDat, fileToCopy) {
+    const destPath = path.format({
+      dir: this.directory,
+      base: pathInDat,
+    });
+    return Promise.resolve()
+    .then(() => fs.copy(fileToCopy, destPath))
+    .catch((err) => {
+      console.error(err);
+    });
+  }
+
+  // Writes a string `content` to a file at `filePath`
+  writeFile(pathInDat, content) {
+    const destPath = path.format({
+      dir: this.directory,
+      base: pathInDat,
+    });
+    return Promise.resolve()
+      .then(() => fs.ensureDir(path.dirname(destPath)))
+      .then(() => fs.writeFile(destPath, content))
+      .catch((err) => {
+        console.error(err);
+      });
+  }
+
+  // Updates a file
+  updateFile(pathInDat, content) {
+    const destPath = path.format({
+      dir: this.directory,
+      base: pathInDat,
+    });
+    return Promise.resolve()
+      .then(() => fs.writeFile(destPath, content))
+      .catch((err) => {
+        console.error(err);
+      });
+  }
+
   // Write a manifest file
-  // @todo: fix me! why do i write empty manifests?
-  async writeManifest(opts = {}) {
-    /*
+  writeManifest(opts = {}) {
     const manifest = {
       url: `dat://${this.key}`,
       title: this.name,
       ...opts,
     };
-    await pda.writeManifest(this.dat.archive, manifest);
-    return this;
-    */
-    // @TODO: Move our own implementation to hyper.js
-    return Promise.reject();
+    return this.writeFile('dat.json', JSON.stringify(manifest));
   }
 
-  readManifest() {
-    /*
-    return pda.readManifest(this.dat.archive);
-    */
-    // @TODO: Move our own implementation to hyper.js
-    return Promise.reject();
+  // Read a manifest file
+  readManifest(filePath = 'dat.json') {
+    const hyperdriveReadFile = Promise.promisify(
+      this.dat.archive.readFile,
+      { context: this.dat.archive });
+    return hyperdriveReadFile(filePath)
+      .then(s => JSON.parse(s))
+      .catch((err) => {
+        console.error(err);
+        return {};
+      });
   }
 
+  // manifest JSON is written to the manifest file.
   updateManifest(manifest) {
-    /*
-    return pda.updateManifest(this.dat.archive, manifest);
-    */
-    // @TODO: Move our own implementation to hyper.js
-    return Promise.reject();
+    return this.updateFile('dat.json', JSON.stringify(manifest));
   }
 
   close() {

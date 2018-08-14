@@ -2,6 +2,13 @@
 
 const catalog = require('../dist/catalog');
 const inquirer = require('inquirer');
+const figlet = require('figlet');
+const chalk = require('chalk');
+const clear = require('clear');
+const clui = require('clui');
+const clc = require('cli-color');
+const Line = clui.Line;
+const LineBuffer = clui.LineBuffer;
 
 let cardcat = false;
 
@@ -21,9 +28,11 @@ const taskQuestions = [
     name: 'task',
     message: 'What do you want to do?',
     choices: [
+      new inquirer.Separator(),
       'List cardcats',
       'Use a key to import an existing cardcat',
       'Create a new cardcat from a directory',
+      'See stats',
       new inquirer.Separator(),
       'Search for something',
       'Browse by author name',
@@ -168,6 +177,37 @@ function renameTask(key) {
     .then(answers => cardcat.renameDat(key, answers.name));
 }
 
+function showStats(key) {
+  const dats = cardcat.multidat.getDats();
+  const refreshIntervalId = setInterval(() => {
+    clear();
+    const headers = new Line()
+      .padding(2)
+      .column('Peers', 20, [clc.cyan])
+      .column('Size', 20, [clc.cyan])
+      .column('Files', 20, [clc.cyan])
+      .column('Downloaded', 20, [clc.cyan])
+      .column('DL speed', 20, [clc.cyan])
+      .column('UL speed', 20, [clc.cyan])
+      .fill()
+      .output();
+    for (const dw of dats) {
+      const stats = cardcat.getDatStats(dw.key);  
+      const line = new Line()
+      .padding(2)
+      .column(`${stats.peers.total.toString()} (${stats.peers.complete.toString()} complete)`, 20)
+      .column(`${stats.size.toString()}`, 20)
+      .column(`${stats.filesCount.total.toString()}`, 20)
+      .column(`${stats.downloaded.toString()}`, 20)
+      .column(`${stats.downloadSpeed.toString()}`, 20)
+      .column(`${stats.uploadSpeed.toString()}`, 20)
+      .fill()
+      .output();
+    }
+  }, 1000);
+  process.stdin.on('keypress', () => clearInterval(refreshIntervalId));
+}
+
 function cardcatTasks(key) {
   // Handle choice
   return inquirer.prompt(cardcatTaskChoices)
@@ -175,8 +215,6 @@ function cardcatTasks(key) {
     switch (answers.choice) {
       case 'Get info': {
         console.log(`Share this key to share it's catalogue: ${key}`);
-        const stats = cardcat.getDatStats(key);
-        console.log(stats);
         break;
       }
       case 'Checkout everything': {
@@ -222,7 +260,7 @@ function searchTask() {
 function authorTasks(author) {
   // Lists all the titles for an author
   function titlesForAuthor(a) {
-    return cardcat.getTitlesForAuthor(a)
+    return cardcat.getTitlesWith({ author: a })
       .then(titles => titles.map(doc => `${a}\t${doc.title}`))
       .then(textChoiceTask);
   }
@@ -350,6 +388,7 @@ function askToAskAgain() {
 }
 
 function getTask() {
+  clear();
   inquirer.prompt(taskQuestions)
   .then((answers) => {
     switch (answers.task) {
@@ -361,6 +400,9 @@ function getTask() {
       }
       case 'List cardcats': {
         return cardcatsTask();
+      }
+      case 'See stats': {
+        return showStats();
       }
       case 'Search for something': {
         return searchTask();
@@ -383,14 +425,20 @@ function getTask() {
   .then(() => askToAskAgain());
 }
 
+clear();
+figlet('datcat', (err, data) => {
+  if (err) return;
+  console.log(chalk.red(data));
+});
+
 // Get things running
 catalog.createCatalog()
   .then((c) => {
     cardcat = c;
     return c;
   })
-  .then(c => c.getAuthors())
-  .then((rows) => {
-    console.log(`Cardcat loaded with ${rows.length} authors`);
+  .then(c => c.countAuthors())
+  .then((num) => {
+    console.log(`Cardcat loaded with ${num} authors`);
   })
   .then(() => getTask());
