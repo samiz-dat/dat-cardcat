@@ -19,9 +19,9 @@
   "author": "",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sdockray/dat-cardcat"
+    "url": "https://github.com/samiz-dat/dat-cardcat"
   },
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "babel-cli": "^6.23.0",
     "babel-core": "^6.23.1",
