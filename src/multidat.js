@@ -54,7 +54,8 @@ export default class Multidat {
           createIfMissing: true, // false will cause this to throw errors for folders that are not dats.
           sparse: true,
         };
-        return this.importDat(opts);
+        return this.importDat(opts)
+          .catch(() => []);
       })
       .then(() => this);
   }
@@ -67,7 +68,8 @@ export default class Multidat {
       directory,
       name: name || directory.split(path.sep).slice(-1)[0],
     };
-    return this.importDat(opts);
+    return this.importDat(opts)
+      .catch(() => []);
   }
 
   // Importing a remote dat by its key
@@ -135,6 +137,8 @@ export default class Multidat {
       })
       .catch((err) => {
         console.log(`* Something went wrong when importing ${opts.directory}`);
+        console.log(err);
+        throw(err);
       });
   }
 

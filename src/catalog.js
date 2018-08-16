@@ -130,8 +130,8 @@ export class Catalog extends EventEmitter {
   importDat(key, name = '') {
     return this.multidat.importRemoteDat(key, name)
       .then(dw => this.registerDat(dw))
-      .then(dw => this.attachEventListenersAndJoinNetwork(dw));
-      // .catch(Error, () => console.log(`Dat ${key} failed to import.`));
+      .then(dw => this.attachEventListenersAndJoinNetwork(dw))
+      .catch(Error, () => console.log(`Dat ${key} failed to import.`));
   }
 
   // Create a brand new dat

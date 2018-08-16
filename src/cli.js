@@ -31,7 +31,6 @@ if (process.env.npm_config_discover) {
 // npm run cli --dat=datkey --name="A Nice Name"
 } else if (process.env.npm_config_dat) {
   pending = createCatalog(dataDir)
-    .tap(c => c.discoverDats())
     .then(c => c.importDat({
       key: process.env.npm_config_dat,
       name: process.env.npm_config_name,
