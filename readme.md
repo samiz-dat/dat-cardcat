@@ -1,5 +1,7 @@
 # Dat Card Catalogue
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/samiz-dat/dat-cardcat.svg)](https://greenkeeper.io/)
+
 An aggregated card catalogue for many Calibre libraries (or any collections with a directory structure that is __Creator/Creation/Files.ext__).
 
 ## Setup
